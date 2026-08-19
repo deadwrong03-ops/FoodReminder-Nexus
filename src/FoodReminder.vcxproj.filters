@@ -74,4 +74,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+    <None Include="DEVELOPMENT_LOG.md" />
+  </ItemGroup>
 </Project>
