@@ -70,7 +70,7 @@ The addon receives buff information through ArcDPS combat events.
 
 During testing, food and utility buffs have successfully been detected and their remaining durations calculated.
 
-Because ArcDPS does not necessarily provide every existing buff immediately when a character loads into a map, detection may depend on ArcDPS emitting a relevant buff-state event.(combat)
+Because ArcDPS does not necessarily provide every existing buff immediately when a character loads into a map, detection may depend on ArcDPS emitting a relevant buff-state event like combat.
 
 This behavior is still being investigated and improved.
 
