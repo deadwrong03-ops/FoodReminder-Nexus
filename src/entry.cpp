@@ -1,4 +1,5 @@
 #include <Windows.h>
+#include <string>
 
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
@@ -7,7 +8,6 @@
 #include "ReminderManager.h"
 #include "ArcDPS.h"
 #include "BuffTracker.h"
-#include <string>
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -43,7 +43,8 @@ extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef()
     AddonDef.Version.Revision = 0;
 
     AddonDef.Author = "Scott";
-    AddonDef.Description = "Food and utility expiration reminders for Guild Wars 2.";
+    AddonDef.Description =
+        "Food and utility expiration reminders for Guild Wars 2.";
 
     AddonDef.Load = AddonLoad;
     AddonDef.Unload = AddonUnload;
@@ -56,23 +57,44 @@ void AddonLoad(AddonAPI_t* aApi)
 {
     APIDefs = aApi;
 
-    ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
+    ImGui::SetCurrentContext(
+        (ImGuiContext*)APIDefs->ImguiContext
+    );
+
     ImGui::SetAllocatorFunctions(
         (void* (*)(size_t, void*))APIDefs->ImguiMalloc,
         (void (*)(void*, void*))APIDefs->ImguiFree
     );
+
     Settings::Load(hSelf);
-    NexusLink = (NexusLinkData_t*)APIDefs->DataLink_Get("DL_NEXUS_LINK");
+
+    NexusLink =
+        (NexusLinkData_t*)APIDefs->DataLink_Get(
+            "DL_NEXUS_LINK"
+        );
+
     APIDefs->Events_Subscribe(
         "EV_ARCDPS_COMBATEVENT_SQUAD_RAW",
         OnArcDPSCombat
     );
 
-    APIDefs->GUI_Register(RT_Render, AddonRender);
-    APIDefs->GUI_Register(RT_OptionsRender, AddonOptions);
+    APIDefs->GUI_Register(
+        RT_Render,
+        AddonRender
+    );
 
-    APIDefs->Log(LOGL_INFO, "Food Reminder", "Food Reminder loaded.");
+    APIDefs->GUI_Register(
+        RT_OptionsRender,
+        AddonOptions
+    );
+
+    APIDefs->Log(
+        LOGL_INFO,
+        "Food Reminder",
+        "Food Reminder loaded."
+    );
 }
+
 void OnArcDPSCombat(void* eventArgs)
 {
     EvCombatData* combatData =
@@ -84,6 +106,7 @@ void OnArcDPSCombat(void* eventArgs)
 void AddonUnload()
 {
     Settings::Save(hSelf);
+
     if (APIDefs != nullptr)
     {
         APIDefs->Events_Unsubscribe(
@@ -91,8 +114,14 @@ void AddonUnload()
             OnArcDPSCombat
         );
 
-        APIDefs->GUI_Deregister(AddonRender);
-        APIDefs->GUI_Deregister(AddonOptions);
+        APIDefs->GUI_Deregister(
+            AddonRender
+        );
+
+        APIDefs->GUI_Deregister(
+            AddonOptions
+        );
+
         APIDefs->Log(
             LOGL_INFO,
             "Food Reminder",
@@ -105,7 +134,7 @@ void AddonUnload()
 }
 
 void AddonRender()
-{ 
+{
     if (!g_Settings.enabled)
     {
         return;
@@ -141,15 +170,23 @@ void AddonRender()
         return;
     }
 
-    const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+    const ImVec2 displaySize =
+        ImGui::GetIO().DisplaySize;
 
     const ImVec2 center(
         displaySize.x * 0.5f,
         displaySize.y * 0.25f
     );
 
-    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowBgAlpha(0.90f);
+    ImGui::SetNextWindowPos(
+        center,
+        ImGuiCond_Always,
+        ImVec2(0.5f, 0.5f)
+    );
+
+    ImGui::SetNextWindowBgAlpha(
+        0.90f
+    );
 
     const ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoDecoration |
@@ -158,27 +195,36 @@ void AddonRender()
         ImGuiWindowFlags_NoFocusOnAppearing |
         ImGuiWindowFlags_NoNav;
 
-    if (ImGui::Begin("##FoodReminderAlert", nullptr, flags))
+    if (ImGui::Begin(
+        "##FoodReminderAlert",
+        nullptr,
+        flags))
     {
         int64_t remainingMs = 0;
 
         const char* reminderTitle =
             ReminderManager::GetReminderTitle();
 
-        if (std::string(reminderTitle) == "FOOD REMINDER")
+        if (std::string(reminderTitle) ==
+            "FOOD REMINDER")
         {
-            remainingMs = foodRemaining;
+            remainingMs =
+                foodRemaining;
         }
-        else if (std::string(reminderTitle) == "UTILITY REMINDER")
+        else if (
+            std::string(reminderTitle) ==
+            "UTILITY REMINDER")
         {
-            remainingMs = utilityRemaining;
+            remainingMs =
+                utilityRemaining;
         }
         else
         {
             if (hasFood && hasUtility)
             {
                 remainingMs =
-                    foodRemaining < utilityRemaining
+                    foodRemaining <
+                    utilityRemaining
                     ? foodRemaining
                     : utilityRemaining;
             }
@@ -215,7 +261,10 @@ void AddonRender()
 
 void AddonOptions()
 {
-    ImGui::TextUnformatted("Food Reminder");
+    ImGui::TextUnformatted(
+        "Food Reminder"
+    );
+
     ImGui::Separator();
 
     bool settingsChanged = false;
@@ -227,36 +276,131 @@ void AddonOptions()
         settingsChanged = true;
     }
 
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted(
+        "Reminder Timing"
+    );
+
+    int foodWarningMinutes =
+        g_Settings.foodWarningSeconds / 60;
+
+    int utilityWarningMinutes =
+        g_Settings.utilityWarningSeconds / 60;
+
     if (ImGui::SliderInt(
         "Food early warning",
-        &g_Settings.foodWarningSeconds,
-        30,
-        7200,
-        "%d sec"))
+        &foodWarningMinutes,
+        1,
+        120,
+        "%d min"))
     {
+        g_Settings.foodWarningSeconds =
+            foodWarningMinutes * 60;
+
         settingsChanged = true;
     }
 
     if (ImGui::SliderInt(
         "Utility early warning",
-        &g_Settings.utilityWarningSeconds,
-        30,
-        7200,
-        "%d sec"))
+        &utilityWarningMinutes,
+        1,
+        120,
+        "%d min"))
     {
+        g_Settings.utilityWarningSeconds =
+            utilityWarningMinutes * 60;
+
         settingsChanged = true;
     }
 
-    ImGui::Spacing();
-
-    if (ImGui::Button("Test Reminder"))
+    if (settingsChanged)
     {
-        ReminderManager::TriggerTestReminder();
+        Settings::Save(hSelf);
     }
+
     ImGui::Spacing();
     ImGui::Separator();
 
-    if (ImGui::CollapsingHeader("ArcDPS Buff Debug"))
+    ImGui::TextUnformatted(
+        "Current Buffs"
+    );
+
+    if (BuffTracker::HasFood())
+    {
+        const int64_t foodMs =
+            BuffTracker::GetFoodRemainingMilliseconds();
+
+        const int64_t foodSeconds =
+            foodMs / 1000;
+
+        const int64_t foodHours =
+            foodSeconds / 3600;
+
+        const int64_t foodMinutes =
+            (foodSeconds % 3600) / 60;
+
+        const int64_t foodRemainingSeconds =
+            foodSeconds % 60;
+
+        ImGui::Text(
+            "Food:    %02lld:%02lld:%02lld",
+            foodHours,
+            foodMinutes,
+            foodRemainingSeconds
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Food:    Not detected"
+        );
+    }
+
+    if (BuffTracker::HasUtility())
+    {
+        const int64_t utilityMs =
+            BuffTracker::GetUtilityRemainingMilliseconds();
+
+        const int64_t utilitySeconds =
+            utilityMs / 1000;
+
+        const int64_t utilityHours =
+            utilitySeconds / 3600;
+
+        const int64_t utilityMinutes =
+            (utilitySeconds % 3600) / 60;
+
+        const int64_t utilityRemainingSeconds =
+            utilitySeconds % 60;
+
+        ImGui::Text(
+            "Utility: %02lld:%02lld:%02lld",
+            utilityHours,
+            utilityMinutes,
+            utilityRemainingSeconds
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Utility: Not detected"
+        );
+    }
+
+    ImGui::Spacing();
+
+    if (ImGui::Button(
+        "Test Reminder"))
+    {
+        ReminderManager::TriggerTestReminder();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    if (ImGui::CollapsingHeader(
+        "Developer Debug"))
     {
         ImGui::Text(
             "ArcDPS Events: %llu",
@@ -264,69 +408,6 @@ void AddonOptions()
                 BuffTracker::GetTotalEventCount()
                 )
         );
-        ImGui::Text("Detected Buffs:");
-
-        ImGui::Text("Detected Buffs:");
-
-        if (BuffTracker::HasFood())
-        {
-            const int64_t foodMs =
-                BuffTracker::GetFoodRemainingMilliseconds();
-
-            const int64_t foodSeconds = foodMs / 1000;
-
-            const int64_t foodHours =
-                foodSeconds / 3600;
-
-            const int64_t foodMinutes =
-                (foodSeconds % 3600) / 60;
-
-            const int64_t foodRemainingSeconds =
-                foodSeconds % 60;
-
-            ImGui::Text(
-                "Food: %02lld:%02lld:%02lld",
-                foodHours,
-                foodMinutes,
-                foodRemainingSeconds
-            );
-        }
-        else
-        {
-            ImGui::Text("Food: Not detected");
-        }
-
-        if (BuffTracker::HasUtility())
-        {
-            const int64_t utilityMs =
-                BuffTracker::GetUtilityRemainingMilliseconds();
-
-            const int64_t utilitySeconds = utilityMs / 1000;
-
-            const int64_t utilityHours =
-                utilitySeconds / 3600;
-
-            const int64_t utilityMinutes =
-                (utilitySeconds % 3600) / 60;
-
-            const int64_t utilityRemainingSeconds =
-                utilitySeconds % 60;
-
-            ImGui::Text(
-                "Utility: %02lld:%02lld:%02lld",
-                utilityHours,
-                utilityMinutes,
-                utilityRemainingSeconds
-            );
-        }
-        else
-        {
-            ImGui::Text("Utility: Not detected");
-        }
-
-        ImGui::Spacing();
-
-        ImGui::Spacing();
 
         ImGui::Text(
             "Buff-like Events: %llu",
@@ -335,14 +416,16 @@ void AddonOptions()
                 )
         );
 
-        if (ImGui::Button("Clear Buff Debug"))
+        if (ImGui::Button(
+            "Clear Buff Debug"))
         {
             BuffTracker::Reset();
         }
 
         ImGui::Separator();
 
-        const std::vector<BuffEventDebug> recentEvents =
+        const std::vector<BuffEventDebug>
+            recentEvents =
             BuffTracker::GetRecentBuffEvents();
 
         static bool selfOnly = true;
@@ -352,22 +435,23 @@ void AddonOptions()
             &selfOnly
         );
 
-        ImGui::Text("Recent Buff Events:");
-        ImGui::Text("Recent Buff Events:");
+        ImGui::TextUnformatted(
+            "Recent Buff Events:"
+        );
 
-        for (auto it = recentEvents.rbegin();
+        for (auto it =
+            recentEvents.rbegin();
             it != recentEvents.rend();
             ++it)
         {
-            
-            const BuffEventDebug& event = *it;
+            const BuffEventDebug& event =
+                *it;
 
-            if (selfOnly && !event.destinationIsSelf)
+            if (selfOnly &&
+                !event.destinationIsSelf)
             {
                 continue;
             }
-
-            
 
             ImGui::TextWrapped(
                 "%s (%u) | Val:%d BuffDmg:%d Over:%u "
@@ -378,15 +462,28 @@ void AddonOptions()
                 event.value,
                 event.buffDamage,
                 event.overstackValue,
-                static_cast<unsigned int>(event.buff),
-                static_cast<unsigned int>(event.buffRemove),
-                static_cast<unsigned int>(event.stateChange),
-                event.sourceIsSelf ? "Y" : "N",
-                event.destinationIsSelf ? "Y" : "N"
+                static_cast<unsigned int>(
+                    event.buff
+                    ),
+                static_cast<unsigned int>(
+                    event.buffRemove
+                    ),
+                static_cast<unsigned int>(
+                    event.stateChange
+                    ),
+                event.sourceIsSelf
+                ? "Y"
+                : "N",
+                event.destinationIsSelf
+                ? "Y"
+                : "N"
             );
         }
     }
 
     ImGui::Spacing();
-    ImGui::TextDisabled("Food Reminder v0.1.0 - Development Build");
+
+    ImGui::TextDisabled(
+        "Food Reminder v0.1.0 - Development Build"
+    );
 }
