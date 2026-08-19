@@ -3,6 +3,7 @@
 #include <mutex>
 #include <vector>
 #include <chrono>
+#include <string>
 
 namespace
 {
@@ -14,8 +15,7 @@ namespace
     std::vector<BuffEventDebug> g_RecentBuffEvents;
 
     constexpr size_t MAX_DEBUG_EVENTS = 100;
-    constexpr uint32_t FOOD_BUFF_ID = 10001;
-    constexpr uint32_t UTILITY_BUFF_ID = 9963;
+    
 
     bool g_HasFood = false;
     bool g_HasUtility = false;
@@ -52,9 +52,39 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         combatData->dst != nullptr &&
         combatData->dst->IsSelf != 0;
 
-    if (destinationIsSelf && ev.IsStatechange == 18)
+    if (destinationIsSelf)
     {
-        if (ev.SkillID == FOOD_BUFF_ID)
+        const std::string skillName =
+            combatData->skillname != nullptr
+            ? combatData->skillname
+            : "";
+
+        const bool isFoodEvent =
+            skillName == "Nourishment";
+
+        const bool isUtilityEvent =
+            skillName == "Enhancement";
+
+        const bool hasDuration =
+            ev.Value > 0;
+        const bool isRemoved =
+            ev.IsBuffRemove != 0;
+
+        if (isFoodEvent && isRemoved)
+        {
+            g_HasFood = false;
+            g_FoodDurationMilliseconds = 0;
+            return;
+        }
+
+        if (isUtilityEvent && isRemoved)
+        {
+            g_HasUtility = false;
+            g_UtilityDurationMilliseconds = 0;
+            return;
+        }
+
+        if (isFoodEvent && hasDuration)
         {
             g_HasFood = true;
             g_FoodDurationMilliseconds =
@@ -63,7 +93,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_FoodReceivedTime =
                 std::chrono::steady_clock::now();
         }
-        else if (ev.SkillID == UTILITY_BUFF_ID)
+        else if (isUtilityEvent && hasDuration)
         {
             g_HasUtility = true;
             g_UtilityDurationMilliseconds =
@@ -152,16 +182,55 @@ std::vector<BuffEventDebug> BuffTracker::GetRecentBuffEvents()
     return g_RecentBuffEvents;
 
 }
+
 bool BuffTracker::HasFood()
 {
     std::lock_guard<std::mutex> lock(g_BuffMutex);
-    return g_HasFood;
+
+    if (!g_HasFood)
+    {
+        return false;
+    }
+
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() -
+            g_FoodReceivedTime
+        ).count();
+
+    if (elapsed >= g_FoodDurationMilliseconds)
+    {
+        g_HasFood = false;
+        g_FoodDurationMilliseconds = 0;
+        return false;
+    }
+
+    return true;
 }
 
 bool BuffTracker::HasUtility()
 {
     std::lock_guard<std::mutex> lock(g_BuffMutex);
-    return g_HasUtility;
+
+    if (!g_HasUtility)
+    {
+        return false;
+    }
+
+    const auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() -
+            g_UtilityReceivedTime
+        ).count();
+
+    if (elapsed >= g_UtilityDurationMilliseconds)
+    {
+        g_HasUtility = false;
+        g_UtilityDurationMilliseconds = 0;
+        return false;
+    }
+
+    return true;
 }
 
 int64_t BuffTracker::GetFoodRemainingMilliseconds()
