@@ -103,8 +103,38 @@ void AddonUnload()
 }
 
 void AddonRender()
-{
-    if (!g_Settings.enabled || !ReminderManager::IsTestReminderActive())
+{ 
+    if (!g_Settings.enabled)
+    {
+        return;
+    }
+
+    const bool hasFood =
+        BuffTracker::HasFood();
+
+    const bool hasUtility =
+        BuffTracker::HasUtility();
+
+    const int64_t foodRemaining =
+        hasFood
+        ? BuffTracker::GetFoodRemainingMilliseconds()
+        : 0;
+
+    const int64_t utilityRemaining =
+        hasUtility
+        ? BuffTracker::GetUtilityRemainingMilliseconds()
+        : 0;
+
+    ReminderManager::Update(
+        hasFood,
+        foodRemaining,
+        g_Settings.foodWarningSeconds,
+        hasUtility,
+        utilityRemaining,
+        g_Settings.utilityWarningSeconds
+    );
+
+    if (!ReminderManager::IsReminderActive())
     {
         return;
     }
@@ -128,11 +158,20 @@ void AddonRender()
 
     if (ImGui::Begin("##FoodReminderAlert", nullptr, flags))
     {
-        ImGui::TextUnformatted("FOOD REMINDER");
+        ImGui::TextUnformatted(
+            ReminderManager::GetReminderTitle()
+        );
+
         ImGui::Separator();
-        ImGui::TextUnformatted("Your food or utility is expiring soon.");
-        ImGui::Text("Test closes in %.1f seconds",
-            ReminderManager::GetTestReminderSecondsRemaining());
+
+        ImGui::TextUnformatted(
+            ReminderManager::GetReminderMessage()
+        );
+
+        ImGui::Text(
+            "Closes in %.1f seconds",
+            ReminderManager::GetReminderSecondsRemaining()
+        );
     }
 
     ImGui::End();
@@ -149,7 +188,7 @@ void AddonOptions()
         "Food early warning",
         &g_Settings.foodWarningSeconds,
         30,
-        900,
+        7200,
         "%d sec"
     );
 
@@ -157,7 +196,7 @@ void AddonOptions()
         "Utility early warning",
         &g_Settings.utilityWarningSeconds,
         30,
-        900,
+        7200,
         "%d sec"
     );
 
