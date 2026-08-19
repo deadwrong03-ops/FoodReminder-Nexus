@@ -8,3 +8,9 @@ struct FoodReminderSettings
 };
 
 extern FoodReminderSettings g_Settings;
+
+namespace Settings
+{
+    bool Load(void* moduleHandle);
+    bool Save(void* moduleHandle);
+}

@@ -60,7 +60,7 @@ void AddonLoad(AddonAPI_t* aApi)
         (void* (*)(size_t, void*))APIDefs->ImguiMalloc,
         (void (*)(void*, void*))APIDefs->ImguiFree
     );
-
+    Settings::Load(hSelf);
     NexusLink = (NexusLinkData_t*)APIDefs->DataLink_Get("DL_NEXUS_LINK");
     APIDefs->Events_Subscribe(
         "EV_ARCDPS_COMBATEVENT_SQUAD_RAW",
@@ -82,6 +82,7 @@ void OnArcDPSCombat(void* eventArgs)
 
 void AddonUnload()
 {
+    Settings::Save(hSelf);
     if (APIDefs != nullptr)
     {
         APIDefs->Events_Unsubscribe(
@@ -182,23 +183,34 @@ void AddonOptions()
     ImGui::TextUnformatted("Food Reminder");
     ImGui::Separator();
 
-    ImGui::Checkbox("Enable reminders", &g_Settings.enabled);
+    bool settingsChanged = false;
 
-    ImGui::SliderInt(
+    if (ImGui::Checkbox(
+        "Enable reminders",
+        &g_Settings.enabled))
+    {
+        settingsChanged = true;
+    }
+
+    if (ImGui::SliderInt(
         "Food early warning",
         &g_Settings.foodWarningSeconds,
         30,
         7200,
-        "%d sec"
-    );
+        "%d sec"))
+    {
+        settingsChanged = true;
+    }
 
-    ImGui::SliderInt(
+    if (ImGui::SliderInt(
         "Utility early warning",
         &g_Settings.utilityWarningSeconds,
         30,
         7200,
-        "%d sec"
-    );
+        "%d sec"))
+    {
+        settingsChanged = true;
+    }
 
     ImGui::Spacing();
 
