@@ -19,6 +19,6 @@ namespace ReminderManager
 
     const char* GetReminderTitle();
     const char* GetReminderMessage();
-
+    int64_t GetBuffRemainingMilliseconds();
     float GetReminderSecondsRemaining();
 }

@@ -15,6 +15,7 @@ namespace
 
     bool g_FoodWarningSent = false;
     bool g_UtilityWarningSent = false;
+    int64_t g_BuffRemainingMilliseconds = 0;
 
     constexpr int REMINDER_DISPLAY_SECONDS = 5;
 
@@ -103,6 +104,11 @@ void ReminderManager::Update(
     // combined reminder instead of overlapping alerts.
     if (foodWarningDue && utilityWarningDue)
     {
+        g_BuffRemainingMilliseconds =
+            foodRemainingMilliseconds < utilityRemainingMilliseconds
+            ? foodRemainingMilliseconds
+            : utilityRemainingMilliseconds;
+
         ShowReminder(
             "FOOD + UTILITY REMINDER",
             "Your food and utility are expiring soon."
@@ -116,6 +122,8 @@ void ReminderManager::Update(
 
     if (foodWarningDue)
     {
+        g_BuffRemainingMilliseconds =
+            foodRemainingMilliseconds;
         ShowReminder(
             "FOOD REMINDER",
             "Your food is expiring soon."
@@ -126,6 +134,9 @@ void ReminderManager::Update(
 
     if (utilityWarningDue)
     {
+        g_BuffRemainingMilliseconds =
+            utilityRemainingMilliseconds;
+
         ShowReminder(
             "UTILITY REMINDER",
             "Your utility is expiring soon."
@@ -149,7 +160,10 @@ const char* ReminderManager::GetReminderMessage()
 {
     return g_ReminderMessage.c_str();
 }
-
+int64_t ReminderManager::GetBuffRemainingMilliseconds()
+{
+    return g_BuffRemainingMilliseconds;
+}
 float ReminderManager::GetReminderSecondsRemaining()
 {
     if (!IsReminderActive())

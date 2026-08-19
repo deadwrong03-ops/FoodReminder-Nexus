@@ -7,6 +7,7 @@
 #include "ReminderManager.h"
 #include "ArcDPS.h"
 #include "BuffTracker.h"
+#include <string>
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -159,19 +160,53 @@ void AddonRender()
 
     if (ImGui::Begin("##FoodReminderAlert", nullptr, flags))
     {
+        int64_t remainingMs = 0;
+
+        const char* reminderTitle =
+            ReminderManager::GetReminderTitle();
+
+        if (std::string(reminderTitle) == "FOOD REMINDER")
+        {
+            remainingMs = foodRemaining;
+        }
+        else if (std::string(reminderTitle) == "UTILITY REMINDER")
+        {
+            remainingMs = utilityRemaining;
+        }
+        else
+        {
+            if (hasFood && hasUtility)
+            {
+                remainingMs =
+                    foodRemaining < utilityRemaining
+                    ? foodRemaining
+                    : utilityRemaining;
+            }
+        }
+
+        const int64_t remainingSeconds =
+            remainingMs / 1000;
+
+        const int64_t hours =
+            remainingSeconds / 3600;
+
+        const int64_t minutes =
+            (remainingSeconds % 3600) / 60;
+
+        const int64_t seconds =
+            remainingSeconds % 60;
+
         ImGui::TextUnformatted(
             ReminderManager::GetReminderTitle()
         );
 
         ImGui::Separator();
 
-        ImGui::TextUnformatted(
-            ReminderManager::GetReminderMessage()
-        );
-
         ImGui::Text(
-            "Closes in %.1f seconds",
-            ReminderManager::GetReminderSecondsRemaining()
+            "%02lld:%02lld:%02lld remaining",
+            hours,
+            minutes,
+            seconds
         );
     }
 
