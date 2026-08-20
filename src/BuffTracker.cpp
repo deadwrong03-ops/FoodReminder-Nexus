@@ -23,6 +23,7 @@ namespace
 
     bool g_HasMetabolicPrimer = false;
     bool g_HasUtilityPrimer = false;
+    bool g_PrimerSettingsChanged = false;
 
     int64_t g_FoodDurationMilliseconds = 0;
     int64_t g_UtilityDurationMilliseconds = 0;
@@ -107,6 +108,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_HasMetabolicPrimer = false;
             g_MetabolicPrimerDurationMilliseconds = 0;
             g_Settings.metabolicPrimerExpiresAt = 0;
+            g_PrimerSettingsChanged = true;
             return;
         }
 
@@ -115,6 +117,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_HasUtilityPrimer = false;
             g_UtilityPrimerDurationMilliseconds = 0;
             g_Settings.utilityPrimerExpiresAt = 0;
+            g_PrimerSettingsChanged = true;
             return;
         }
 
@@ -154,6 +157,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_Settings.metabolicPrimerExpiresAt =
                 static_cast<int64_t>(std::time(nullptr)) +
                 durationSeconds;
+            g_PrimerSettingsChanged = true;
         }
         else if (isUtilityPrimerEvent && hasDuration)
         {
@@ -171,6 +175,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_Settings.utilityPrimerExpiresAt =
                 static_cast<int64_t>(std::time(nullptr)) +
                 durationSeconds;
+            g_PrimerSettingsChanged = true;
         }
     }
 
@@ -499,4 +504,15 @@ void BuffTracker::SavePrimerState()
 {
     // Primer expiration timestamps are stored in g_Settings.
     // Settings.cpp handles writing them to disk.
+}
+bool BuffTracker::ConsumePrimerSettingsChanged()
+{
+    std::lock_guard<std::mutex> lock(g_BuffMutex);
+
+    const bool changed =
+        g_PrimerSettingsChanged;
+
+    g_PrimerSettingsChanged = false;
+
+    return changed;
 }

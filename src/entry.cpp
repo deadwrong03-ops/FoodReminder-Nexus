@@ -102,7 +102,11 @@ void OnArcDPSCombat(void* eventArgs)
         static_cast<EvCombatData*>(eventArgs);
 
     BuffTracker::ProcessEvent(combatData);
-    Settings::Save(hSelf);
+
+    if (BuffTracker::ConsumePrimerSettingsChanged())
+    {
+        Settings::Save(hSelf);
+    }
 }
 
 void AddonUnload()
