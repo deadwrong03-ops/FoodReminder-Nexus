@@ -334,6 +334,12 @@ void AddonOptions()
     int utilityPrimerWarningMinutes =
         g_Settings.utilityPrimerWarningSeconds / 60;
 
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted(
+        "Food & Utility"
+    );
+
     if (ImGui::SliderInt(
         "Food early warning",
         &foodWarningMinutes,
@@ -359,6 +365,12 @@ void AddonOptions()
 
         settingsChanged = true;
     }
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted(
+        "Primers"
+    );
 
     if (ImGui::SliderInt(
         "Metabolic Primer early warning",
