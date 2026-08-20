@@ -10,6 +10,7 @@
 #include "ArcDPS.h"
 #include "BuffTracker.h"
 #include "ConsumableData.h"
+#include "ExtrasIntegration.h"
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -163,6 +164,8 @@ void AddonUnload()
 {
     BuffTracker::SavePrimerState();
     Settings::Save(hSelf);
+
+    ExtrasIntegration::Reset();
 
     if (APIDefs != nullptr)
     {
@@ -1125,6 +1128,97 @@ void AddonOptions()
             "Utility Skill ID: %u",
             BuffTracker::GetUtilitySkillID()
         );
+
+        //
+        // Unofficial Extras debug.
+        //
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        ImGui::TextUnformatted(
+            "Unofficial Extras"
+        );
+
+        const bool extrasAvailable =
+            ExtrasIntegration::IsAvailable();
+
+        ImGui::Text(
+            "Status: %s",
+            extrasAvailable
+            ? "Connected"
+            : "Not detected"
+        );
+
+        if (extrasAvailable)
+        {
+            const std::string extrasVersion =
+                ExtrasIntegration::GetVersion();
+
+            ImGui::Text(
+                "Version: %s",
+                extrasVersion.empty()
+                ? "Unknown"
+                : extrasVersion.c_str()
+            );
+
+            const std::vector<
+                ExtrasSquadMember
+            > extrasSquadMembers =
+                ExtrasIntegration::
+                GetSquadMembers();
+
+            ImGui::Text(
+                "Squad Members: %llu",
+                static_cast<
+                unsigned long long
+                >(
+                    extrasSquadMembers.size()
+                    )
+            );
+
+            if (extrasSquadMembers.empty())
+            {
+                ImGui::TextDisabled(
+                    "No squad members reported yet."
+                );
+            }
+            else
+            {
+                for (
+                    const ExtrasSquadMember&
+                    member :
+                    extrasSquadMembers
+                    )
+                {
+                    const char* role =
+                        member.isCommander
+                        ? "Commander"
+                        : member.isLieutenant
+                        ? "Lieutenant"
+                        : "Member";
+
+                    ImGui::Text(
+                        "Sub %u | %s | %s | Ready: %s",
+                        static_cast<unsigned int>(
+                            member.subgroup
+                            ),
+                        member.accountName.c_str(),
+                        role,
+                        member.ready
+                        ? "Yes"
+                        : "No"
+                    );
+                }
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "Squad tracking requires Unofficial Extras."
+            );
+        }
+
+        ImGui::Separator();
 
         if (ImGui::Button(
             "Clear Buff Debug"))
