@@ -5,7 +5,6 @@
 #include <vector>
 #include <chrono>
 #include <string>
-#include <ctime>
 
 namespace
 {
@@ -49,6 +48,86 @@ namespace
     std::chrono::steady_clock::time_point g_MetabolicPrimerReceivedTime;
     std::chrono::steady_clock::time_point g_UtilityPrimerReceivedTime;
 
+    int64_t GetRemainingSecondsLocked(
+        bool hasBuff,
+        int64_t durationMilliseconds,
+        const std::chrono::steady_clock::time_point& receivedTime
+    )
+    {
+        if (!hasBuff ||
+            durationMilliseconds <= 0)
+        {
+            return 0;
+        }
+
+        const auto elapsed =
+            std::chrono::duration_cast<
+            std::chrono::milliseconds
+            >(
+                std::chrono::steady_clock::now() -
+                receivedTime
+            ).count();
+
+        const int64_t remainingMilliseconds =
+            durationMilliseconds - elapsed;
+
+        if (remainingMilliseconds <= 0)
+        {
+            return 0;
+        }
+
+        // Round upward so saving/restoring does not
+        // lose almost a full second on every switch.
+        return
+            (remainingMilliseconds + 999) /
+            1000;
+    }
+
+    void SaveCurrentCharacterConsumablesLocked()
+    {
+        if (g_SelfCharacterName.empty())
+        {
+            return;
+        }
+
+        CharacterConsumableState& state =
+            g_Settings.characterConsumables[
+                g_SelfCharacterName
+            ];
+
+        const int64_t foodRemainingSeconds =
+            GetRemainingSecondsLocked(
+                g_HasFood,
+                g_FoodDurationMilliseconds,
+                g_FoodReceivedTime
+            );
+
+        const int64_t utilityRemainingSeconds =
+            GetRemainingSecondsLocked(
+                g_HasUtility,
+                g_UtilityDurationMilliseconds,
+                g_UtilityReceivedTime
+            );
+
+        if (state.foodRemainingSeconds !=
+            foodRemainingSeconds)
+        {
+            state.foodRemainingSeconds =
+                foodRemainingSeconds;
+
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityRemainingSeconds !=
+            utilityRemainingSeconds)
+        {
+            state.utilityRemainingSeconds =
+                utilityRemainingSeconds;
+
+            g_SettingsChanged = true;
+        }
+    }
+
     void RestoreCharacterConsumablesLocked(
         const std::string& characterName
     )
@@ -75,49 +154,42 @@ namespace
             return;
         }
 
-        const int64_t now =
-            static_cast<int64_t>(
-                std::time(nullptr)
-                );
-
         CharacterConsumableState& state =
             it->second;
 
-        if (state.foodExpiresAt > now)
+        if (state.foodRemainingSeconds > 0)
         {
-            const int64_t remainingSeconds =
-                state.foodExpiresAt - now;
-
             g_HasFood = true;
 
             g_FoodDurationMilliseconds =
-                remainingSeconds * 1000;
+                state.foodRemainingSeconds *
+                1000;
 
             g_FoodReceivedTime =
                 std::chrono::steady_clock::now();
         }
-        else if (state.foodExpiresAt != 0)
+        else if (
+            state.foodRemainingSeconds < 0)
         {
-            state.foodExpiresAt = 0;
+            state.foodRemainingSeconds = 0;
             g_SettingsChanged = true;
         }
 
-        if (state.utilityExpiresAt > now)
+        if (state.utilityRemainingSeconds > 0)
         {
-            const int64_t remainingSeconds =
-                state.utilityExpiresAt - now;
-
             g_HasUtility = true;
 
             g_UtilityDurationMilliseconds =
-                remainingSeconds * 1000;
+                state.utilityRemainingSeconds *
+                1000;
 
             g_UtilityReceivedTime =
                 std::chrono::steady_clock::now();
         }
-        else if (state.utilityExpiresAt != 0)
+        else if (
+            state.utilityRemainingSeconds < 0)
         {
-            state.utilityExpiresAt = 0;
+            state.utilityRemainingSeconds = 0;
             g_SettingsChanged = true;
         }
     }
@@ -125,14 +197,18 @@ namespace
 
 void BuffTracker::Reset()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     g_TotalEventCount = 0;
     g_BuffLikeEventCount = 0;
     g_RecentBuffEvents.clear();
 }
 
-void BuffTracker::ProcessEvent(const EvCombatData* combatData)
+void BuffTracker::ProcessEvent(
+    const EvCombatData* combatData
+)
 {
     if (combatData == nullptr)
     {
@@ -145,7 +221,9 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     //
     if (combatData->ev == nullptr)
     {
-        std::lock_guard<std::mutex> lock(g_BuffMutex);
+        std::lock_guard<std::mutex> lock(
+            g_BuffMutex
+        );
 
         if (combatData->src == nullptr)
         {
@@ -175,6 +253,10 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                 ? combatData->src->Name
                 : "";
 
+            const bool hadIdentity =
+                g_SelfAgentID != 0 ||
+                !g_SelfCharacterName.empty();
+
             const bool characterChanged =
                 !newCharacterName.empty() &&
                 !g_SelfCharacterName.empty() &&
@@ -187,9 +269,19 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                 newSelfAgentID !=
                 g_SelfAgentID;
 
-            if (characterChanged ||
-                agentChanged)
+            const bool identityChanged =
+                characterChanged ||
+                agentChanged;
+
+            //
+            // Freeze the old character's current
+            // remaining Food/Utility time before
+            // changing identity.
+            //
+            if (identityChanged)
             {
+                SaveCurrentCharacterConsumablesLocked();
+
                 g_HasFood = false;
                 g_HasUtility = false;
 
@@ -209,7 +301,20 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             {
                 g_SelfCharacterName =
                     newCharacterName;
+            }
 
+            //
+            // Restore only on first identification
+            // or a real identity/agent change.
+            //
+            // Do not restore on duplicate agent
+            // notifications because that would
+            // rewind a running timer.
+            //
+            if ((!hadIdentity ||
+                identityChanged) &&
+                !g_SelfCharacterName.empty())
+            {
                 RestoreCharacterConsumablesLocked(
                     g_SelfCharacterName
                 );
@@ -223,8 +328,15 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         //
         if (combatData->src->Profession == 0 &&
             g_SelfAgentID != 0 &&
-            combatData->src->ID == g_SelfAgentID)
+            combatData->src->ID ==
+            g_SelfAgentID)
         {
+            //
+            // Freeze remaining Food/Utility time
+            // before clearing character identity.
+            //
+            SaveCurrentCharacterConsumablesLocked();
+
             g_HasFood = false;
             g_HasUtility = false;
 
@@ -243,7 +355,9 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     const ArcDPS::CombatEvent& ev =
         *combatData->ev;
 
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     ++g_TotalEventCount;
 
@@ -283,6 +397,10 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         }
     }
 
+    const bool hadIdentity =
+        g_SelfAgentID != 0 ||
+        !g_SelfCharacterName.empty();
+
     const bool characterNameChanged =
         !currentSelfCharacterName.empty() &&
         !g_SelfCharacterName.empty() &&
@@ -295,11 +413,18 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         currentSelfAgentID !=
         g_SelfAgentID;
 
-    if (characterNameChanged ||
-        agentChanged)
+    const bool identityChanged =
+        characterNameChanged ||
+        agentChanged;
+
+    if (identityChanged)
     {
-        // New character detected.
-        // Clear transient Food/Utility state.
+        //
+        // Freeze old character state before
+        // switching to the new identity.
+        //
+        SaveCurrentCharacterConsumablesLocked();
+
         g_HasFood = false;
         g_HasUtility = false;
 
@@ -321,8 +446,9 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             currentSelfCharacterName;
     }
 
-    if (characterNameChanged ||
-        agentChanged)
+    if ((!hadIdentity ||
+        identityChanged) &&
+        !g_SelfCharacterName.empty())
     {
         RestoreCharacterConsumablesLocked(
             g_SelfCharacterName
@@ -339,7 +465,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         {
             g_IsInCombat = true;
         }
-        else if (ev.IsStatechange ==
+        else if (
+            ev.IsStatechange ==
             STATECHANGE_EXIT_COMBAT)
         {
             g_IsInCombat = false;
@@ -374,7 +501,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         const bool isRemoved =
             ev.IsBuffRemove != 0;
 
-        if (isFoodEvent && isRemoved)
+        if (isFoodEvent &&
+            isRemoved)
         {
             g_HasFood = false;
             g_FoodDurationMilliseconds = 0;
@@ -385,7 +513,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                     .characterConsumables[
                         g_SelfCharacterName
                     ]
-                    .foodExpiresAt = 0;
+                    .foodRemainingSeconds = 0;
 
                 g_SettingsChanged = true;
             }
@@ -393,7 +521,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             return;
         }
 
-        if (isUtilityEvent && isRemoved)
+        if (isUtilityEvent &&
+            isRemoved)
         {
             g_HasUtility = false;
             g_UtilityDurationMilliseconds = 0;
@@ -404,7 +533,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                     .characterConsumables[
                         g_SelfCharacterName
                     ]
-                    .utilityExpiresAt = 0;
+                    .utilityRemainingSeconds = 0;
 
                 g_SettingsChanged = true;
             }
@@ -412,7 +541,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             return;
         }
 
-        if (isMetabolicPrimerEvent && isRemoved)
+        if (isMetabolicPrimerEvent &&
+            isRemoved)
         {
             g_HasMetabolicPrimer = false;
             g_MetabolicPrimerDurationMilliseconds = 0;
@@ -423,7 +553,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             return;
         }
 
-        if (isUtilityPrimerEvent && isRemoved)
+        if (isUtilityPrimerEvent &&
+            isRemoved)
         {
             g_HasUtilityPrimer = false;
             g_UtilityPrimerDurationMilliseconds = 0;
@@ -434,7 +565,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             return;
         }
 
-        if (isFoodEvent && hasDuration)
+        if (isFoodEvent &&
+            hasDuration)
         {
             g_HasFood = true;
 
@@ -448,24 +580,23 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 
             if (!g_SelfCharacterName.empty())
             {
-                const int64_t durationSeconds =
-                    g_FoodDurationMilliseconds /
-                    1000;
-
                 g_Settings
                     .characterConsumables[
                         g_SelfCharacterName
                     ]
-                    .foodExpiresAt =
-                    static_cast<int64_t>(
-                        std::time(nullptr)
-                        ) +
-                    durationSeconds;
+                    .foodRemainingSeconds =
+                    (
+                        g_FoodDurationMilliseconds +
+                        999
+                        ) /
+                    1000;
 
                 g_SettingsChanged = true;
             }
         }
-        else if (isUtilityEvent && hasDuration)
+        else if (
+            isUtilityEvent &&
+            hasDuration)
         {
             g_HasUtility = true;
 
@@ -479,24 +610,22 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 
             if (!g_SelfCharacterName.empty())
             {
-                const int64_t durationSeconds =
-                    g_UtilityDurationMilliseconds /
-                    1000;
-
                 g_Settings
                     .characterConsumables[
                         g_SelfCharacterName
                     ]
-                    .utilityExpiresAt =
-                    static_cast<int64_t>(
-                        std::time(nullptr)
-                        ) +
-                    durationSeconds;
+                    .utilityRemainingSeconds =
+                    (
+                        g_UtilityDurationMilliseconds +
+                        999
+                        ) /
+                    1000;
 
                 g_SettingsChanged = true;
             }
         }
-        else if (isMetabolicPrimerEvent &&
+        else if (
+            isMetabolicPrimerEvent &&
             hasDuration)
         {
             g_HasMetabolicPrimer = true;
@@ -521,7 +650,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 
             g_SettingsChanged = true;
         }
-        else if (isUtilityPrimerEvent &&
+        else if (
+            isUtilityPrimerEvent &&
             hasDuration)
         {
             g_HasUtilityPrimer = true;
@@ -679,7 +809,7 @@ bool BuffTracker::HasFood()
                 .characterConsumables[
                     g_SelfCharacterName
                 ]
-                .foodExpiresAt = 0;
+                .foodRemainingSeconds = 0;
 
             g_SettingsChanged = true;
         }
@@ -721,7 +851,7 @@ bool BuffTracker::HasUtility()
                 .characterConsumables[
                     g_SelfCharacterName
                 ]
-                .utilityExpiresAt = 0;
+                .utilityRemainingSeconds = 0;
 
             g_SettingsChanged = true;
         }
@@ -979,8 +1109,18 @@ void BuffTracker::RestorePrimerState()
 
 void BuffTracker::SavePrimerState()
 {
-    // Primer expiration timestamps are stored in g_Settings.
-    // Settings.cpp handles writing them to disk.
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
+
+    //
+    // Also freeze the current character's
+    // Food/Utility state before addon unload.
+    //
+    SaveCurrentCharacterConsumablesLocked();
+
+    // Primer expiration timestamps are already
+    // stored directly in g_Settings.
 }
 
 bool BuffTracker::ConsumeSettingsChanged()

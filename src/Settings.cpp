@@ -106,8 +106,7 @@ bool Settings::Load(void* moduleHandle)
                 g_Settings.enabled =
                     ParseBool(value);
             }
-            else if (
-                key == "showTracker")
+            else if (key == "showTracker")
             {
                 g_Settings.showTracker =
                     ParseBool(value);
@@ -152,10 +151,10 @@ bool Settings::Load(void* moduleHandle)
                 key.rfind("character.", 0) == 0)
             {
                 const std::string foodSuffix =
-                    ".foodExpiresAt";
+                    ".foodRemainingSeconds";
 
                 const std::string utilitySuffix =
-                    ".utilityExpiresAt";
+                    ".utilityRemainingSeconds";
 
                 if (EndsWith(key, foodSuffix))
                 {
@@ -179,7 +178,7 @@ bool Settings::Load(void* moduleHandle)
                             .characterConsumables[
                                 characterName
                             ]
-                            .foodExpiresAt =
+                            .foodRemainingSeconds =
                             std::stoll(value);
                     }
                 }
@@ -206,7 +205,7 @@ bool Settings::Load(void* moduleHandle)
                             .characterConsumables[
                                 characterName
                             ]
-                            .utilityExpiresAt =
+                            .utilityRemainingSeconds =
                             std::stoll(value);
                     }
                 }
@@ -322,15 +321,15 @@ bool Settings::Save(void* moduleHandle)
         file
             << "character."
             << characterName
-            << ".foodExpiresAt="
-            << state.foodExpiresAt
+            << ".foodRemainingSeconds="
+            << state.foodRemainingSeconds
             << '\n';
 
         file
             << "character."
             << characterName
-            << ".utilityExpiresAt="
-            << state.utilityExpiresAt
+            << ".utilityRemainingSeconds="
+            << state.utilityRemainingSeconds
             << '\n';
     }
 
