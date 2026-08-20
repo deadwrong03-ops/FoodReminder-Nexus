@@ -122,11 +122,393 @@ Terminal `git push` works correctly and is currently the reliable push method.
 
 ---
 
+## 2026-08-20 — Reminder Expansion, Primers, Combat State, and Character Handling
+
+### Reminder Popup Improvements
+
+Expanded the reminder system beyond the original test popup.
+
+Food Reminder now supports:
+
+- Food expiration reminders.
+- Utility expiration reminders.
+- Combined Food + Utility expiration reminders.
+- Live countdown display inside reminder popups.
+- Five-second popup duration.
+- Automatic re-arming when a refreshed buff returns above the configured warning threshold.
+
+Reminder popup timing was tested successfully in game.
+
+### Persistent Settings
+
+Added persistent configuration using:
+
+`FoodReminder.ini`
+
+The following settings now persist:
+
+- Enable/disable reminders.
+- Food warning time.
+- Utility warning time.
+- Metabolic Primer warning time.
+- Utility Primer warning time.
+- Saved Primer expiration timestamps.
+
+Settings are loaded when the addon starts and saved when changed.
+
+Food and Utility early-warning ranges:
+
+- Minimum: 1 minute
+- Maximum: 60 minutes
+
+Primer early-warning ranges:
+
+- Minimum: 5 minutes
+- Maximum: 60 minutes
+
+Default Primer warning time:
+
+- 30 minutes
+
+Persistence was verified by changing values, closing/reopening the options interface, and confirming the configured values remained.
+
+### Reminder Timing Interface
+
+The Reminder Timing section was reorganized for clarity.
+
+The options are now grouped into:
+
+#### Food & Utility
+
+- Food early warning
+- Utility early warning
+
+#### Primers
+
+- Metabolic Primer early warning
+- Utility Primer early warning
+
+This was a UI-only cleanup and did not change reminder behavior.
+
+### Metabolic and Utility Primer Detection
+
+ArcDPS testing identified direct Primer events.
+
+Confirmed:
+
+#### Metabolic Primer
+
+- Name: `Metabolic Primer`
+- Skill ID: `21487`
+- Approximately 12-hour duration
+
+#### Utility Primer
+
+- Name: `Utility Primer`
+- Skill ID: `21579`
+- Approximately 12-hour duration
+
+Primer tracking was added using the same steady-clock duration approach used for Food and Utility.
+
+### Primer Persistence
+
+Primer expiration timestamps are saved as Unix timestamps.
+
+When a directly observed Primer event occurs, Food Reminder stores its expected expiration time.
+
+On addon reload, saved Primer expiration timestamps can be reconstructed into a live remaining-duration timer.
+
+Disk writes were optimized so Primer settings are only written when Primer state actually changes rather than on every ArcDPS combat event.
+
+### Important Primer Discovery
+
+Testing showed that ArcDPS does not necessarily resend an already-active Primer when:
+
+- Changing maps.
+- Logging out and back in.
+- Reloading the addon.
+
+However, Food and Utility durations can still reflect the extended duration caused by an active Primer.
+
+Because of this, Food Reminder added an inferred Primer display.
+
+If Food or Utility has an unusually long duration consistent with Primer extension, the configuration interface can display:
+
+`Metabolic Primer: ~HH:MM:SS (inferred)`
+
+or:
+
+`Utility Primer: ~HH:MM:SS (inferred)`
+
+The `(inferred)` label is intentionally shown so the addon does not present the estimated state as a directly observed Primer event.
+
+### Primer Expiration Reminders
+
+Added:
+
+- Metabolic Primer expiration warning.
+- Utility Primer expiration warning.
+- Combined Primer expiration warning.
+
+Developer test buttons were added for:
+
+- Metabolic Primer warning.
+- Utility Primer warning.
+- Both Primer warnings.
+
+Initial testing revealed Primer popup countdowns were incorrectly borrowing Food/Utility remaining time.
+
+The popup timer-selection logic was updated so Primer reminders use the Primer reminder duration instead.
+
+Testing confirmed:
+
+- Metabolic Primer test popup works.
+- Utility Primer test popup works.
+- Combined Primer popup works.
+- All test Primer popups display the expected 30-minute test countdown.
+- No crashes occurred during testing.
+
+### Configurable Primer Warning Times
+
+The previously hardcoded 30-minute Primer warning was replaced with configurable settings.
+
+Separate warning values now exist for:
+
+- Metabolic Primer
+- Utility Primer
+
+The actual reminder logic now uses the configured warning values.
+
+Testing confirmed that changing the Metabolic Primer warning to 15 minutes persisted correctly.
+
+### Missing Food and Utility Reminders
+
+Added warnings when entering combat without consumable buffs.
+
+Possible reminders are:
+
+- `FOOD MISSING`
+- `UTILITY MISSING`
+- `FOOD + UTILITY MISSING`
+
+These reminders display a message rather than a zero-duration countdown.
+
+Examples:
+
+`You entered combat without food.`
+
+`You entered combat without utility.`
+
+`You entered combat without food or utility.`
+
+### ArcDPS Combat State Tracking
+
+Combat-state tracking was added using ArcDPS state-change events.
+
+Confirmed working values:
+
+- State `1` = Enter Combat
+- State `2` = Exit Combat
+
+An earlier test incorrectly used state values 9 and 10, which prevented combat detection from working.
+
+After correcting the state values, live testing confirmed:
+
+- Entering combat changes the tracker to `IN COMBAT`.
+- Leaving combat changes the tracker to `OUT OF COMBAT`.
+- Missing-buff reminders fire once when entering combat.
+- They do not repeat continuously during the same combat.
+- They re-arm after leaving combat.
+- Re-entering combat triggers a new warning when appropriate.
+
+A Combat State readout was added to Developer Debug to verify this behavior.
+
+### Missing-Buff Combination Testing
+
+The following scenarios were tested:
+
+#### Neither Food nor Utility active
+
+Result:
+
+`FOOD + UTILITY MISSING`
+
+Passed.
+
+#### Food active, Utility missing
+
+Result:
+
+`UTILITY MISSING`
+
+Passed.
+
+#### Utility active, Food missing
+
+Initial testing revealed a character-switch tracking issue.
+
+After the character tracking fix described below:
+
+Result:
+
+`FOOD MISSING`
+
+Passed.
+
+### Character-Switch Tracking Bug
+
+Testing found that Food and Utility state could remain in memory after switching characters.
+
+Example:
+
+- Character A had Food active.
+- Switched to Character B with no Food.
+- Current Buffs temporarily continued showing Character A's Food timer.
+
+This caused the addon to incorrectly believe Character B still had Food.
+
+### Character Detection Fix
+
+Food Reminder now tracks the local ArcDPS agent and character name.
+
+Character-change detection uses:
+
+- Self-agent ID.
+- Self-character name.
+
+When a different character is detected:
+
+- Food state is cleared.
+- Utility state is cleared.
+- Food duration is cleared.
+- Utility duration is cleared.
+- Combat state is reset.
+
+Primer persistence is intentionally not cleared by this logic.
+
+Live testing confirmed:
+
+- A new character is detected once ArcDPS provides a self-related event.
+- Stale Food/Utility state is cleared.
+- `FOOD MISSING` correctly triggers on the new character when Utility is active but Food is absent.
+
+### Known Character-Switch Limitation
+
+Immediately after switching characters, before ArcDPS has emitted a self-related event for the new character, the Current Buffs interface may temporarily display the previous character's Food or Utility state.
+
+Once the new character generates a relevant ArcDPS event, the addon recognizes the character change and clears the stale state.
+
+This remains a synchronization limitation to improve later.
+
+### Jade Tech Protocol Investigation
+
+Investigated whether Food Reminder could track Jade Tech Offensive and Defensive Protocol buffs.
+
+Testing found that ArcDPS reports interaction with a Jade Tech station as:
+
+- Skill name: `Generic gadget interact`
+- Skill ID: `23302`
+- State change: `67` / `68`
+- Source: local player
+- Destination: `Jade Tech Enhancement Console`
+
+Source and destination agent-name capture was temporarily added to Developer Debug to inspect these events.
+
+The destination does not identify whether the station is:
+
+- Offensive Protocol
+- Defensive Protocol
+
+Additional targeted testing for the actual Jade Tech Overcharge effects did not produce reliable buff events through the current ArcDPS combat-event stream.
+
+Therefore:
+
+- Jade Tech Protocol tracking was not implemented.
+- The addon will not guess which Protocol was activated.
+- Jade Tech tracking remains experimental/future work if a reliable data source becomes available.
+
+### Developer Debug Improvements
+
+Developer Debug currently supports:
+
+- Combat-state display.
+- ArcDPS event count.
+- Buff-like event count.
+- Recent event inspection.
+- Skill IDs.
+- Event values.
+- Buff state.
+- Buff-removal state.
+- ArcDPS state-change values.
+- Source-is-self state.
+- Destination-is-self state.
+- Source agent name during investigation.
+- Destination agent name during investigation.
+- Primer warning test buttons.
+- Debug event reset.
+
+Temporary Jade-specific diagnostic filtering should be removed before treating the current source as the next clean release checkpoint.
+
+### Current Working Checkpoint
+
+At the end of this session, the following were confirmed working:
+
+- Food detection.
+- Utility detection.
+- Food countdown.
+- Utility countdown.
+- Food expiration reminder.
+- Utility expiration reminder.
+- Combined Food + Utility expiration reminder.
+- Persistent reminder settings.
+- Metabolic Primer tracking.
+- Utility Primer tracking.
+- Primer persistence when directly detected.
+- Inferred Primer display.
+- Metabolic Primer expiration reminder.
+- Utility Primer expiration reminder.
+- Combined Primer expiration reminder.
+- Configurable Primer warning times.
+- Missing Food warning.
+- Missing Utility warning.
+- Combined Food + Utility Missing warning.
+- Enter-combat detection.
+- Exit-combat detection.
+- One-warning-per-combat behavior.
+- Reminder re-arming after combat ends.
+- Character-change detection.
+- Clearing stale Food/Utility state after the new character is detected.
+- Developer combat-state readout.
+- Successful builds and in-game testing without crashes during the tested scenarios.
+
+### Git
+
+Multiple stable checkpoints were committed and pushed throughout the session.
+
+Important checkpoint areas included:
+
+- Persistent settings.
+- Primer tracking and inferred Primer display.
+- Primer settings write optimization.
+- Primer expiration reminders.
+- Configurable Primer warning times.
+- Reminder Timing UI cleanup.
+- Missing-buff reminders on combat entry.
+- Character-switch stale-state handling.
+
+Before the final end-of-session commit, temporary Jade Tech diagnostic changes should be cleaned from the source and the addon should receive one final rebuild/test.
+
+---
+
 ## Next Development Steps
 
-1. Continue expiration/removal testing.
-2. Connect live countdown state to actual reminder triggering.
-3. Verify food and utility warnings independently.
-4. Improve reminder presentation.
-5. Add settings persistence.
-6. Remove or hide development/debug UI for release builds.
+1. Remove temporary Jade Tech diagnostic code.
+2. Perform a final rebuild and smoke test.
+3. Commit/push the cleaned August 20 development checkpoint.
+4. Improve initial Food/Utility synchronization after login and map changes.
+5. Improve character-switch synchronization before the first ArcDPS self event.
+6. Continue expiration/removal edge-case testing.
+7. Continue combat-entry reminder testing in longer encounters.
+8. Refine the player-facing reminder presentation.
+9. Decide whether the Developer Debug interface should remain available behind a development option.
+10. Revisit Jade Tech Protocol tracking only if a reliable Offensive/Defensive data source becomes available.

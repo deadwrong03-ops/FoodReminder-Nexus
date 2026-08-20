@@ -4,11 +4,11 @@
 >
 > FoodReminder-Nexus is under active development and is not yet feature complete.
 
-A lightweight **Guild Wars 2 Nexus addon** for tracking food and utility buff durations and providing configurable expiration warnings.
+A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and primer durations and providing configurable reminders.
 
 The goal is simple:
 
-> **Know when your food and utility buffs are about to expire without constantly watching the buff bar.**
+> **Know when your important consumable buffs are about to expire without constantly watching the buff bar.**
 
 ---
 
@@ -24,11 +24,23 @@ Features, interfaces, configuration formats, and internal systems may change as 
 
 ## Current Status
 
-FoodReminder-Nexus has a working Nexus addon framework and an early ArcDPS-powered buff detection system.
+FoodReminder-Nexus has a working Nexus addon framework with ArcDPS-powered tracking for food, utility, combat state, and primer-related reminders.
 
-The addon can currently receive ArcDPS combat events, identify food and utility buffs belonging to the local player, calculate their remaining duration, and display that information through the Nexus configuration/debug interface.
+The addon can currently:
 
-The current development focus is making buff detection reliable across normal gameplay situations before building the final reminder interface.
+- Receive ArcDPS combat events
+- Identify Food and Utility buffs belonging to the local player
+- Calculate remaining Food and Utility duration
+- Track Metabolic Primer and Utility Primer state when directly detected
+- Infer active Primer state from extended Food/Utility durations when necessary
+- Warn before Food and Utility expire
+- Warn before Metabolic and Utility Primers expire
+- Warn when entering combat without Food and/or Utility
+- Detect entering and leaving combat
+- Detect character changes and clear stale Food/Utility state
+- Persist reminder settings between sessions
+
+The current development focus is improving reliability across character changes, map changes, login states, and other normal gameplay situations while continuing to refine the reminder interface.
 
 ---
 
@@ -39,14 +51,27 @@ The current development focus is making buff detection reliable across normal ga
 - Nexus addon loading and unloading
 - Nexus configuration panel
 - ArcDPS combat event integration
-- Food and utility reminder settings
-- Configurable food early-warning time
-- Configurable utility early-warning time
+- Persistent settings through `FoodReminder.ini`
 - Enable/disable reminders option
-- Test Reminder button
 - Development/debug interface
+- Test Reminder button
+- Reminder popup system
+- Live reminder countdown display
 
-### Buff Tracking Foundation
+### Reminder Timing
+
+- Configurable Food early-warning time
+- Configurable Utility early-warning time
+- Configurable Metabolic Primer early-warning time
+- Configurable Utility Primer early-warning time
+- Food and Utility warning range: 1–60 minutes
+- Primer warning range: 5–60 minutes
+- Reminder timing settings persist between sessions
+- Reminder Timing UI grouped into:
+  - Food & Utility
+  - Primers
+
+### Food and Utility Tracking
 
 - Local-player buff filtering
 - ArcDPS buff-event processing
@@ -54,25 +79,118 @@ The current development focus is making buff detection reliable across normal ga
 - Utility buff detection
 - Food remaining-time calculation
 - Utility remaining-time calculation
-- Buff expiration timestamp tracking
+- Buff expiration tracking
 - Buff removal handling
-- Detection state reset when buffs disappear
-- Map-change/reload testing
+- Detection-state reset when buffs disappear
+- Buff refresh/replacement tracking
 - Combat and non-combat buff testing
-- Debug event counters
+- Map-change/reload testing
+- Character-change detection
+- Clearing of stale Food/Utility state when a new character is detected
+
+### Food and Utility Expiration Reminders
+
+- Food expiration warning
+- Utility expiration warning
+- Combined Food + Utility warning
+- Live remaining-duration countdown in reminder popup
+- Warning state resets when buffs are refreshed above the configured warning threshold
+
+### Missing Buff Reminders
+
+- Combat-entry detection through ArcDPS
+- Enter Combat state tracking
+- Exit Combat state tracking
+- Food Missing warning
+- Utility Missing warning
+- Combined Food + Utility Missing warning
+- Missing-buff reminders fire once per combat
+- Missing-buff reminders re-arm after leaving combat
+
+### Primer Tracking
+
+- Metabolic Primer detection
+- Utility Primer detection
+- Metabolic Primer remaining-duration tracking
+- Utility Primer remaining-duration tracking
+- Primer expiration timestamp persistence
+- Primer state restoration after addon reload when previously detected
+- Metabolic Primer expiration warning
+- Utility Primer expiration warning
+- Combined Primer expiration warning
+- Developer test reminders for individual and combined Primer warnings
+- Correct Primer countdown display in reminder popups
+- Primer-state inference from unusually long Food/Utility durations when direct Primer state is unavailable
+
+### Debugging and Testing
+
+- ArcDPS event counter
+- Buff-like event counter
 - Recent buff-event inspection
+- Local-player event filtering
+- Combat-state debug display
+- Primer warning test buttons
+- Buff debug reset
+- Source/destination event inspection during development
 
 ---
 
 ## Current Detection Behavior
 
-The addon receives buff information through ArcDPS combat events.
+FoodReminder-Nexus receives buff and combat information through ArcDPS combat events.
 
-During testing, food and utility buffs have successfully been detected and their remaining durations calculated.
+Food and Utility buffs can be detected when ArcDPS emits the relevant buff-state events, and their remaining durations are calculated locally.
 
-Because ArcDPS does not necessarily provide every existing buff immediately when a character loads into a map, detection may depend on ArcDPS emitting a relevant buff-state event.
+ArcDPS does not necessarily resend every existing buff immediately when:
 
-This behavior is still being investigated and improved.
+- Logging in
+- Changing maps
+- Switching characters
+- Reloading the addon
+
+Because of this, some tracking state may not be known until ArcDPS emits a relevant event.
+
+### Character Switching
+
+Food and Utility state is treated as character-specific.
+
+When the addon detects that ArcDPS is now reporting a different local character, stale Food and Utility state from the previous character is cleared.
+
+There may still be a short period after switching characters where the old state remains visible until ArcDPS emits the first self-related event for the new character.
+
+### Primer Detection
+
+Primers are tracked directly when their ArcDPS events are observed.
+
+Because ArcDPS does not always resend already-active Primer state after map changes or login, the addon may also display an **inferred Primer duration** when Food or Utility has an unusually long remaining duration consistent with Primer extension.
+
+Inferred Primer values are clearly labeled as:
+
+`(inferred)`
+
+---
+
+## Jade Tech Protocol Investigation
+
+Jade Tech Offensive and Defensive Protocol tracking was investigated during development.
+
+ArcDPS successfully reports interaction with the station as:
+
+- `Generic gadget interact`
+- Skill ID `23302`
+- State changes `67` and `68`
+- Destination agent: `Jade Tech Enhancement Console`
+
+However, the ArcDPS combat-event stream currently does not provide a reliable way for FoodReminder-Nexus to determine whether the interaction granted:
+
+- Jade Tech Offensive Protocol
+- Jade Tech Defensive Protocol
+
+Testing also did not reveal reliable direct buff events for the corresponding Jade Tech Overcharge effects through the current event stream.
+
+Because the addon cannot reliably distinguish the two protocol types, Jade Tech Protocol tracking is **not currently implemented**.
+
+This remains an experimental/future investigation.
 
 ---
 
@@ -80,13 +198,13 @@ This behavior is still being investigated and improved.
 
 Current priorities include:
 
-- Improve initial food/utility detection after login or map change
-- Improve synchronization with existing buffs
+- Improve initial Food/Utility detection after login or map change
+- Improve synchronization with already-active buffs
+- Improve character-switch synchronization before the first ArcDPS self event
 - Verify behavior while solo and while grouped
-- Verify buff replacement and refresh behavior
-- Improve expiration handling
-- Build the final player-facing food/utility timer display
-- Add reliable early-warning notifications
+- Continue buff replacement and refresh testing
+- Continue expiration/reminder edge-case testing
+- Improve the player-facing reminder interface
 - Reduce/remove development debug information once tracking is stable
 - Continue stability testing across maps and characters
 
@@ -96,35 +214,40 @@ Current priorities include:
 
 Future development may include:
 
-- Compact food timer
-- Compact utility timer
-- Configurable reminder timing
-- Visual expiration warnings
-- Cleaner reminder popup
-- Persistent settings
-- Optional HUD display
-- Improved buff-name recognition
-- Support for additional food and utility effects
-- Better handling of unusual buff durations
-- Improved map-change synchronization
+- Compact optional Food/Utility timer HUD
+- Color stages for remaining duration
+- Additional reminder customization
+- Combat-aware reminder behavior
+- Optional delayed large popup after combat
+- Per-character settings
+- Per-character preferred consumables
+- Optional wrong-consumable warning
+- Additional supported consumable effects
+- Improved initial-state synchronization
 - Improved character-change synchronization
+- Optional Jade Tech tracking if a reliable data source becomes available
 
 ---
 
 ## Debugging
 
-The current development build contains an **ArcDPS Buff Debug** section.
+The current development build contains a **Developer Debug** section.
 
 This currently displays information such as:
 
+- Combat state
 - ArcDPS event count
-- Detected buff count
-- Detected food state
-- Detected utility state
-- Remaining food duration
-- Remaining utility duration
 - Buff-like event count
 - Recent buff events
+- Event skill ID
+- Event value
+- Buff state
+- Removal state
+- ArcDPS state-change value
+- Local-player source/destination state
+- Source agent name
+- Destination agent name
+- Primer reminder test controls
 
 This interface exists for development and testing and is not intended to represent the final addon UI.
 
@@ -139,8 +262,10 @@ The addon should:
 - Provide useful information without cluttering the screen
 - Avoid requiring the player to constantly monitor the GW2 buff bar
 - Give clear warnings before important consumable buffs expire
+- Warn when important consumables are missing at the start of combat
 - Remain useful for normal open-world and solo PvE gameplay
 - Avoid unnecessary complexity
+- Prefer reliable tracking over guessed or misleading information
 - Prioritize stability before additional features
 
 ---

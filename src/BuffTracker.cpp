@@ -30,8 +30,8 @@ namespace
     bool g_IsInCombat = false;
 
     // Used to detect character changes.
-// Food and Utility are transient and must not
-// carry over to another character.
+    // Food and Utility are transient and must not
+    // carry over to another character.
     uintptr_t g_SelfAgentID = 0;
     std::string g_SelfCharacterName;
 
