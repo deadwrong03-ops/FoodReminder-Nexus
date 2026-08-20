@@ -97,6 +97,7 @@
   <ItemGroup>
     <ClInclude Include="ArcDPS.h" />
     <ClInclude Include="BuffTracker.h" />
+    <ClInclude Include="ConsumableData.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_internal.h" />
@@ -109,6 +110,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BuffTracker.cpp" />
+    <ClCompile Include="ConsumableData.cpp" />
     <ClCompile Include="entry.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="ReminderManager.cpp" />
