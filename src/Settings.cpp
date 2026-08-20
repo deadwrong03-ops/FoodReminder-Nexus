@@ -43,6 +43,23 @@ namespace
             value == "True" ||
             value == "TRUE";
     }
+
+    bool EndsWith(
+        const std::string& value,
+        const std::string& ending
+    )
+    {
+        if (ending.size() > value.size())
+        {
+            return false;
+        }
+
+        return value.compare(
+            value.size() - ending.size(),
+            ending.size(),
+            ending
+        ) == 0;
+    }
 }
 
 bool Settings::Load(void* moduleHandle)
@@ -61,6 +78,8 @@ bool Settings::Load(void* moduleHandle)
     {
         return false;
     }
+
+    g_Settings.characterConsumables.clear();
 
     std::string line;
 
@@ -122,6 +141,69 @@ bool Settings::Load(void* moduleHandle)
             {
                 g_Settings.utilityPrimerExpiresAt =
                     std::stoll(value);
+            }
+            else if (
+                key.rfind("character.", 0) == 0)
+            {
+                const std::string foodSuffix =
+                    ".foodExpiresAt";
+
+                const std::string utilitySuffix =
+                    ".utilityExpiresAt";
+
+                if (EndsWith(key, foodSuffix))
+                {
+                    const size_t nameStart =
+                        std::string("character.").size();
+
+                    const size_t nameLength =
+                        key.size() -
+                        nameStart -
+                        foodSuffix.size();
+
+                    const std::string characterName =
+                        key.substr(
+                            nameStart,
+                            nameLength
+                        );
+
+                    if (!characterName.empty())
+                    {
+                        g_Settings
+                            .characterConsumables[
+                                characterName
+                            ]
+                            .foodExpiresAt =
+                            std::stoll(value);
+                    }
+                }
+                else if (
+                    EndsWith(key, utilitySuffix))
+                {
+                    const size_t nameStart =
+                        std::string("character.").size();
+
+                    const size_t nameLength =
+                        key.size() -
+                        nameStart -
+                        utilitySuffix.size();
+
+                    const std::string characterName =
+                        key.substr(
+                            nameStart,
+                            nameLength
+                        );
+
+                    if (!characterName.empty())
+                    {
+                        g_Settings
+                            .characterConsumables[
+                                characterName
+                            ]
+                            .utilityExpiresAt =
+                            std::stoll(value);
+                    }
+                }
             }
         }
         catch (...)
@@ -216,6 +298,30 @@ bool Settings::Save(void* moduleHandle)
         << "utilityPrimerExpiresAt="
         << g_Settings.utilityPrimerExpiresAt
         << '\n';
+
+    for (const auto& entry :
+        g_Settings.characterConsumables)
+    {
+        const std::string& characterName =
+            entry.first;
+
+        const CharacterConsumableState& state =
+            entry.second;
+
+        file
+            << "character."
+            << characterName
+            << ".foodExpiresAt="
+            << state.foodExpiresAt
+            << '\n';
+
+        file
+            << "character."
+            << characterName
+            << ".utilityExpiresAt="
+            << state.utilityExpiresAt
+            << '\n';
+    }
 
     return true;
 }

@@ -53,5 +53,5 @@ namespace BuffTracker
     void RestorePrimerState();
     void SavePrimerState();
 
-    bool ConsumePrimerSettingsChanged();
+    bool ConsumeSettingsChanged();
 }

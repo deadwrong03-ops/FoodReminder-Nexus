@@ -30,12 +30,12 @@ namespace
     bool g_IsInCombat = false;
 
     // Used to detect character changes.
-    // Food and Utility are transient and must not
-    // carry over to another character.
+    // Food and Utility are character-specific and
+    // must not carry over to another character.
     uintptr_t g_SelfAgentID = 0;
     std::string g_SelfCharacterName;
 
-    bool g_PrimerSettingsChanged = false;
+    bool g_SettingsChanged = false;
 
     int64_t g_FoodDurationMilliseconds = 0;
     int64_t g_UtilityDurationMilliseconds = 0;
@@ -48,6 +48,79 @@ namespace
 
     std::chrono::steady_clock::time_point g_MetabolicPrimerReceivedTime;
     std::chrono::steady_clock::time_point g_UtilityPrimerReceivedTime;
+
+    void RestoreCharacterConsumablesLocked(
+        const std::string& characterName
+    )
+    {
+        g_HasFood = false;
+        g_HasUtility = false;
+
+        g_FoodDurationMilliseconds = 0;
+        g_UtilityDurationMilliseconds = 0;
+
+        if (characterName.empty())
+        {
+            return;
+        }
+
+        const auto it =
+            g_Settings.characterConsumables.find(
+                characterName
+            );
+
+        if (it ==
+            g_Settings.characterConsumables.end())
+        {
+            return;
+        }
+
+        const int64_t now =
+            static_cast<int64_t>(
+                std::time(nullptr)
+                );
+
+        CharacterConsumableState& state =
+            it->second;
+
+        if (state.foodExpiresAt > now)
+        {
+            const int64_t remainingSeconds =
+                state.foodExpiresAt - now;
+
+            g_HasFood = true;
+
+            g_FoodDurationMilliseconds =
+                remainingSeconds * 1000;
+
+            g_FoodReceivedTime =
+                std::chrono::steady_clock::now();
+        }
+        else if (state.foodExpiresAt != 0)
+        {
+            state.foodExpiresAt = 0;
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityExpiresAt > now)
+        {
+            const int64_t remainingSeconds =
+                state.utilityExpiresAt - now;
+
+            g_HasUtility = true;
+
+            g_UtilityDurationMilliseconds =
+                remainingSeconds * 1000;
+
+            g_UtilityReceivedTime =
+                std::chrono::steady_clock::now();
+        }
+        else if (state.utilityExpiresAt != 0)
+        {
+            state.utilityExpiresAt = 0;
+            g_SettingsChanged = true;
+        }
+    }
 }
 
 void BuffTracker::Reset()
@@ -136,6 +209,10 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             {
                 g_SelfCharacterName =
                     newCharacterName;
+
+                RestoreCharacterConsumablesLocked(
+                    g_SelfCharacterName
+                );
             }
 
             return;
@@ -163,7 +240,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         return;
     }
 
-    const ArcDPS::CombatEvent& ev = *combatData->ev;
+    const ArcDPS::CombatEvent& ev =
+        *combatData->ev;
 
     std::lock_guard<std::mutex> lock(g_BuffMutex);
 
@@ -243,6 +321,14 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             currentSelfCharacterName;
     }
 
+    if (characterNameChanged ||
+        agentChanged)
+    {
+        RestoreCharacterConsumablesLocked(
+            g_SelfCharacterName
+        );
+    }
+
     //
     // Combat state tracking
     //
@@ -292,6 +378,18 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         {
             g_HasFood = false;
             g_FoodDurationMilliseconds = 0;
+
+            if (!g_SelfCharacterName.empty())
+            {
+                g_Settings
+                    .characterConsumables[
+                        g_SelfCharacterName
+                    ]
+                    .foodExpiresAt = 0;
+
+                g_SettingsChanged = true;
+            }
+
             return;
         }
 
@@ -299,6 +397,18 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         {
             g_HasUtility = false;
             g_UtilityDurationMilliseconds = 0;
+
+            if (!g_SelfCharacterName.empty())
+            {
+                g_Settings
+                    .characterConsumables[
+                        g_SelfCharacterName
+                    ]
+                    .utilityExpiresAt = 0;
+
+                g_SettingsChanged = true;
+            }
+
             return;
         }
 
@@ -308,7 +418,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_MetabolicPrimerDurationMilliseconds = 0;
 
             g_Settings.metabolicPrimerExpiresAt = 0;
-            g_PrimerSettingsChanged = true;
+            g_SettingsChanged = true;
 
             return;
         }
@@ -319,7 +429,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_UtilityPrimerDurationMilliseconds = 0;
 
             g_Settings.utilityPrimerExpiresAt = 0;
-            g_PrimerSettingsChanged = true;
+            g_SettingsChanged = true;
 
             return;
         }
@@ -329,27 +439,72 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
             g_HasFood = true;
 
             g_FoodDurationMilliseconds =
-                static_cast<int64_t>(ev.Value);
+                static_cast<int64_t>(
+                    ev.Value
+                    );
 
             g_FoodReceivedTime =
                 std::chrono::steady_clock::now();
+
+            if (!g_SelfCharacterName.empty())
+            {
+                const int64_t durationSeconds =
+                    g_FoodDurationMilliseconds /
+                    1000;
+
+                g_Settings
+                    .characterConsumables[
+                        g_SelfCharacterName
+                    ]
+                    .foodExpiresAt =
+                    static_cast<int64_t>(
+                        std::time(nullptr)
+                        ) +
+                    durationSeconds;
+
+                g_SettingsChanged = true;
+            }
         }
         else if (isUtilityEvent && hasDuration)
         {
             g_HasUtility = true;
 
             g_UtilityDurationMilliseconds =
-                static_cast<int64_t>(ev.Value);
+                static_cast<int64_t>(
+                    ev.Value
+                    );
 
             g_UtilityReceivedTime =
                 std::chrono::steady_clock::now();
+
+            if (!g_SelfCharacterName.empty())
+            {
+                const int64_t durationSeconds =
+                    g_UtilityDurationMilliseconds /
+                    1000;
+
+                g_Settings
+                    .characterConsumables[
+                        g_SelfCharacterName
+                    ]
+                    .utilityExpiresAt =
+                    static_cast<int64_t>(
+                        std::time(nullptr)
+                        ) +
+                    durationSeconds;
+
+                g_SettingsChanged = true;
+            }
         }
-        else if (isMetabolicPrimerEvent && hasDuration)
+        else if (isMetabolicPrimerEvent &&
+            hasDuration)
         {
             g_HasMetabolicPrimer = true;
 
             g_MetabolicPrimerDurationMilliseconds =
-                static_cast<int64_t>(ev.Value);
+                static_cast<int64_t>(
+                    ev.Value
+                    );
 
             g_MetabolicPrimerReceivedTime =
                 std::chrono::steady_clock::now();
@@ -364,14 +519,17 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                     ) +
                 durationSeconds;
 
-            g_PrimerSettingsChanged = true;
+            g_SettingsChanged = true;
         }
-        else if (isUtilityPrimerEvent && hasDuration)
+        else if (isUtilityPrimerEvent &&
+            hasDuration)
         {
             g_HasUtilityPrimer = true;
 
             g_UtilityPrimerDurationMilliseconds =
-                static_cast<int64_t>(ev.Value);
+                static_cast<int64_t>(
+                    ev.Value
+                    );
 
             g_UtilityPrimerReceivedTime =
                 std::chrono::steady_clock::now();
@@ -386,7 +544,7 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                     ) +
                 durationSeconds;
 
-            g_PrimerSettingsChanged = true;
+            g_SettingsChanged = true;
         }
     }
 
@@ -394,7 +552,8 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     // Developer debug event tracking
     //
     const bool isBuffLike =
-        (ev.Buff != 0 && ev.BuffDamage >= 0) ||
+        (ev.Buff != 0 &&
+            ev.BuffDamage >= 0) ||
         ev.IsBuffRemove != 0 ||
         ev.IsStatechange == 18;
 
@@ -407,8 +566,11 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 
     BuffEventDebug record;
 
-    record.eventID = combatData->id;
-    record.skillID = ev.SkillID;
+    record.eventID =
+        combatData->id;
+
+    record.skillID =
+        ev.SkillID;
 
     if (combatData->skillname != nullptr)
     {
@@ -417,16 +579,27 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     }
     else
     {
-        record.skillName = "Unknown";
+        record.skillName =
+            "Unknown";
     }
 
-    record.value = ev.Value;
-    record.buffDamage = ev.BuffDamage;
-    record.overstackValue = ev.OverstackValue;
+    record.value =
+        ev.Value;
 
-    record.buff = ev.Buff;
-    record.buffRemove = ev.IsBuffRemove;
-    record.stateChange = ev.IsStatechange;
+    record.buffDamage =
+        ev.BuffDamage;
+
+    record.overstackValue =
+        ev.OverstackValue;
+
+    record.buff =
+        ev.Buff;
+
+    record.buffRemove =
+        ev.IsBuffRemove;
+
+    record.stateChange =
+        ev.IsStatechange;
 
     record.sourceIsSelf =
         sourceIsSelf;
@@ -434,7 +607,9 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     record.destinationIsSelf =
         destinationIsSelf;
 
-    g_RecentBuffEvents.push_back(record);
+    g_RecentBuffEvents.push_back(
+        record
+    );
 
     if (g_RecentBuffEvents.size() >
         MAX_DEBUG_EVENTS)
@@ -447,14 +622,18 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 
 uint64_t BuffTracker::GetTotalEventCount()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     return g_TotalEventCount;
 }
 
 uint64_t BuffTracker::GetBuffLikeEventCount()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     return g_BuffLikeEventCount;
 }
@@ -462,14 +641,18 @@ uint64_t BuffTracker::GetBuffLikeEventCount()
 std::vector<BuffEventDebug>
 BuffTracker::GetRecentBuffEvents()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     return g_RecentBuffEvents;
 }
 
 bool BuffTracker::HasFood()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasFood)
     {
@@ -490,6 +673,17 @@ bool BuffTracker::HasFood()
         g_HasFood = false;
         g_FoodDurationMilliseconds = 0;
 
+        if (!g_SelfCharacterName.empty())
+        {
+            g_Settings
+                .characterConsumables[
+                    g_SelfCharacterName
+                ]
+                .foodExpiresAt = 0;
+
+            g_SettingsChanged = true;
+        }
+
         return false;
     }
 
@@ -498,7 +692,9 @@ bool BuffTracker::HasFood()
 
 bool BuffTracker::HasUtility()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasUtility)
     {
@@ -519,6 +715,17 @@ bool BuffTracker::HasUtility()
         g_HasUtility = false;
         g_UtilityDurationMilliseconds = 0;
 
+        if (!g_SelfCharacterName.empty())
+        {
+            g_Settings
+                .characterConsumables[
+                    g_SelfCharacterName
+                ]
+                .utilityExpiresAt = 0;
+
+            g_SettingsChanged = true;
+        }
+
         return false;
     }
 
@@ -527,7 +734,9 @@ bool BuffTracker::HasUtility()
 
 bool BuffTracker::HasMetabolicPrimer()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasMetabolicPrimer)
     {
@@ -548,6 +757,7 @@ bool BuffTracker::HasMetabolicPrimer()
         g_HasMetabolicPrimer = false;
         g_MetabolicPrimerDurationMilliseconds = 0;
         g_Settings.metabolicPrimerExpiresAt = 0;
+        g_SettingsChanged = true;
 
         return false;
     }
@@ -557,7 +767,9 @@ bool BuffTracker::HasMetabolicPrimer()
 
 bool BuffTracker::HasUtilityPrimer()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasUtilityPrimer)
     {
@@ -578,6 +790,7 @@ bool BuffTracker::HasUtilityPrimer()
         g_HasUtilityPrimer = false;
         g_UtilityPrimerDurationMilliseconds = 0;
         g_Settings.utilityPrimerExpiresAt = 0;
+        g_SettingsChanged = true;
 
         return false;
     }
@@ -587,14 +800,18 @@ bool BuffTracker::HasUtilityPrimer()
 
 bool BuffTracker::IsInCombat()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     return g_IsInCombat;
 }
 
 int64_t BuffTracker::GetFoodRemainingMilliseconds()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasFood)
     {
@@ -620,7 +837,9 @@ int64_t BuffTracker::GetFoodRemainingMilliseconds()
 
 int64_t BuffTracker::GetUtilityRemainingMilliseconds()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasUtility)
     {
@@ -647,7 +866,9 @@ int64_t BuffTracker::GetUtilityRemainingMilliseconds()
 int64_t BuffTracker::
 GetMetabolicPrimerRemainingMilliseconds()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasMetabolicPrimer)
     {
@@ -674,7 +895,9 @@ GetMetabolicPrimerRemainingMilliseconds()
 int64_t BuffTracker::
 GetUtilityPrimerRemainingMilliseconds()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     if (!g_HasUtilityPrimer)
     {
@@ -700,7 +923,9 @@ GetUtilityPrimerRemainingMilliseconds()
 
 void BuffTracker::RestorePrimerState()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     const int64_t now =
         static_cast<int64_t>(
@@ -758,14 +983,16 @@ void BuffTracker::SavePrimerState()
     // Settings.cpp handles writing them to disk.
 }
 
-bool BuffTracker::ConsumePrimerSettingsChanged()
+bool BuffTracker::ConsumeSettingsChanged()
 {
-    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
 
     const bool changed =
-        g_PrimerSettingsChanged;
+        g_SettingsChanged;
 
-    g_PrimerSettingsChanged = false;
+    g_SettingsChanged = false;
 
     return changed;
 }

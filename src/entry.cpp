@@ -103,7 +103,7 @@ void OnArcDPSCombat(void* eventArgs)
 
     BuffTracker::ProcessEvent(combatData);
 
-    if (BuffTracker::ConsumePrimerSettingsChanged())
+    if (BuffTracker::ConsumeSettingsChanged())
     {
         Settings::Save(hSelf);
     }
