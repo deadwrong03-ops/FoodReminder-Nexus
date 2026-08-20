@@ -19,7 +19,7 @@ namespace
     bool g_MetabolicPrimerWarningSent = false;
     bool g_UtilityPrimerWarningSent = false;
 
-    constexpr int64_t PRIMER_WARNING_MILLISECONDS =
+    constexpr int64_t TEST_PRIMER_WARNING_MILLISECONDS =
         30LL * 60LL * 1000LL;
 
     int64_t g_BuffRemainingMilliseconds = 0;
@@ -55,7 +55,7 @@ void ReminderManager::TriggerTestReminder()
 void ReminderManager::TriggerMetabolicPrimerTest()
 {
     g_BuffRemainingMilliseconds =
-        PRIMER_WARNING_MILLISECONDS;
+        TEST_PRIMER_WARNING_MILLISECONDS;
 
     ShowReminder(
         "METABOLIC PRIMER EXPIRING",
@@ -66,7 +66,7 @@ void ReminderManager::TriggerMetabolicPrimerTest()
 void ReminderManager::TriggerUtilityPrimerTest()
 {
     g_BuffRemainingMilliseconds =
-        PRIMER_WARNING_MILLISECONDS;
+        TEST_PRIMER_WARNING_MILLISECONDS;
 
     ShowReminder(
         "UTILITY PRIMER EXPIRING",
@@ -77,7 +77,7 @@ void ReminderManager::TriggerUtilityPrimerTest()
 void ReminderManager::TriggerBothPrimerTest()
 {
     g_BuffRemainingMilliseconds =
-        PRIMER_WARNING_MILLISECONDS;
+        TEST_PRIMER_WARNING_MILLISECONDS;
 
     ShowReminder(
         "PRIMERS EXPIRING",
@@ -187,10 +187,22 @@ void ReminderManager::Update(
 void ReminderManager::UpdatePrimerWarnings(
     bool hasMetabolicPrimer,
     int64_t metabolicPrimerRemainingMilliseconds,
+    int metabolicPrimerWarningSeconds,
     bool hasUtilityPrimer,
-    int64_t utilityPrimerRemainingMilliseconds
+    int64_t utilityPrimerRemainingMilliseconds,
+    int utilityPrimerWarningSeconds
 )
 {
+    const int64_t metabolicPrimerWarningMilliseconds =
+        static_cast<int64_t>(
+            metabolicPrimerWarningSeconds
+            ) * 1000;
+
+    const int64_t utilityPrimerWarningMilliseconds =
+        static_cast<int64_t>(
+            utilityPrimerWarningSeconds
+            ) * 1000;
+
     if (!hasMetabolicPrimer)
     {
         g_MetabolicPrimerWarningSent = false;
@@ -203,14 +215,14 @@ void ReminderManager::UpdatePrimerWarnings(
 
     if (hasMetabolicPrimer &&
         metabolicPrimerRemainingMilliseconds >
-        PRIMER_WARNING_MILLISECONDS)
+        metabolicPrimerWarningMilliseconds)
     {
         g_MetabolicPrimerWarningSent = false;
     }
 
     if (hasUtilityPrimer &&
         utilityPrimerRemainingMilliseconds >
-        PRIMER_WARNING_MILLISECONDS)
+        utilityPrimerWarningMilliseconds)
     {
         g_UtilityPrimerWarningSent = false;
     }
@@ -219,14 +231,14 @@ void ReminderManager::UpdatePrimerWarnings(
         hasMetabolicPrimer &&
         metabolicPrimerRemainingMilliseconds > 0 &&
         metabolicPrimerRemainingMilliseconds <=
-        PRIMER_WARNING_MILLISECONDS &&
+        metabolicPrimerWarningMilliseconds &&
         !g_MetabolicPrimerWarningSent;
 
     const bool utilityWarningDue =
         hasUtilityPrimer &&
         utilityPrimerRemainingMilliseconds > 0 &&
         utilityPrimerRemainingMilliseconds <=
-        PRIMER_WARNING_MILLISECONDS &&
+        utilityPrimerWarningMilliseconds &&
         !g_UtilityPrimerWarningSent;
 
     if (metabolicWarningDue && utilityWarningDue)

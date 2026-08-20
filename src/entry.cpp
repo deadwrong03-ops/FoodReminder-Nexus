@@ -191,8 +191,10 @@ void AddonRender()
     ReminderManager::UpdatePrimerWarnings(
         hasMetabolicPrimer,
         metabolicPrimerRemaining,
+        g_Settings.metabolicPrimerWarningSeconds,
         hasUtilityPrimer,
-        utilityPrimerRemaining
+        utilityPrimerRemaining,
+        g_Settings.utilityPrimerWarningSeconds
     );
 
     if (!ReminderManager::IsReminderActive())
@@ -326,6 +328,12 @@ void AddonOptions()
     int utilityWarningMinutes =
         g_Settings.utilityWarningSeconds / 60;
 
+    int metabolicPrimerWarningMinutes =
+        g_Settings.metabolicPrimerWarningSeconds / 60;
+
+    int utilityPrimerWarningMinutes =
+        g_Settings.utilityPrimerWarningSeconds / 60;
+
     if (ImGui::SliderInt(
         "Food early warning",
         &foodWarningMinutes,
@@ -348,6 +356,32 @@ void AddonOptions()
     {
         g_Settings.utilityWarningSeconds =
             utilityWarningMinutes * 60;
+
+        settingsChanged = true;
+    }
+
+    if (ImGui::SliderInt(
+        "Metabolic Primer early warning",
+        &metabolicPrimerWarningMinutes,
+        5,
+        60,
+        "%d min"))
+    {
+        g_Settings.metabolicPrimerWarningSeconds =
+            metabolicPrimerWarningMinutes * 60;
+
+        settingsChanged = true;
+    }
+
+    if (ImGui::SliderInt(
+        "Utility Primer early warning",
+        &utilityPrimerWarningMinutes,
+        5,
+        60,
+        "%d min"))
+    {
+        g_Settings.utilityPrimerWarningSeconds =
+            utilityPrimerWarningMinutes * 60;
 
         settingsChanged = true;
     }

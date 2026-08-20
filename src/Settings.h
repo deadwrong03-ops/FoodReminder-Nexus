@@ -9,6 +9,9 @@ struct FoodReminderSettings
     int foodWarningSeconds = 300;
     int utilityWarningSeconds = 300;
 
+    int metabolicPrimerWarningSeconds = 1800;
+    int utilityPrimerWarningSeconds = 1800;
+
     // Unix timestamps, in seconds.
     // 0 means no saved primer.
     int64_t metabolicPrimerExpiresAt = 0;

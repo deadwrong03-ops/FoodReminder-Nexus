@@ -100,6 +100,18 @@ bool Settings::Load(void* moduleHandle)
                     std::stoi(value);
             }
             else if (
+                key == "metabolicPrimerWarningSeconds")
+            {
+                g_Settings.metabolicPrimerWarningSeconds =
+                    std::stoi(value);
+            }
+            else if (
+                key == "utilityPrimerWarningSeconds")
+            {
+                g_Settings.utilityPrimerWarningSeconds =
+                    std::stoi(value);
+            }
+            else if (
                 key == "metabolicPrimerExpiresAt")
             {
                 g_Settings.metabolicPrimerExpiresAt =
@@ -130,6 +142,20 @@ bool Settings::Load(void* moduleHandle)
         std::clamp(
             g_Settings.utilityWarningSeconds,
             60,
+            3600
+        );
+
+    g_Settings.metabolicPrimerWarningSeconds =
+        std::clamp(
+            g_Settings.metabolicPrimerWarningSeconds,
+            300,
+            3600
+        );
+
+    g_Settings.utilityPrimerWarningSeconds =
+        std::clamp(
+            g_Settings.utilityPrimerWarningSeconds,
+            300,
             3600
         );
 
@@ -169,6 +195,16 @@ bool Settings::Save(void* moduleHandle)
     file
         << "utilityWarningSeconds="
         << g_Settings.utilityWarningSeconds
+        << '\n';
+
+    file
+        << "metabolicPrimerWarningSeconds="
+        << g_Settings.metabolicPrimerWarningSeconds
+        << '\n';
+
+    file
+        << "utilityPrimerWarningSeconds="
+        << g_Settings.utilityPrimerWarningSeconds
         << '\n';
 
     file

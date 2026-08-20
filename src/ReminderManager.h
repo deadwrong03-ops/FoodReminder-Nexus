@@ -22,8 +22,10 @@ namespace ReminderManager
     void UpdatePrimerWarnings(
         bool hasMetabolicPrimer,
         int64_t metabolicPrimerRemainingMilliseconds,
+        int metabolicPrimerWarningSeconds,
         bool hasUtilityPrimer,
-        int64_t utilityPrimerRemainingMilliseconds
+        int64_t utilityPrimerRemainingMilliseconds,
+        int utilityPrimerWarningSeconds
     );
 
     bool IsReminderActive();
