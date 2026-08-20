@@ -50,6 +50,12 @@ namespace BuffTracker
     int64_t GetMetabolicPrimerRemainingMilliseconds();
     int64_t GetUtilityPrimerRemainingMilliseconds();
 
+    uint32_t GetFoodSkillID();
+    uint32_t GetUtilitySkillID();
+
+    std::string GetFoodSkillName();
+    std::string GetUtilitySkillName();
+
     void RestorePrimerState();
     void SavePrimerState();
 
