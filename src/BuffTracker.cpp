@@ -61,8 +61,105 @@ void BuffTracker::Reset()
 
 void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 {
-    if (combatData == nullptr || combatData->ev == nullptr)
+    if (combatData == nullptr)
     {
+        return;
+    }
+
+    //
+    // ArcDPS agent add/remove events.
+    // These arrive with ev == nullptr.
+    //
+    if (combatData->ev == nullptr)
+    {
+        std::lock_guard<std::mutex> lock(g_BuffMutex);
+
+        if (combatData->src == nullptr)
+        {
+            return;
+        }
+
+        //
+        // Ignore targeted-agent notifications.
+        //
+        if (combatData->src->Elite == 1)
+        {
+            return;
+        }
+
+        //
+        // Agent added.
+        //
+        if (combatData->src->Profession != 0 &&
+            combatData->dst != nullptr &&
+            combatData->dst->IsSelf != 0)
+        {
+            const uintptr_t newSelfAgentID =
+                combatData->src->ID;
+
+            const std::string newCharacterName =
+                combatData->src->Name != nullptr
+                ? combatData->src->Name
+                : "";
+
+            const bool characterChanged =
+                !newCharacterName.empty() &&
+                !g_SelfCharacterName.empty() &&
+                newCharacterName !=
+                g_SelfCharacterName;
+
+            const bool agentChanged =
+                newSelfAgentID != 0 &&
+                g_SelfAgentID != 0 &&
+                newSelfAgentID !=
+                g_SelfAgentID;
+
+            if (characterChanged ||
+                agentChanged)
+            {
+                g_HasFood = false;
+                g_HasUtility = false;
+
+                g_FoodDurationMilliseconds = 0;
+                g_UtilityDurationMilliseconds = 0;
+
+                g_IsInCombat = false;
+            }
+
+            if (newSelfAgentID != 0)
+            {
+                g_SelfAgentID =
+                    newSelfAgentID;
+            }
+
+            if (!newCharacterName.empty())
+            {
+                g_SelfCharacterName =
+                    newCharacterName;
+            }
+
+            return;
+        }
+
+        //
+        // Agent removed.
+        //
+        if (combatData->src->Profession == 0 &&
+            g_SelfAgentID != 0 &&
+            combatData->src->ID == g_SelfAgentID)
+        {
+            g_HasFood = false;
+            g_HasUtility = false;
+
+            g_FoodDurationMilliseconds = 0;
+            g_UtilityDurationMilliseconds = 0;
+
+            g_IsInCombat = false;
+
+            g_SelfAgentID = 0;
+            g_SelfCharacterName.clear();
+        }
+
         return;
     }
 
