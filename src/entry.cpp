@@ -1407,7 +1407,7 @@ void RenderSquadTab()
 
     ImGui::TextWrapped(
         "Players appear here when ArcDPS begins tracking them in your current area/instance. "
-        "This is separate from simply being listed in the squad."
+        "Food and Utility states fill in as ArcDPS reports their buffs."
     );
 
     ImGui::Spacing();
@@ -1415,7 +1415,7 @@ void RenderSquadTab()
     if (trackedPlayers.empty())
     {
         ImGui::TextDisabled(
-            "No ArcDPS player tracking changes received yet."
+            "No ArcDPS players are currently tracked."
         );
     }
     else
@@ -1440,19 +1440,19 @@ void RenderSquadTab()
             );
 
             ImGui::TableSetupColumn(
+                "Food"
+            );
+
+            ImGui::TableSetupColumn(
+                "Utility"
+            );
+
+            ImGui::TableSetupColumn(
                 "Account"
             );
 
             ImGui::TableSetupColumn(
                 "Agent ID"
-            );
-
-            ImGui::TableSetupColumn(
-                "Instance"
-            );
-
-            ImGui::TableSetupColumn(
-                "Profession"
             );
 
             ImGui::TableSetupColumn(
@@ -1488,13 +1488,97 @@ void RenderSquadTab()
 
                 ImGui::TableSetColumnIndex(2);
 
+                if (player.hasFood)
+                {
+                    const int64_t totalSeconds =
+                        player.foodRemainingMilliseconds /
+                        1000;
+
+                    const int64_t hours =
+                        totalSeconds / 3600;
+
+                    const int64_t minutes =
+                        (totalSeconds % 3600) /
+                        60;
+
+                    const int64_t seconds =
+                        totalSeconds % 60;
+
+                    const ConsumableInfo& foodInfo =
+                        ConsumableData::GetFoodInfo(
+                            player.foodSkillID
+                        );
+
+                    ImGui::Text(
+                        "%s %02lld:%02lld:%02lld",
+                        foodInfo.label,
+                        hours,
+                        minutes,
+                        seconds
+                    );
+
+                    RenderConsumableTooltip(
+                        foodInfo
+                    );
+                }
+                else
+                {
+                    ImGui::TextUnformatted(
+                        "None"
+                    );
+                }
+
+                ImGui::TableSetColumnIndex(3);
+
+                if (player.hasUtility)
+                {
+                    const int64_t totalSeconds =
+                        player.utilityRemainingMilliseconds /
+                        1000;
+
+                    const int64_t hours =
+                        totalSeconds / 3600;
+
+                    const int64_t minutes =
+                        (totalSeconds % 3600) /
+                        60;
+
+                    const int64_t seconds =
+                        totalSeconds % 60;
+
+                    const ConsumableInfo& utilityInfo =
+                        ConsumableData::GetUtilityInfo(
+                            player.utilitySkillID
+                        );
+
+                    ImGui::Text(
+                        "%s %02lld:%02lld:%02lld",
+                        utilityInfo.label,
+                        hours,
+                        minutes,
+                        seconds
+                    );
+
+                    RenderConsumableTooltip(
+                        utilityInfo
+                    );
+                }
+                else
+                {
+                    ImGui::TextUnformatted(
+                        "None"
+                    );
+                }
+
+                ImGui::TableSetColumnIndex(4);
+
                 ImGui::TextUnformatted(
                     player.accountName.empty()
                     ? "-"
                     : player.accountName.c_str()
                 );
 
-                ImGui::TableSetColumnIndex(3);
+                ImGui::TableSetColumnIndex(5);
 
                 ImGui::Text(
                     "%llu",
@@ -1503,24 +1587,6 @@ void RenderSquadTab()
                     >(
                         player.agentID
                         )
-                );
-
-                ImGui::TableSetColumnIndex(4);
-
-                ImGui::Text(
-                    "%llu",
-                    static_cast<
-                    unsigned long long
-                    >(
-                        player.instanceID
-                        )
-                );
-
-                ImGui::TableSetColumnIndex(5);
-
-                ImGui::Text(
-                    "%u",
-                    player.profession
                 );
 
                 ImGui::TableSetColumnIndex(6);
@@ -1579,14 +1645,14 @@ void RenderSquadTab()
     else
     {
         ImGui::TextDisabled(
-            "Extras is optional. ArcDPS player tracking above does not depend on it."
+            "Extras is optional. ArcDPS player and consumable tracking does not depend on it."
         );
     }
 
     ImGui::Spacing();
 
     ImGui::TextDisabled(
-        "Test stage: player discovery only. Food and Utility states are not connected yet."
+        "Test stage: ArcDPS player discovery + Food/Utility buff tracking."
     );
 }
 

@@ -21,6 +21,15 @@ struct SquadTrackedPlayer
     uint16_t team = 0;
 
     bool isSelf = false;
+
+    bool hasFood = false;
+    bool hasUtility = false;
+
+    uint32_t foodSkillID = 0;
+    uint32_t utilitySkillID = 0;
+
+    int64_t foodRemainingMilliseconds = 0;
+    int64_t utilityRemainingMilliseconds = 0;
 };
 
 namespace SquadTracker
