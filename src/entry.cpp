@@ -153,6 +153,11 @@ void AddonRender()
     const bool hasUtility =
         BuffTracker::HasUtility();
 
+    if (BuffTracker::ConsumeSettingsChanged())
+    {
+        Settings::Save(hSelf);
+    }
+
     const int64_t foodRemaining =
         hasFood
         ? BuffTracker::GetFoodRemainingMilliseconds()
@@ -177,6 +182,11 @@ void AddonRender()
 
     const bool hasUtilityPrimer =
         BuffTracker::HasUtilityPrimer();
+
+    if (BuffTracker::ConsumeSettingsChanged())
+    {
+        Settings::Save(hSelf);
+    }
 
     const int64_t metabolicPrimerRemaining =
         hasMetabolicPrimer
