@@ -11,6 +11,7 @@
 #include "BuffTracker.h"
 #include "ConsumableData.h"
 #include "ExtrasIntegration.h"
+#include "SquadTracker.h"
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -151,6 +152,10 @@ void OnArcDPSCombat(void* eventArgs)
             eventArgs
             );
 
+    SquadTracker::ProcessEvent(
+        combatData
+    );
+
     BuffTracker::ProcessEvent(
         combatData
     );
@@ -169,6 +174,7 @@ void AddonUnload()
     Settings::Save(hSelf);
 
     ExtrasIntegration::Reset();
+    SquadTracker::Reset();
 
     if (APIDefs != nullptr)
     {
@@ -1379,14 +1385,162 @@ void RenderGeneralTab()
 
 void RenderSquadTab()
 {
-    const bool extrasAvailable =
-        ExtrasIntegration::IsAvailable();
-
     ImGui::TextUnformatted(
         "Squad Tracking"
     );
 
     ImGui::Separator();
+
+    const std::vector<
+        SquadTrackedPlayer
+    > trackedPlayers =
+        SquadTracker::GetPlayers();
+
+    ImGui::Text(
+        "ArcDPS tracked players: %llu",
+        static_cast<
+        unsigned long long
+        >(
+            trackedPlayers.size()
+            )
+    );
+
+    ImGui::TextWrapped(
+        "Players appear here when ArcDPS begins tracking them in your current area/instance. "
+        "This is separate from simply being listed in the squad."
+    );
+
+    ImGui::Spacing();
+
+    if (trackedPlayers.empty())
+    {
+        ImGui::TextDisabled(
+            "No ArcDPS player tracking changes received yet."
+        );
+    }
+    else
+    {
+        const ImGuiTableFlags playerTableFlags =
+            ImGuiTableFlags_Borders |
+            ImGuiTableFlags_RowBg |
+            ImGuiTableFlags_SizingStretchProp |
+            ImGuiTableFlags_ScrollX;
+
+        if (ImGui::BeginTable(
+            "##FoodReminderArcPlayers",
+            7,
+            playerTableFlags))
+        {
+            ImGui::TableSetupColumn(
+                "Sub"
+            );
+
+            ImGui::TableSetupColumn(
+                "Character"
+            );
+
+            ImGui::TableSetupColumn(
+                "Account"
+            );
+
+            ImGui::TableSetupColumn(
+                "Agent ID"
+            );
+
+            ImGui::TableSetupColumn(
+                "Instance"
+            );
+
+            ImGui::TableSetupColumn(
+                "Profession"
+            );
+
+            ImGui::TableSetupColumn(
+                "Self"
+            );
+
+            ImGui::TableHeadersRow();
+
+            for (
+                const SquadTrackedPlayer&
+                player :
+                trackedPlayers
+                )
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+
+                ImGui::Text(
+                    "%u",
+                    static_cast<unsigned int>(
+                        player.subgroup
+                        )
+                );
+
+                ImGui::TableSetColumnIndex(1);
+
+                ImGui::TextUnformatted(
+                    player.characterName.empty()
+                    ? "-"
+                    : player.characterName.c_str()
+                );
+
+                ImGui::TableSetColumnIndex(2);
+
+                ImGui::TextUnformatted(
+                    player.accountName.empty()
+                    ? "-"
+                    : player.accountName.c_str()
+                );
+
+                ImGui::TableSetColumnIndex(3);
+
+                ImGui::Text(
+                    "%llu",
+                    static_cast<
+                    unsigned long long
+                    >(
+                        player.agentID
+                        )
+                );
+
+                ImGui::TableSetColumnIndex(4);
+
+                ImGui::Text(
+                    "%llu",
+                    static_cast<
+                    unsigned long long
+                    >(
+                        player.instanceID
+                        )
+                );
+
+                ImGui::TableSetColumnIndex(5);
+
+                ImGui::Text(
+                    "%u",
+                    player.profession
+                );
+
+                ImGui::TableSetColumnIndex(6);
+
+                ImGui::TextUnformatted(
+                    player.isSelf
+                    ? "Yes"
+                    : "No"
+                );
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    const bool extrasAvailable =
+        ExtrasIntegration::IsAvailable();
 
     ImGui::Text(
         "Unofficial Extras: %s",
@@ -1395,140 +1549,44 @@ void RenderSquadTab()
         : "Not detected"
     );
 
-    if (!extrasAvailable)
+    if (extrasAvailable)
     {
-        ImGui::Spacing();
+        const std::string extrasVersion =
+            ExtrasIntegration::GetVersion();
 
-        ImGui::TextWrapped(
-            "Squad tracking requires Unofficial Extras. "
-            "Personal Food Reminder features continue to work without it."
+        ImGui::Text(
+            "Version: %s",
+            extrasVersion.empty()
+            ? "Unknown"
+            : extrasVersion.c_str()
         );
 
-        return;
+        const std::vector<
+            ExtrasSquadMember
+        > squadMembers =
+            ExtrasIntegration::
+            GetSquadMembers();
+
+        ImGui::Text(
+            "Extras squad updates received: %llu",
+            static_cast<
+            unsigned long long
+            >(
+                squadMembers.size()
+                )
+        );
     }
-
-    const std::string extrasVersion =
-        ExtrasIntegration::GetVersion();
-
-    ImGui::Text(
-        "Version: %s",
-        extrasVersion.empty()
-        ? "Unknown"
-        : extrasVersion.c_str()
-    );
-
-    ImGui::Spacing();
-
-    const std::vector<
-        ExtrasSquadMember
-    > squadMembers =
-        ExtrasIntegration::
-        GetSquadMembers();
-
-    ImGui::Text(
-        "Known squad members: %llu",
-        static_cast<
-        unsigned long long
-        >(
-            squadMembers.size()
-            )
-    );
-
-    if (squadMembers.empty())
+    else
     {
-        ImGui::Spacing();
-
-        ImGui::TextWrapped(
-            "No squad updates have been received yet. "
-            "Unofficial Extras reports members as squad changes occur."
+        ImGui::TextDisabled(
+            "Extras is optional. ArcDPS player tracking above does not depend on it."
         );
-
-        return;
-    }
-
-    ImGui::Spacing();
-
-    const ImGuiTableFlags tableFlags =
-        ImGuiTableFlags_Borders |
-        ImGuiTableFlags_RowBg |
-        ImGuiTableFlags_SizingStretchProp;
-
-    if (ImGui::BeginTable(
-        "##FoodReminderSquadRoster",
-        4,
-        tableFlags))
-    {
-        ImGui::TableSetupColumn(
-            "Subgroup"
-        );
-
-        ImGui::TableSetupColumn(
-            "Account"
-        );
-
-        ImGui::TableSetupColumn(
-            "Role"
-        );
-
-        ImGui::TableSetupColumn(
-            "Ready"
-        );
-
-        ImGui::TableHeadersRow();
-
-        for (
-            const ExtrasSquadMember&
-            member :
-            squadMembers
-            )
-        {
-            const char* role =
-                member.isCommander
-                ? "Commander"
-                : member.isLieutenant
-                ? "Lieutenant"
-                : "Member";
-
-            ImGui::TableNextRow();
-
-            ImGui::TableSetColumnIndex(0);
-
-            ImGui::Text(
-                "%u",
-                static_cast<unsigned int>(
-                    member.subgroup
-                    )
-            );
-
-            ImGui::TableSetColumnIndex(1);
-
-            ImGui::TextUnformatted(
-                member.accountName.c_str()
-            );
-
-            ImGui::TableSetColumnIndex(2);
-
-            ImGui::TextUnformatted(
-                role
-            );
-
-            ImGui::TableSetColumnIndex(3);
-
-            ImGui::TextUnformatted(
-                member.ready
-                ? "Yes"
-                : "No"
-            );
-        }
-
-        ImGui::EndTable();
     }
 
     ImGui::Spacing();
 
     ImGui::TextDisabled(
-        "Food and Utility columns will be added after squad members "
-        "are correlated with ArcDPS combat agents."
+        "Test stage: player discovery only. Food and Utility states are not connected yet."
     );
 }
 
