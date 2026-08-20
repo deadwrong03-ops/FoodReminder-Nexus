@@ -197,6 +197,15 @@ void AddonRender()
         g_Settings.utilityPrimerWarningSeconds
     );
 
+    const bool inCombat =
+        BuffTracker::IsInCombat();
+
+    ReminderManager::UpdateMissingBuffWarnings(
+        inCombat,
+        hasFood,
+        hasUtility
+    );
+
     if (!ReminderManager::IsReminderActive())
     {
         return;
@@ -288,12 +297,26 @@ void AddonRender()
 
         ImGui::Separator();
 
-        ImGui::Text(
-            "%02lld:%02lld:%02lld remaining",
-            hours,
-            minutes,
-            seconds
-        );
+        const bool isMissingBuffReminder =
+            title == "FOOD MISSING" ||
+            title == "UTILITY MISSING" ||
+            title == "FOOD + UTILITY MISSING";
+
+        if (isMissingBuffReminder)
+        {
+            ImGui::TextUnformatted(
+                ReminderManager::GetReminderMessage()
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "%02lld:%02lld:%02lld remaining",
+                hours,
+                minutes,
+                seconds
+            );
+        }
     }
 
     ImGui::End();
@@ -608,6 +631,16 @@ void AddonOptions()
     if (ImGui::CollapsingHeader(
         "Developer Debug"))
     {
+        const bool debugInCombat =
+            BuffTracker::IsInCombat();
+
+        ImGui::Text(
+            "Combat State: %s",
+            debugInCombat
+            ? "IN COMBAT"
+            : "OUT OF COMBAT"
+        );
+
         ImGui::Text(
             "ArcDPS Events: %llu",
             static_cast<unsigned long long>(

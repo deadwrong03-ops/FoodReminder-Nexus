@@ -19,6 +19,8 @@ namespace
     bool g_MetabolicPrimerWarningSent = false;
     bool g_UtilityPrimerWarningSent = false;
 
+    bool g_WasInCombat = false;
+
     constexpr int64_t TEST_PRIMER_WARNING_MILLISECONDS =
         30LL * 60LL * 1000LL;
 
@@ -95,10 +97,14 @@ void ReminderManager::Update(
 )
 {
     const int64_t foodWarningMilliseconds =
-        static_cast<int64_t>(foodWarningSeconds) * 1000;
+        static_cast<int64_t>(
+            foodWarningSeconds
+            ) * 1000;
 
     const int64_t utilityWarningMilliseconds =
-        static_cast<int64_t>(utilityWarningSeconds) * 1000;
+        static_cast<int64_t>(
+            utilityWarningSeconds
+            ) * 1000;
 
     if (!hasFood)
     {
@@ -284,6 +290,56 @@ void ReminderManager::UpdatePrimerWarnings(
         );
 
         g_UtilityPrimerWarningSent = true;
+    }
+}
+
+void ReminderManager::UpdateMissingBuffWarnings(
+    bool inCombat,
+    bool hasFood,
+    bool hasUtility
+)
+{
+    if (!inCombat)
+    {
+        g_WasInCombat = false;
+        return;
+    }
+
+    if (g_WasInCombat)
+    {
+        return;
+    }
+
+    g_WasInCombat = true;
+
+    g_BuffRemainingMilliseconds = 0;
+
+    if (!hasFood && !hasUtility)
+    {
+        ShowReminder(
+            "FOOD + UTILITY MISSING",
+            "You entered combat without food or utility."
+        );
+
+        return;
+    }
+
+    if (!hasFood)
+    {
+        ShowReminder(
+            "FOOD MISSING",
+            "You entered combat without food."
+        );
+
+        return;
+    }
+
+    if (!hasUtility)
+    {
+        ShowReminder(
+            "UTILITY MISSING",
+            "You entered combat without utility."
+        );
     }
 }
 

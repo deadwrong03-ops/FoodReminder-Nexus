@@ -18,11 +18,17 @@ namespace
 
     constexpr size_t MAX_DEBUG_EVENTS = 100;
 
+    constexpr uint8_t STATECHANGE_ENTER_COMBAT = 1;
+    constexpr uint8_t STATECHANGE_EXIT_COMBAT = 2;
+
     bool g_HasFood = false;
     bool g_HasUtility = false;
 
     bool g_HasMetabolicPrimer = false;
     bool g_HasUtilityPrimer = false;
+
+    bool g_IsInCombat = false;
+
     bool g_PrimerSettingsChanged = false;
 
     int64_t g_FoodDurationMilliseconds = 0;
@@ -60,10 +66,34 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
 
     ++g_TotalEventCount;
 
+    const bool sourceIsSelf =
+        combatData->src != nullptr &&
+        combatData->src->IsSelf != 0;
+
     const bool destinationIsSelf =
         combatData->dst != nullptr &&
         combatData->dst->IsSelf != 0;
 
+    //
+    // Combat state tracking
+    //
+    if (sourceIsSelf)
+    {
+        if (ev.IsStatechange ==
+            STATECHANGE_ENTER_COMBAT)
+        {
+            g_IsInCombat = true;
+        }
+        else if (ev.IsStatechange ==
+            STATECHANGE_EXIT_COMBAT)
+        {
+            g_IsInCombat = false;
+        }
+    }
+
+    //
+    // Food / Utility / Primer tracking
+    //
     if (destinationIsSelf)
     {
         const std::string skillName =
@@ -107,8 +137,10 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         {
             g_HasMetabolicPrimer = false;
             g_MetabolicPrimerDurationMilliseconds = 0;
+
             g_Settings.metabolicPrimerExpiresAt = 0;
             g_PrimerSettingsChanged = true;
+
             return;
         }
 
@@ -116,8 +148,10 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
         {
             g_HasUtilityPrimer = false;
             g_UtilityPrimerDurationMilliseconds = 0;
+
             g_Settings.utilityPrimerExpiresAt = 0;
             g_PrimerSettingsChanged = true;
+
             return;
         }
 
@@ -152,11 +186,15 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                 std::chrono::steady_clock::now();
 
             const int64_t durationSeconds =
-                g_MetabolicPrimerDurationMilliseconds / 1000;
+                g_MetabolicPrimerDurationMilliseconds /
+                1000;
 
             g_Settings.metabolicPrimerExpiresAt =
-                static_cast<int64_t>(std::time(nullptr)) +
+                static_cast<int64_t>(
+                    std::time(nullptr)
+                    ) +
                 durationSeconds;
+
             g_PrimerSettingsChanged = true;
         }
         else if (isUtilityPrimerEvent && hasDuration)
@@ -170,15 +208,22 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
                 std::chrono::steady_clock::now();
 
             const int64_t durationSeconds =
-                g_UtilityPrimerDurationMilliseconds / 1000;
+                g_UtilityPrimerDurationMilliseconds /
+                1000;
 
             g_Settings.utilityPrimerExpiresAt =
-                static_cast<int64_t>(std::time(nullptr)) +
+                static_cast<int64_t>(
+                    std::time(nullptr)
+                    ) +
                 durationSeconds;
+
             g_PrimerSettingsChanged = true;
         }
     }
 
+    //
+    // Developer debug event tracking
+    //
     const bool isBuffLike =
         (ev.Buff != 0 && ev.BuffDamage >= 0) ||
         ev.IsBuffRemove != 0 ||
@@ -215,16 +260,15 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     record.stateChange = ev.IsStatechange;
 
     record.sourceIsSelf =
-        combatData->src != nullptr &&
-        combatData->src->IsSelf != 0;
+        sourceIsSelf;
 
     record.destinationIsSelf =
-        combatData->dst != nullptr &&
-        combatData->dst->IsSelf != 0;
+        destinationIsSelf;
 
     g_RecentBuffEvents.push_back(record);
 
-    if (g_RecentBuffEvents.size() > MAX_DEBUG_EVENTS)
+    if (g_RecentBuffEvents.size() >
+        MAX_DEBUG_EVENTS)
     {
         g_RecentBuffEvents.erase(
             g_RecentBuffEvents.begin()
@@ -246,7 +290,8 @@ uint64_t BuffTracker::GetBuffLikeEventCount()
     return g_BuffLikeEventCount;
 }
 
-std::vector<BuffEventDebug> BuffTracker::GetRecentBuffEvents()
+std::vector<BuffEventDebug>
+BuffTracker::GetRecentBuffEvents()
 {
     std::lock_guard<std::mutex> lock(g_BuffMutex);
 
@@ -263,12 +308,15 @@ bool BuffTracker::HasFood()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_FoodReceivedTime
         ).count();
 
-    if (elapsed >= g_FoodDurationMilliseconds)
+    if (elapsed >=
+        g_FoodDurationMilliseconds)
     {
         g_HasFood = false;
         g_FoodDurationMilliseconds = 0;
@@ -289,12 +337,15 @@ bool BuffTracker::HasUtility()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_UtilityReceivedTime
         ).count();
 
-    if (elapsed >= g_UtilityDurationMilliseconds)
+    if (elapsed >=
+        g_UtilityDurationMilliseconds)
     {
         g_HasUtility = false;
         g_UtilityDurationMilliseconds = 0;
@@ -315,12 +366,15 @@ bool BuffTracker::HasMetabolicPrimer()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_MetabolicPrimerReceivedTime
         ).count();
 
-    if (elapsed >= g_MetabolicPrimerDurationMilliseconds)
+    if (elapsed >=
+        g_MetabolicPrimerDurationMilliseconds)
     {
         g_HasMetabolicPrimer = false;
         g_MetabolicPrimerDurationMilliseconds = 0;
@@ -342,12 +396,15 @@ bool BuffTracker::HasUtilityPrimer()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_UtilityPrimerReceivedTime
         ).count();
 
-    if (elapsed >= g_UtilityPrimerDurationMilliseconds)
+    if (elapsed >=
+        g_UtilityPrimerDurationMilliseconds)
     {
         g_HasUtilityPrimer = false;
         g_UtilityPrimerDurationMilliseconds = 0;
@@ -357,6 +414,13 @@ bool BuffTracker::HasUtilityPrimer()
     }
 
     return true;
+}
+
+bool BuffTracker::IsInCombat()
+{
+    std::lock_guard<std::mutex> lock(g_BuffMutex);
+
+    return g_IsInCombat;
 }
 
 int64_t BuffTracker::GetFoodRemainingMilliseconds()
@@ -369,13 +433,16 @@ int64_t BuffTracker::GetFoodRemainingMilliseconds()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_FoodReceivedTime
         ).count();
 
     const int64_t remaining =
-        g_FoodDurationMilliseconds - elapsed;
+        g_FoodDurationMilliseconds -
+        elapsed;
 
     return remaining > 0
         ? remaining
@@ -392,20 +459,24 @@ int64_t BuffTracker::GetUtilityRemainingMilliseconds()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_UtilityReceivedTime
         ).count();
 
     const int64_t remaining =
-        g_UtilityDurationMilliseconds - elapsed;
+        g_UtilityDurationMilliseconds -
+        elapsed;
 
     return remaining > 0
         ? remaining
         : 0;
 }
 
-int64_t BuffTracker::GetMetabolicPrimerRemainingMilliseconds()
+int64_t BuffTracker::
+GetMetabolicPrimerRemainingMilliseconds()
 {
     std::lock_guard<std::mutex> lock(g_BuffMutex);
 
@@ -415,20 +486,24 @@ int64_t BuffTracker::GetMetabolicPrimerRemainingMilliseconds()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_MetabolicPrimerReceivedTime
         ).count();
 
     const int64_t remaining =
-        g_MetabolicPrimerDurationMilliseconds - elapsed;
+        g_MetabolicPrimerDurationMilliseconds -
+        elapsed;
 
     return remaining > 0
         ? remaining
         : 0;
 }
 
-int64_t BuffTracker::GetUtilityPrimerRemainingMilliseconds()
+int64_t BuffTracker::
+GetUtilityPrimerRemainingMilliseconds()
 {
     std::lock_guard<std::mutex> lock(g_BuffMutex);
 
@@ -438,13 +513,16 @@ int64_t BuffTracker::GetUtilityPrimerRemainingMilliseconds()
     }
 
     const auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::duration_cast<
+        std::chrono::milliseconds
+        >(
             std::chrono::steady_clock::now() -
             g_UtilityPrimerReceivedTime
         ).count();
 
     const int64_t remaining =
-        g_UtilityPrimerDurationMilliseconds - elapsed;
+        g_UtilityPrimerDurationMilliseconds -
+        elapsed;
 
     return remaining > 0
         ? remaining
@@ -460,10 +538,12 @@ void BuffTracker::RestorePrimerState()
             std::time(nullptr)
             );
 
-    if (g_Settings.metabolicPrimerExpiresAt > now)
+    if (g_Settings.metabolicPrimerExpiresAt >
+        now)
     {
         const int64_t remainingSeconds =
-            g_Settings.metabolicPrimerExpiresAt - now;
+            g_Settings.metabolicPrimerExpiresAt -
+            now;
 
         g_HasMetabolicPrimer = true;
 
@@ -480,10 +560,12 @@ void BuffTracker::RestorePrimerState()
         g_Settings.metabolicPrimerExpiresAt = 0;
     }
 
-    if (g_Settings.utilityPrimerExpiresAt > now)
+    if (g_Settings.utilityPrimerExpiresAt >
+        now)
     {
         const int64_t remainingSeconds =
-            g_Settings.utilityPrimerExpiresAt - now;
+            g_Settings.utilityPrimerExpiresAt -
+            now;
 
         g_HasUtilityPrimer = true;
 
@@ -500,11 +582,13 @@ void BuffTracker::RestorePrimerState()
         g_Settings.utilityPrimerExpiresAt = 0;
     }
 }
+
 void BuffTracker::SavePrimerState()
 {
     // Primer expiration timestamps are stored in g_Settings.
     // Settings.cpp handles writing them to disk.
 }
+
 bool BuffTracker::ConsumePrimerSettingsChanged()
 {
     std::lock_guard<std::mutex> lock(g_BuffMutex);

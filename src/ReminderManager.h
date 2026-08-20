@@ -28,6 +28,12 @@ namespace ReminderManager
         int utilityPrimerWarningSeconds
     );
 
+    void UpdateMissingBuffWarnings(
+        bool inCombat,
+        bool hasFood,
+        bool hasUtility
+    );
+
     bool IsReminderActive();
 
     const char* GetReminderTitle();

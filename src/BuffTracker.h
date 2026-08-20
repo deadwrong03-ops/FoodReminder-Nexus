@@ -42,6 +42,8 @@ namespace BuffTracker
     bool HasMetabolicPrimer();
     bool HasUtilityPrimer();
 
+    bool IsInCombat();
+
     int64_t GetFoodRemainingMilliseconds();
     int64_t GetUtilityRemainingMilliseconds();
 
