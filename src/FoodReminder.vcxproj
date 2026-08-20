@@ -110,6 +110,7 @@
     <ClInclude Include="nexus\Nexus.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="ReminderManager.h" />
+    <ClInclude Include="SquadTracker.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BuffTracker.cpp" />
@@ -123,6 +124,7 @@
     <ClCompile Include="imgui\imgui_draw.cpp" />
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
+    <ClCompile Include="Squadtracker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DEVELOPMENT_LOG.md" />
