@@ -112,6 +112,12 @@ bool Settings::Load(void* moduleHandle)
                     ParseBool(value);
             }
             else if (
+                key == "lockTrackerPosition")
+            {
+                g_Settings.lockTrackerPosition =
+                    ParseBool(value);
+            }
+            else if (
                 key == "foodWarningSeconds")
             {
                 g_Settings.foodWarningSeconds =
@@ -150,21 +156,29 @@ bool Settings::Load(void* moduleHandle)
             else if (
                 key.rfind("character.", 0) == 0)
             {
-                const std::string foodSuffix =
+                const std::string foodRemainingSuffix =
                     ".foodRemainingSeconds";
 
-                const std::string utilitySuffix =
+                const std::string utilityRemainingSuffix =
                     ".utilityRemainingSeconds";
 
-                if (EndsWith(key, foodSuffix))
-                {
-                    const size_t nameStart =
-                        std::string("character.").size();
+                const std::string foodSkillSuffix =
+                    ".foodSkillID";
 
+                const std::string utilitySkillSuffix =
+                    ".utilitySkillID";
+
+                const size_t nameStart =
+                    std::string("character.").size();
+
+                if (EndsWith(
+                    key,
+                    foodRemainingSuffix))
+                {
                     const size_t nameLength =
                         key.size() -
                         nameStart -
-                        foodSuffix.size();
+                        foodRemainingSuffix.size();
 
                     const std::string characterName =
                         key.substr(
@@ -183,15 +197,14 @@ bool Settings::Load(void* moduleHandle)
                     }
                 }
                 else if (
-                    EndsWith(key, utilitySuffix))
+                    EndsWith(
+                        key,
+                        utilityRemainingSuffix))
                 {
-                    const size_t nameStart =
-                        std::string("character.").size();
-
                     const size_t nameLength =
                         key.size() -
                         nameStart -
-                        utilitySuffix.size();
+                        utilityRemainingSuffix.size();
 
                     const std::string characterName =
                         key.substr(
@@ -207,6 +220,62 @@ bool Settings::Load(void* moduleHandle)
                             ]
                             .utilityRemainingSeconds =
                             std::stoll(value);
+                    }
+                }
+                else if (
+                    EndsWith(
+                        key,
+                        foodSkillSuffix))
+                {
+                    const size_t nameLength =
+                        key.size() -
+                        nameStart -
+                        foodSkillSuffix.size();
+
+                    const std::string characterName =
+                        key.substr(
+                            nameStart,
+                            nameLength
+                        );
+
+                    if (!characterName.empty())
+                    {
+                        g_Settings
+                            .characterConsumables[
+                                characterName
+                            ]
+                            .foodSkillID =
+                            static_cast<uint32_t>(
+                                std::stoul(value)
+                                );
+                    }
+                }
+                else if (
+                    EndsWith(
+                        key,
+                        utilitySkillSuffix))
+                {
+                    const size_t nameLength =
+                        key.size() -
+                        nameStart -
+                        utilitySkillSuffix.size();
+
+                    const std::string characterName =
+                        key.substr(
+                            nameStart,
+                            nameLength
+                        );
+
+                    if (!characterName.empty())
+                    {
+                        g_Settings
+                            .characterConsumables[
+                                characterName
+                            ]
+                            .utilitySkillID =
+                            static_cast<uint32_t>(
+                                std::stoul(value)
+                                );
                     }
                 }
             }
@@ -280,6 +349,11 @@ bool Settings::Save(void* moduleHandle)
         << '\n';
 
     file
+        << "lockTrackerPosition="
+        << (g_Settings.lockTrackerPosition ? 1 : 0)
+        << '\n';
+
+    file
         << "foodWarningSeconds="
         << g_Settings.foodWarningSeconds
         << '\n';
@@ -330,6 +404,20 @@ bool Settings::Save(void* moduleHandle)
             << characterName
             << ".utilityRemainingSeconds="
             << state.utilityRemainingSeconds
+            << '\n';
+
+        file
+            << "character."
+            << characterName
+            << ".foodSkillID="
+            << state.foodSkillID
+            << '\n';
+
+        file
+            << "character."
+            << characterName
+            << ".utilitySkillID="
+            << state.utilitySkillID
             << '\n';
     }
 

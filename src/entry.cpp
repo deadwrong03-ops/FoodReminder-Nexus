@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <string>
+#include <cfloat>
 
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
@@ -20,6 +21,14 @@ void RenderCompactTracker(
     int64_t foodRemaining,
     bool hasUtility,
     int64_t utilityRemaining
+);
+
+const char* GetFoodStatLabel(
+    uint32_t skillID
+);
+
+const char* GetUtilityStatLabel(
+    uint32_t skillID
 );
 
 AddonDefinition_t AddonDef = {};
@@ -184,6 +193,34 @@ void AddonUnload()
     APIDefs = nullptr;
 }
 
+const char* GetFoodStatLabel(
+    uint32_t skillID
+)
+{
+    switch (skillID)
+    {
+    case 17825:
+        return "Power / Ferocity";
+
+    default:
+        return "Unknown";
+    }
+}
+
+const char* GetUtilityStatLabel(
+    uint32_t skillID
+)
+{
+    switch (skillID)
+    {
+    case 9963:
+        return "Power";
+
+    default:
+        return "Unknown";
+    }
+}
+
 void RenderCompactTracker(
     bool hasFood,
     int64_t foodRemaining,
@@ -191,9 +228,15 @@ void RenderCompactTracker(
     int64_t utilityRemaining
 )
 {
-    const ImGuiWindowFlags trackerFlags =
+    ImGuiWindowFlags trackerFlags =
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoCollapse;
+
+    if (g_Settings.lockTrackerPosition)
+    {
+        trackerFlags |=
+            ImGuiWindowFlags_NoMove;
+    }
 
     const ImVec4 normalColor(
         0.40f,
@@ -280,6 +323,15 @@ void RenderCompactTracker(
         displayUtilityRemaining = 0;
     }
 
+    //
+    // Keep tracker width stable and leave room
+    // for the consumable stat labels.
+    //
+    ImGui::SetNextWindowSizeConstraints(
+        ImVec2(300.0f, 0.0f),
+        ImVec2(FLT_MAX, FLT_MAX)
+    );
+
     if (ImGui::Begin(
         "Food Reminder Tracker",
         nullptr,
@@ -330,12 +382,26 @@ void RenderCompactTracker(
                 }
             }
 
+            const uint32_t foodSkillID =
+                BuffTracker::GetFoodSkillID();
+
+            const char* foodStatLabel =
+                GetFoodStatLabel(
+                    foodSkillID
+                );
+
             ImGui::TextColored(
                 *foodColor,
                 "Food:    %02lld:%02lld:%02lld",
                 hours,
                 minutes,
                 seconds
+            );
+
+            ImGui::SameLine(175.0f);
+
+            ImGui::TextUnformatted(
+                foodStatLabel
             );
         }
         else
@@ -391,12 +457,26 @@ void RenderCompactTracker(
                 }
             }
 
+            const uint32_t utilitySkillID =
+                BuffTracker::GetUtilitySkillID();
+
+            const char* utilityStatLabel =
+                GetUtilityStatLabel(
+                    utilitySkillID
+                );
+
             ImGui::TextColored(
                 *utilityColor,
                 "Utility: %02lld:%02lld:%02lld",
                 hours,
                 minutes,
                 seconds
+            );
+
+            ImGui::SameLine(175.0f);
+
+            ImGui::TextUnformatted(
+                utilityStatLabel
             );
         }
         else
@@ -413,10 +493,6 @@ void RenderCompactTracker(
 
 void AddonRender()
 {
-    //
-    // Keep buff state updated even when
-    // reminder popups are disabled.
-    //
     const bool hasFood =
         BuffTracker::HasFood();
 
@@ -467,11 +543,6 @@ void AddonRender()
         GetUtilityPrimerRemainingMilliseconds()
         : 0;
 
-    //
-    // Optional compact tracker HUD.
-    // Hide it outside active gameplay,
-    // including character select.
-    //
     if (g_Settings.showTracker &&
         NexusLink != nullptr &&
         NexusLink->IsGameplay)
@@ -484,10 +555,6 @@ void AddonRender()
         );
     }
 
-    //
-    // Tracker may remain visible even if
-    // reminder popups are disabled.
-    //
     if (!g_Settings.enabled)
     {
         return;
@@ -677,6 +744,13 @@ void AddonOptions()
     if (ImGui::Checkbox(
         "Show compact tracker",
         &g_Settings.showTracker))
+    {
+        settingsChanged = true;
+    }
+
+    if (ImGui::Checkbox(
+        "Lock tracker position",
+        &g_Settings.lockTrackerPosition))
     {
         settingsChanged = true;
     }
@@ -1036,6 +1110,16 @@ void AddonOptions()
                 BuffTracker::
                 GetBuffLikeEventCount()
                 )
+        );
+
+        ImGui::Text(
+            "Food Skill ID: %u",
+            BuffTracker::GetFoodSkillID()
+        );
+
+        ImGui::Text(
+            "Utility Skill ID: %u",
+            BuffTracker::GetUtilitySkillID()
         );
 
         if (ImGui::Button(

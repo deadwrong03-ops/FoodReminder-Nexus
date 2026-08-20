@@ -11,6 +11,11 @@ struct CharacterConsumableState
     // 0 means no saved active buff.
     int64_t foodRemainingSeconds = 0;
     int64_t utilityRemainingSeconds = 0;
+
+    // ArcDPS effect IDs for the currently
+    // active Food and Utility effects.
+    uint32_t foodSkillID = 0;
+    uint32_t utilitySkillID = 0;
 };
 
 struct FoodReminderSettings
@@ -18,6 +23,7 @@ struct FoodReminderSettings
     bool enabled = true;
 
     bool showTracker = false;
+    bool lockTrackerPosition = false;
 
     int foodWarningSeconds = 300;
     int utilityWarningSeconds = 300;
@@ -26,8 +32,7 @@ struct FoodReminderSettings
     int utilityPrimerWarningSeconds = 1800;
 
     // Primers still use absolute expiration timestamps
-    // for now. We are only correcting Food/Utility
-    // character persistence in this change.
+    // for now.
     int64_t metabolicPrimerExpiresAt = 0;
     int64_t utilityPrimerExpiresAt = 0;
 
