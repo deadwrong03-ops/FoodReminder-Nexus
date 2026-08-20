@@ -9,6 +9,7 @@
 #include "ReminderManager.h"
 #include "ArcDPS.h"
 #include "BuffTracker.h"
+#include "ConsumableData.h"
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -23,12 +24,8 @@ void RenderCompactTracker(
     int64_t utilityRemaining
 );
 
-const char* GetFoodStatLabel(
-    uint32_t skillID
-);
-
-const char* GetUtilityStatLabel(
-    uint32_t skillID
+void RenderConsumableTooltip(
+    const ConsumableInfo& info
 );
 
 AddonDefinition_t AddonDef = {};
@@ -193,32 +190,28 @@ void AddonUnload()
     APIDefs = nullptr;
 }
 
-const char* GetFoodStatLabel(
-    uint32_t skillID
+void RenderConsumableTooltip(
+    const ConsumableInfo& info
 )
 {
-    switch (skillID)
+    if (!ImGui::IsItemHovered())
     {
-    case 17825:
-        return "Power / Ferocity";
-
-    default:
-        return "Unknown";
+        return;
     }
-}
 
-const char* GetUtilityStatLabel(
-    uint32_t skillID
-)
-{
-    switch (skillID)
-    {
-    case 9963:
-        return "Power";
+    ImGui::BeginTooltip();
 
-    default:
-        return "Unknown";
-    }
+    ImGui::TextUnformatted(
+        info.name
+    );
+
+    ImGui::Separator();
+
+    ImGui::TextUnformatted(
+        info.effects
+    );
+
+    ImGui::EndTooltip();
 }
 
 void RenderCompactTracker(
@@ -324,11 +317,10 @@ void RenderCompactTracker(
     }
 
     //
-    // Keep tracker width stable and leave room
-    // for the consumable stat labels.
+    // Stable but tighter tracker width.
     //
     ImGui::SetNextWindowSizeConstraints(
-        ImVec2(300.0f, 0.0f),
+        ImVec2(260.0f, 0.0f),
         ImVec2(FLT_MAX, FLT_MAX)
     );
 
@@ -385,8 +377,8 @@ void RenderCompactTracker(
             const uint32_t foodSkillID =
                 BuffTracker::GetFoodSkillID();
 
-            const char* foodStatLabel =
-                GetFoodStatLabel(
+            const ConsumableInfo& foodInfo =
+                ConsumableData::GetFoodInfo(
                     foodSkillID
                 );
 
@@ -398,10 +390,16 @@ void RenderCompactTracker(
                 seconds
             );
 
-            ImGui::SameLine(175.0f);
+            ImGui::SameLine(
+                155.0f
+            );
 
             ImGui::TextUnformatted(
-                foodStatLabel
+                foodInfo.label
+            );
+
+            RenderConsumableTooltip(
+                foodInfo
             );
         }
         else
@@ -460,8 +458,8 @@ void RenderCompactTracker(
             const uint32_t utilitySkillID =
                 BuffTracker::GetUtilitySkillID();
 
-            const char* utilityStatLabel =
-                GetUtilityStatLabel(
+            const ConsumableInfo& utilityInfo =
+                ConsumableData::GetUtilityInfo(
                     utilitySkillID
                 );
 
@@ -473,10 +471,16 @@ void RenderCompactTracker(
                 seconds
             );
 
-            ImGui::SameLine(175.0f);
+            ImGui::SameLine(
+                155.0f
+            );
 
             ImGui::TextUnformatted(
-                utilityStatLabel
+                utilityInfo.label
+            );
+
+            RenderConsumableTooltip(
+                utilityInfo
             );
         }
         else
