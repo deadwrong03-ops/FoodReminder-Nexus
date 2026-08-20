@@ -44,9 +44,44 @@ namespace
 
 void ReminderManager::TriggerTestReminder()
 {
+    g_BuffRemainingMilliseconds = 0;
+
     ShowReminder(
         "FOOD REMINDER",
         "Test reminder is working."
+    );
+}
+
+void ReminderManager::TriggerMetabolicPrimerTest()
+{
+    g_BuffRemainingMilliseconds =
+        PRIMER_WARNING_MILLISECONDS;
+
+    ShowReminder(
+        "METABOLIC PRIMER EXPIRING",
+        "Your Metabolic Primer is expiring soon."
+    );
+}
+
+void ReminderManager::TriggerUtilityPrimerTest()
+{
+    g_BuffRemainingMilliseconds =
+        PRIMER_WARNING_MILLISECONDS;
+
+    ShowReminder(
+        "UTILITY PRIMER EXPIRING",
+        "Your Utility Primer is expiring soon."
+    );
+}
+
+void ReminderManager::TriggerBothPrimerTest()
+{
+    g_BuffRemainingMilliseconds =
+        PRIMER_WARNING_MILLISECONDS;
+
+    ShowReminder(
+        "PRIMERS EXPIRING",
+        "Your Metabolic and Utility Primers are expiring soon."
     );
 }
 
@@ -196,6 +231,12 @@ void ReminderManager::UpdatePrimerWarnings(
 
     if (metabolicWarningDue && utilityWarningDue)
     {
+        g_BuffRemainingMilliseconds =
+            metabolicPrimerRemainingMilliseconds <
+            utilityPrimerRemainingMilliseconds
+            ? metabolicPrimerRemainingMilliseconds
+            : utilityPrimerRemainingMilliseconds;
+
         ShowReminder(
             "PRIMERS EXPIRING",
             "Your Metabolic and Utility Primers are expiring soon."
@@ -209,6 +250,9 @@ void ReminderManager::UpdatePrimerWarnings(
 
     if (metabolicWarningDue)
     {
+        g_BuffRemainingMilliseconds =
+            metabolicPrimerRemainingMilliseconds;
+
         ShowReminder(
             "METABOLIC PRIMER EXPIRING",
             "Your Metabolic Primer is expiring soon."
@@ -219,6 +263,9 @@ void ReminderManager::UpdatePrimerWarnings(
 
     if (utilityWarningDue)
     {
+        g_BuffRemainingMilliseconds =
+            utilityPrimerRemainingMilliseconds;
+
         ShowReminder(
             "UTILITY PRIMER EXPIRING",
             "Your Utility Primer is expiring soon."

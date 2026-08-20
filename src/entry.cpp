@@ -235,20 +235,28 @@ void AddonRender()
         const char* reminderTitle =
             ReminderManager::GetReminderTitle();
 
-        if (std::string(reminderTitle) ==
-            "FOOD REMINDER")
+        const std::string title =
+            reminderTitle;
+
+        if (title == "FOOD REMINDER")
         {
             remainingMs =
                 foodRemaining;
         }
-        else if (
-            std::string(reminderTitle) ==
-            "UTILITY REMINDER")
+        else if (title == "UTILITY REMINDER")
         {
             remainingMs =
                 utilityRemaining;
         }
-        else
+        else if (
+            title == "METABOLIC PRIMER EXPIRING" ||
+            title == "UTILITY PRIMER EXPIRING" ||
+            title == "PRIMERS EXPIRING")
+        {
+            remainingMs =
+                ReminderManager::GetBuffRemainingMilliseconds();
+        }
+        else if (title == "FOOD + UTILITY REMINDER")
         {
             if (hasFood && hasUtility)
             {
@@ -572,6 +580,29 @@ void AddonOptions()
             "Clear Buff Debug"))
         {
             BuffTracker::Reset();
+        }
+
+        ImGui::Spacing();
+        ImGui::TextUnformatted(
+            "Reminder Tests"
+        );
+
+        if (ImGui::Button(
+            "Test Metabolic Primer Warning"))
+        {
+            ReminderManager::TriggerMetabolicPrimerTest();
+        }
+
+        if (ImGui::Button(
+            "Test Utility Primer Warning"))
+        {
+            ReminderManager::TriggerUtilityPrimerTest();
+        }
+
+        if (ImGui::Button(
+            "Test Both Primer Warnings"))
+        {
+            ReminderManager::TriggerBothPrimerTest();
         }
 
         ImGui::Separator();

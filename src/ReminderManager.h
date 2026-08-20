@@ -6,6 +6,10 @@ namespace ReminderManager
 {
     void TriggerTestReminder();
 
+    void TriggerMetabolicPrimerTest();
+    void TriggerUtilityPrimerTest();
+    void TriggerBothPrimerTest();
+
     void Update(
         bool hasFood,
         int64_t foodRemainingMilliseconds,
@@ -14,6 +18,7 @@ namespace ReminderManager
         int64_t utilityRemainingMilliseconds,
         int utilityWarningSeconds
     );
+
     void UpdatePrimerWarnings(
         bool hasMetabolicPrimer,
         int64_t metabolicPrimerRemainingMilliseconds,
@@ -25,6 +30,8 @@ namespace ReminderManager
 
     const char* GetReminderTitle();
     const char* GetReminderMessage();
+
     int64_t GetBuffRemainingMilliseconds();
+
     float GetReminderSecondsRemaining();
 }
