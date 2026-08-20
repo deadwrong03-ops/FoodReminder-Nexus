@@ -29,6 +29,12 @@ namespace
 
     bool g_IsInCombat = false;
 
+    // Used to detect character changes.
+// Food and Utility are transient and must not
+// carry over to another character.
+    uintptr_t g_SelfAgentID = 0;
+    std::string g_SelfCharacterName;
+
     bool g_PrimerSettingsChanged = false;
 
     int64_t g_FoodDurationMilliseconds = 0;
@@ -73,6 +79,72 @@ void BuffTracker::ProcessEvent(const EvCombatData* combatData)
     const bool destinationIsSelf =
         combatData->dst != nullptr &&
         combatData->dst->IsSelf != 0;
+
+    uintptr_t currentSelfAgentID = 0;
+    std::string currentSelfCharacterName;
+
+    if (sourceIsSelf &&
+        combatData->src != nullptr)
+    {
+        currentSelfAgentID =
+            combatData->src->ID;
+
+        if (combatData->src->Name != nullptr)
+        {
+            currentSelfCharacterName =
+                combatData->src->Name;
+        }
+    }
+    else if (destinationIsSelf &&
+        combatData->dst != nullptr)
+    {
+        currentSelfAgentID =
+            combatData->dst->ID;
+
+        if (combatData->dst->Name != nullptr)
+        {
+            currentSelfCharacterName =
+                combatData->dst->Name;
+        }
+    }
+
+    const bool characterNameChanged =
+        !currentSelfCharacterName.empty() &&
+        !g_SelfCharacterName.empty() &&
+        currentSelfCharacterName !=
+        g_SelfCharacterName;
+
+    const bool agentChanged =
+        currentSelfAgentID != 0 &&
+        g_SelfAgentID != 0 &&
+        currentSelfAgentID !=
+        g_SelfAgentID;
+
+    if (characterNameChanged ||
+        agentChanged)
+    {
+        // New character detected.
+        // Clear transient Food/Utility state.
+        g_HasFood = false;
+        g_HasUtility = false;
+
+        g_FoodDurationMilliseconds = 0;
+        g_UtilityDurationMilliseconds = 0;
+
+        g_IsInCombat = false;
+    }
+
+    if (currentSelfAgentID != 0)
+    {
+        g_SelfAgentID =
+            currentSelfAgentID;
+    }
+
+    if (!currentSelfCharacterName.empty())
+    {
+        g_SelfCharacterName =
+            currentSelfCharacterName;
+    }
 
     //
     // Combat state tracking
