@@ -15,14 +15,26 @@ void AddonRender();
 void AddonOptions();
 void OnArcDPSCombat(void* eventArgs);
 
+void RenderCompactTracker(
+    bool hasFood,
+    int64_t foodRemaining,
+    bool hasUtility,
+    int64_t utilityRemaining
+);
+
 AddonDefinition_t AddonDef = {};
 HMODULE hSelf = nullptr;
 AddonAPI_t* APIDefs = nullptr;
 NexusLinkData_t* NexusLink = nullptr;
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
+BOOL APIENTRY DllMain(
+    HMODULE hModule,
+    DWORD ul_reason_for_call,
+    LPVOID
+)
 {
-    if (ul_reason_for_call == DLL_PROCESS_ATTACH)
+    if (ul_reason_for_call ==
+        DLL_PROCESS_ATTACH)
     {
         hSelf = hModule;
     }
@@ -30,25 +42,40 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
     return TRUE;
 }
 
-extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef()
+extern "C"
+__declspec(dllexport)
+AddonDefinition_t* GetAddonDef()
 {
-    // Provisional development signature. Replace/register before public release.
-    AddonDef.Signature = (uint32_t)-26081801;
-    AddonDef.APIVersion = NEXUS_API_VERSION;
-    AddonDef.Name = "Food Reminder";
+    // Provisional development signature.
+    // Replace/register before public release.
+    AddonDef.Signature =
+        (uint32_t)-26081801;
+
+    AddonDef.APIVersion =
+        NEXUS_API_VERSION;
+
+    AddonDef.Name =
+        "Food Reminder";
 
     AddonDef.Version.Major = 0;
     AddonDef.Version.Minor = 1;
     AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
 
-    AddonDef.Author = "Scott";
+    AddonDef.Author =
+        "Scott";
+
     AddonDef.Description =
         "Food and utility expiration reminders for Guild Wars 2.";
 
-    AddonDef.Load = AddonLoad;
-    AddonDef.Unload = AddonUnload;
-    AddonDef.Flags = AF_None;
+    AddonDef.Load =
+        AddonLoad;
+
+    AddonDef.Unload =
+        AddonUnload;
+
+    AddonDef.Flags =
+        AF_None;
 
     return &AddonDef;
 }
@@ -62,15 +89,18 @@ void AddonLoad(AddonAPI_t* aApi)
     );
 
     ImGui::SetAllocatorFunctions(
-        (void* (*)(size_t, void*))APIDefs->ImguiMalloc,
-        (void (*)(void*, void*))APIDefs->ImguiFree
+        (void* (*)(size_t, void*))
+        APIDefs->ImguiMalloc,
+        (void (*)(void*, void*))
+        APIDefs->ImguiFree
     );
 
     Settings::Load(hSelf);
     BuffTracker::RestorePrimerState();
 
     NexusLink =
-        (NexusLinkData_t*)APIDefs->DataLink_Get(
+        (NexusLinkData_t*)
+        APIDefs->DataLink_Get(
             "DL_NEXUS_LINK"
         );
 
@@ -99,11 +129,17 @@ void AddonLoad(AddonAPI_t* aApi)
 void OnArcDPSCombat(void* eventArgs)
 {
     EvCombatData* combatData =
-        static_cast<EvCombatData*>(eventArgs);
+        static_cast<EvCombatData*>(
+            eventArgs
+            );
 
-    BuffTracker::ProcessEvent(combatData);
+    BuffTracker::ProcessEvent(
+        combatData
+    );
 
-    if (BuffTracker::ConsumeSettingsChanged())
+    if (
+        BuffTracker::ConsumeSettingsChanged()
+        )
     {
         Settings::Save(hSelf);
     }
@@ -140,33 +176,159 @@ void AddonUnload()
     APIDefs = nullptr;
 }
 
-void AddonRender()
+void RenderCompactTracker(
+    bool hasFood,
+    int64_t foodRemaining,
+    bool hasUtility,
+    int64_t utilityRemaining
+)
 {
-    if (!g_Settings.enabled)
+    const ImGuiWindowFlags trackerFlags =
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoCollapse;
+
+    if (ImGui::Begin(
+        "Food Reminder Tracker",
+        nullptr,
+        trackerFlags))
     {
-        return;
+        if (hasFood)
+        {
+            const int64_t totalSeconds =
+                foodRemaining / 1000;
+
+            const int64_t hours =
+                totalSeconds / 3600;
+
+            const int64_t minutes =
+                (totalSeconds % 3600) / 60;
+
+            const int64_t seconds =
+                totalSeconds % 60;
+
+            ImGui::Text(
+                "Food:    %02lld:%02lld:%02lld",
+                hours,
+                minutes,
+                seconds
+            );
+        }
+        else
+        {
+            ImGui::TextUnformatted(
+                "Food:    Not detected"
+            );
+        }
+
+        if (hasUtility)
+        {
+            const int64_t totalSeconds =
+                utilityRemaining / 1000;
+
+            const int64_t hours =
+                totalSeconds / 3600;
+
+            const int64_t minutes =
+                (totalSeconds % 3600) / 60;
+
+            const int64_t seconds =
+                totalSeconds % 60;
+
+            ImGui::Text(
+                "Utility: %02lld:%02lld:%02lld",
+                hours,
+                minutes,
+                seconds
+            );
+        }
+        else
+        {
+            ImGui::TextUnformatted(
+                "Utility: Not detected"
+            );
+        }
     }
 
+    ImGui::End();
+}
+
+void AddonRender()
+{
+    //
+    // Keep buff state updated even when
+    // reminder popups are disabled.
+    //
     const bool hasFood =
         BuffTracker::HasFood();
 
     const bool hasUtility =
         BuffTracker::HasUtility();
 
-    if (BuffTracker::ConsumeSettingsChanged())
+    if (
+        BuffTracker::ConsumeSettingsChanged()
+        )
     {
         Settings::Save(hSelf);
     }
 
     const int64_t foodRemaining =
         hasFood
-        ? BuffTracker::GetFoodRemainingMilliseconds()
+        ? BuffTracker::
+        GetFoodRemainingMilliseconds()
         : 0;
 
     const int64_t utilityRemaining =
         hasUtility
-        ? BuffTracker::GetUtilityRemainingMilliseconds()
+        ? BuffTracker::
+        GetUtilityRemainingMilliseconds()
         : 0;
+
+    const bool hasMetabolicPrimer =
+        BuffTracker::HasMetabolicPrimer();
+
+    const bool hasUtilityPrimer =
+        BuffTracker::HasUtilityPrimer();
+
+    if (
+        BuffTracker::ConsumeSettingsChanged()
+        )
+    {
+        Settings::Save(hSelf);
+    }
+
+    const int64_t metabolicPrimerRemaining =
+        hasMetabolicPrimer
+        ? BuffTracker::
+        GetMetabolicPrimerRemainingMilliseconds()
+        : 0;
+
+    const int64_t utilityPrimerRemaining =
+        hasUtilityPrimer
+        ? BuffTracker::
+        GetUtilityPrimerRemainingMilliseconds()
+        : 0;
+
+    //
+    // Optional compact tracker HUD.
+    //
+    if (g_Settings.showTracker)
+    {
+        RenderCompactTracker(
+            hasFood,
+            foodRemaining,
+            hasUtility,
+            utilityRemaining
+        );
+    }
+
+    //
+    // Tracker may remain visible even if
+    // reminder popups are disabled.
+    //
+    if (!g_Settings.enabled)
+    {
+        return;
+    }
 
     ReminderManager::Update(
         hasFood,
@@ -177,46 +339,31 @@ void AddonRender()
         g_Settings.utilityWarningSeconds
     );
 
-    const bool hasMetabolicPrimer =
-        BuffTracker::HasMetabolicPrimer();
-
-    const bool hasUtilityPrimer =
-        BuffTracker::HasUtilityPrimer();
-
-    if (BuffTracker::ConsumeSettingsChanged())
-    {
-        Settings::Save(hSelf);
-    }
-
-    const int64_t metabolicPrimerRemaining =
-        hasMetabolicPrimer
-        ? BuffTracker::GetMetabolicPrimerRemainingMilliseconds()
-        : 0;
-
-    const int64_t utilityPrimerRemaining =
-        hasUtilityPrimer
-        ? BuffTracker::GetUtilityPrimerRemainingMilliseconds()
-        : 0;
-
     ReminderManager::UpdatePrimerWarnings(
         hasMetabolicPrimer,
         metabolicPrimerRemaining,
-        g_Settings.metabolicPrimerWarningSeconds,
+        g_Settings
+        .metabolicPrimerWarningSeconds,
         hasUtilityPrimer,
         utilityPrimerRemaining,
-        g_Settings.utilityPrimerWarningSeconds
+        g_Settings
+        .utilityPrimerWarningSeconds
     );
 
     const bool inCombat =
         BuffTracker::IsInCombat();
 
-    ReminderManager::UpdateMissingBuffWarnings(
-        inCombat,
-        hasFood,
-        hasUtility
-    );
+    ReminderManager::
+        UpdateMissingBuffWarnings(
+            inCombat,
+            hasFood,
+            hasUtility
+        );
 
-    if (!ReminderManager::IsReminderActive())
+    if (
+        !ReminderManager::
+        IsReminderActive()
+        )
     {
         return;
     }
@@ -254,32 +401,43 @@ void AddonRender()
         int64_t remainingMs = 0;
 
         const char* reminderTitle =
-            ReminderManager::GetReminderTitle();
+            ReminderManager::
+            GetReminderTitle();
 
         const std::string title =
             reminderTitle;
 
-        if (title == "FOOD REMINDER")
+        if (title ==
+            "FOOD REMINDER")
         {
             remainingMs =
                 foodRemaining;
         }
-        else if (title == "UTILITY REMINDER")
+        else if (
+            title ==
+            "UTILITY REMINDER")
         {
             remainingMs =
                 utilityRemaining;
         }
         else if (
-            title == "METABOLIC PRIMER EXPIRING" ||
-            title == "UTILITY PRIMER EXPIRING" ||
-            title == "PRIMERS EXPIRING")
+            title ==
+            "METABOLIC PRIMER EXPIRING" ||
+            title ==
+            "UTILITY PRIMER EXPIRING" ||
+            title ==
+            "PRIMERS EXPIRING")
         {
             remainingMs =
-                ReminderManager::GetBuffRemainingMilliseconds();
+                ReminderManager::
+                GetBuffRemainingMilliseconds();
         }
-        else if (title == "FOOD + UTILITY REMINDER")
+        else if (
+            title ==
+            "FOOD + UTILITY REMINDER")
         {
-            if (hasFood && hasUtility)
+            if (hasFood &&
+                hasUtility)
             {
                 remainingMs =
                     foodRemaining <
@@ -296,13 +454,15 @@ void AddonRender()
             remainingSeconds / 3600;
 
         const int64_t minutes =
-            (remainingSeconds % 3600) / 60;
+            (remainingSeconds % 3600) /
+            60;
 
         const int64_t seconds =
             remainingSeconds % 60;
 
         ImGui::TextUnformatted(
-            ReminderManager::GetReminderTitle()
+            ReminderManager::
+            GetReminderTitle()
         );
 
         ImGui::Separator();
@@ -310,12 +470,14 @@ void AddonRender()
         const bool isMissingBuffReminder =
             title == "FOOD MISSING" ||
             title == "UTILITY MISSING" ||
-            title == "FOOD + UTILITY MISSING";
+            title ==
+            "FOOD + UTILITY MISSING";
 
         if (isMissingBuffReminder)
         {
             ImGui::TextUnformatted(
-                ReminderManager::GetReminderMessage()
+                ReminderManager::
+                GetReminderMessage()
             );
         }
         else
@@ -349,6 +511,13 @@ void AddonOptions()
         settingsChanged = true;
     }
 
+    if (ImGui::Checkbox(
+        "Show compact tracker",
+        &g_Settings.showTracker))
+    {
+        settingsChanged = true;
+    }
+
     ImGui::Spacing();
 
     ImGui::TextUnformatted(
@@ -356,16 +525,22 @@ void AddonOptions()
     );
 
     int foodWarningMinutes =
-        g_Settings.foodWarningSeconds / 60;
+        g_Settings.foodWarningSeconds /
+        60;
 
     int utilityWarningMinutes =
-        g_Settings.utilityWarningSeconds / 60;
+        g_Settings.utilityWarningSeconds /
+        60;
 
     int metabolicPrimerWarningMinutes =
-        g_Settings.metabolicPrimerWarningSeconds / 60;
+        g_Settings
+        .metabolicPrimerWarningSeconds /
+        60;
 
     int utilityPrimerWarningMinutes =
-        g_Settings.utilityPrimerWarningSeconds / 60;
+        g_Settings
+        .utilityPrimerWarningSeconds /
+        60;
 
     ImGui::Spacing();
 
@@ -412,8 +587,10 @@ void AddonOptions()
         60,
         "%d min"))
     {
-        g_Settings.metabolicPrimerWarningSeconds =
-            metabolicPrimerWarningMinutes * 60;
+        g_Settings
+            .metabolicPrimerWarningSeconds =
+            metabolicPrimerWarningMinutes *
+            60;
 
         settingsChanged = true;
     }
@@ -425,8 +602,10 @@ void AddonOptions()
         60,
         "%d min"))
     {
-        g_Settings.utilityPrimerWarningSeconds =
-            utilityPrimerWarningMinutes * 60;
+        g_Settings
+            .utilityPrimerWarningSeconds =
+            utilityPrimerWarningMinutes *
+            60;
 
         settingsChanged = true;
     }
@@ -446,7 +625,8 @@ void AddonOptions()
     if (BuffTracker::HasFood())
     {
         const int64_t foodMs =
-            BuffTracker::GetFoodRemainingMilliseconds();
+            BuffTracker::
+            GetFoodRemainingMilliseconds();
 
         const int64_t foodSeconds =
             foodMs / 1000;
@@ -477,7 +657,8 @@ void AddonOptions()
     if (BuffTracker::HasUtility())
     {
         const int64_t utilityMs =
-            BuffTracker::GetUtilityRemainingMilliseconds();
+            BuffTracker::
+            GetUtilityRemainingMilliseconds();
 
         const int64_t utilitySeconds =
             utilityMs / 1000;
@@ -486,9 +667,11 @@ void AddonOptions()
             utilitySeconds / 3600;
 
         const int64_t utilityMinutes =
-            (utilitySeconds % 3600) / 60;
+            (utilitySeconds % 3600) /
+            60;
 
-        const int64_t utilityRemainingSeconds =
+        const int64_t
+            utilityRemainingSeconds =
             utilitySeconds % 60;
 
         ImGui::Text(
@@ -505,10 +688,14 @@ void AddonOptions()
         );
     }
 
-    if (BuffTracker::HasMetabolicPrimer())
+    if (
+        BuffTracker::
+        HasMetabolicPrimer()
+        )
     {
         const int64_t primerMs =
-            BuffTracker::GetMetabolicPrimerRemainingMilliseconds();
+            BuffTracker::
+            GetMetabolicPrimerRemainingMilliseconds();
 
         const int64_t primerSeconds =
             primerMs / 1000;
@@ -517,9 +704,11 @@ void AddonOptions()
             primerSeconds / 3600;
 
         const int64_t primerMinutes =
-            (primerSeconds % 3600) / 60;
+            (primerSeconds % 3600) /
+            60;
 
-        const int64_t primerRemainingSeconds =
+        const int64_t
+            primerRemainingSeconds =
             primerSeconds % 60;
 
         ImGui::Text(
@@ -532,10 +721,12 @@ void AddonOptions()
     else
     {
         const int64_t foodMs =
-            BuffTracker::GetFoodRemainingMilliseconds();
+            BuffTracker::
+            GetFoodRemainingMilliseconds();
 
         const int64_t twoHoursMs =
-            2LL * 60LL * 60LL * 1000LL;
+            2LL * 60LL * 60LL *
+            1000LL;
 
         if (foodMs > twoHoursMs)
         {
@@ -546,9 +737,11 @@ void AddonOptions()
                 foodSeconds / 3600;
 
             const int64_t foodMinutes =
-                (foodSeconds % 3600) / 60;
+                (foodSeconds % 3600) /
+                60;
 
-            const int64_t foodRemainingSeconds =
+            const int64_t
+                foodRemainingSeconds =
                 foodSeconds % 60;
 
             ImGui::Text(
@@ -566,10 +759,14 @@ void AddonOptions()
         }
     }
 
-    if (BuffTracker::HasUtilityPrimer())
+    if (
+        BuffTracker::
+        HasUtilityPrimer()
+        )
     {
         const int64_t primerMs =
-            BuffTracker::GetUtilityPrimerRemainingMilliseconds();
+            BuffTracker::
+            GetUtilityPrimerRemainingMilliseconds();
 
         const int64_t primerSeconds =
             primerMs / 1000;
@@ -578,9 +775,11 @@ void AddonOptions()
             primerSeconds / 3600;
 
         const int64_t primerMinutes =
-            (primerSeconds % 3600) / 60;
+            (primerSeconds % 3600) /
+            60;
 
-        const int64_t primerRemainingSeconds =
+        const int64_t
+            primerRemainingSeconds =
             primerSeconds % 60;
 
         ImGui::Text(
@@ -593,10 +792,12 @@ void AddonOptions()
     else
     {
         const int64_t utilityMs =
-            BuffTracker::GetUtilityRemainingMilliseconds();
+            BuffTracker::
+            GetUtilityRemainingMilliseconds();
 
         const int64_t twoHoursMs =
-            2LL * 60LL * 60LL * 1000LL;
+            2LL * 60LL * 60LL *
+            1000LL;
 
         if (utilityMs > twoHoursMs)
         {
@@ -607,9 +808,11 @@ void AddonOptions()
                 utilitySeconds / 3600;
 
             const int64_t utilityMinutes =
-                (utilitySeconds % 3600) / 60;
+                (utilitySeconds % 3600) /
+                60;
 
-            const int64_t utilityRemainingSeconds =
+            const int64_t
+                utilityRemainingSeconds =
                 utilitySeconds % 60;
 
             ImGui::Text(
@@ -632,7 +835,8 @@ void AddonOptions()
     if (ImGui::Button(
         "Test Reminder"))
     {
-        ReminderManager::TriggerTestReminder();
+        ReminderManager::
+            TriggerTestReminder();
     }
 
     ImGui::Spacing();
@@ -653,15 +857,21 @@ void AddonOptions()
 
         ImGui::Text(
             "ArcDPS Events: %llu",
-            static_cast<unsigned long long>(
-                BuffTracker::GetTotalEventCount()
+            static_cast<
+            unsigned long long
+            >(
+                BuffTracker::
+                GetTotalEventCount()
                 )
         );
 
         ImGui::Text(
             "Buff-like Events: %llu",
-            static_cast<unsigned long long>(
-                BuffTracker::GetBuffLikeEventCount()
+            static_cast<
+            unsigned long long
+            >(
+                BuffTracker::
+                GetBuffLikeEventCount()
                 )
         );
 
@@ -672,6 +882,7 @@ void AddonOptions()
         }
 
         ImGui::Spacing();
+
         ImGui::TextUnformatted(
             "Reminder Tests"
         );
@@ -679,26 +890,31 @@ void AddonOptions()
         if (ImGui::Button(
             "Test Metabolic Primer Warning"))
         {
-            ReminderManager::TriggerMetabolicPrimerTest();
+            ReminderManager::
+                TriggerMetabolicPrimerTest();
         }
 
         if (ImGui::Button(
             "Test Utility Primer Warning"))
         {
-            ReminderManager::TriggerUtilityPrimerTest();
+            ReminderManager::
+                TriggerUtilityPrimerTest();
         }
 
         if (ImGui::Button(
             "Test Both Primer Warnings"))
         {
-            ReminderManager::TriggerBothPrimerTest();
+            ReminderManager::
+                TriggerBothPrimerTest();
         }
 
         ImGui::Separator();
 
-        const std::vector<BuffEventDebug>
-            recentEvents =
-            BuffTracker::GetRecentBuffEvents();
+        const std::vector<
+            BuffEventDebug
+        > recentEvents =
+            BuffTracker::
+            GetRecentBuffEvents();
 
         static bool selfOnly = true;
 
@@ -711,16 +927,20 @@ void AddonOptions()
             "Recent Buff Events:"
         );
 
-        for (auto it =
+        for (
+            auto it =
             recentEvents.rbegin();
             it != recentEvents.rend();
-            ++it)
+            ++it
+            )
         {
             const BuffEventDebug& event =
                 *it;
 
-            if (selfOnly &&
-                !event.destinationIsSelf)
+            if (
+                selfOnly &&
+                !event.destinationIsSelf
+                )
             {
                 continue;
             }
@@ -734,13 +954,19 @@ void AddonOptions()
                 event.value,
                 event.buffDamage,
                 event.overstackValue,
-                static_cast<unsigned int>(
+                static_cast<
+                unsigned int
+                >(
                     event.buff
                     ),
-                static_cast<unsigned int>(
+                static_cast<
+                unsigned int
+                >(
                     event.buffRemove
                     ),
-                static_cast<unsigned int>(
+                static_cast<
+                unsigned int
+                >(
                     event.stateChange
                     ),
                 event.sourceIsSelf

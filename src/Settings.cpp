@@ -107,6 +107,12 @@ bool Settings::Load(void* moduleHandle)
                     ParseBool(value);
             }
             else if (
+                key == "showTracker")
+            {
+                g_Settings.showTracker =
+                    ParseBool(value);
+            }
+            else if (
                 key == "foodWarningSeconds")
             {
                 g_Settings.foodWarningSeconds =
@@ -267,6 +273,11 @@ bool Settings::Save(void* moduleHandle)
     file
         << "enabled="
         << (g_Settings.enabled ? 1 : 0)
+        << '\n';
+
+    file
+        << "showTracker="
+        << (g_Settings.showTracker ? 1 : 0)
         << '\n';
 
     file
