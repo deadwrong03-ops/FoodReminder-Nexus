@@ -29,6 +29,9 @@ void RenderConsumableTooltip(
     const ConsumableInfo& info
 );
 
+void RenderGeneralTab();
+void RenderSquadTab();
+
 AddonDefinition_t AddonDef = {};
 HMODULE hSelf = nullptr;
 AddonAPI_t* APIDefs = nullptr;
@@ -731,14 +734,8 @@ void AddonRender()
     ImGui::End();
 }
 
-void AddonOptions()
+void RenderGeneralTab()
 {
-    ImGui::TextUnformatted(
-        "Food Reminder"
-    );
-
-    ImGui::Separator();
-
     bool settingsChanged = false;
 
     if (ImGui::Checkbox(
@@ -1375,6 +1372,194 @@ void AddonOptions()
                 : "N"
             );
         }
+    }
+
+}
+
+
+void RenderSquadTab()
+{
+    const bool extrasAvailable =
+        ExtrasIntegration::IsAvailable();
+
+    ImGui::TextUnformatted(
+        "Squad Tracking"
+    );
+
+    ImGui::Separator();
+
+    ImGui::Text(
+        "Unofficial Extras: %s",
+        extrasAvailable
+        ? "Connected"
+        : "Not detected"
+    );
+
+    if (!extrasAvailable)
+    {
+        ImGui::Spacing();
+
+        ImGui::TextWrapped(
+            "Squad tracking requires Unofficial Extras. "
+            "Personal Food Reminder features continue to work without it."
+        );
+
+        return;
+    }
+
+    const std::string extrasVersion =
+        ExtrasIntegration::GetVersion();
+
+    ImGui::Text(
+        "Version: %s",
+        extrasVersion.empty()
+        ? "Unknown"
+        : extrasVersion.c_str()
+    );
+
+    ImGui::Spacing();
+
+    const std::vector<
+        ExtrasSquadMember
+    > squadMembers =
+        ExtrasIntegration::
+        GetSquadMembers();
+
+    ImGui::Text(
+        "Known squad members: %llu",
+        static_cast<
+        unsigned long long
+        >(
+            squadMembers.size()
+            )
+    );
+
+    if (squadMembers.empty())
+    {
+        ImGui::Spacing();
+
+        ImGui::TextWrapped(
+            "No squad updates have been received yet. "
+            "Unofficial Extras reports members as squad changes occur."
+        );
+
+        return;
+    }
+
+    ImGui::Spacing();
+
+    const ImGuiTableFlags tableFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_SizingStretchProp;
+
+    if (ImGui::BeginTable(
+        "##FoodReminderSquadRoster",
+        4,
+        tableFlags))
+    {
+        ImGui::TableSetupColumn(
+            "Subgroup"
+        );
+
+        ImGui::TableSetupColumn(
+            "Account"
+        );
+
+        ImGui::TableSetupColumn(
+            "Role"
+        );
+
+        ImGui::TableSetupColumn(
+            "Ready"
+        );
+
+        ImGui::TableHeadersRow();
+
+        for (
+            const ExtrasSquadMember&
+            member :
+            squadMembers
+            )
+        {
+            const char* role =
+                member.isCommander
+                ? "Commander"
+                : member.isLieutenant
+                ? "Lieutenant"
+                : "Member";
+
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+
+            ImGui::Text(
+                "%u",
+                static_cast<unsigned int>(
+                    member.subgroup
+                    )
+            );
+
+            ImGui::TableSetColumnIndex(1);
+
+            ImGui::TextUnformatted(
+                member.accountName.c_str()
+            );
+
+            ImGui::TableSetColumnIndex(2);
+
+            ImGui::TextUnformatted(
+                role
+            );
+
+            ImGui::TableSetColumnIndex(3);
+
+            ImGui::TextUnformatted(
+                member.ready
+                ? "Yes"
+                : "No"
+            );
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::Spacing();
+
+    ImGui::TextDisabled(
+        "Food and Utility columns will be added after squad members "
+        "are correlated with ArcDPS combat agents."
+    );
+}
+
+void AddonOptions()
+{
+    ImGui::TextUnformatted(
+        "Food Reminder"
+    );
+
+    ImGui::Separator();
+
+    if (ImGui::BeginTabBar(
+        "##FoodReminderTabs"))
+    {
+        if (ImGui::BeginTabItem(
+            "General"))
+        {
+            RenderGeneralTab();
+
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem(
+            "Squad"))
+        {
+            RenderSquadTab();
+
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
     }
 
     ImGui::Spacing();
