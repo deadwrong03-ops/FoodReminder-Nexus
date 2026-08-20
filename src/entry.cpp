@@ -67,6 +67,7 @@ void AddonLoad(AddonAPI_t* aApi)
     );
 
     Settings::Load(hSelf);
+    BuffTracker::RestorePrimerState();
 
     NexusLink =
         (NexusLinkData_t*)APIDefs->DataLink_Get(
@@ -101,10 +102,12 @@ void OnArcDPSCombat(void* eventArgs)
         static_cast<EvCombatData*>(eventArgs);
 
     BuffTracker::ProcessEvent(combatData);
+    Settings::Save(hSelf);
 }
 
 void AddonUnload()
 {
+    BuffTracker::SavePrimerState();
     Settings::Save(hSelf);
 
     if (APIDefs != nullptr)
@@ -292,7 +295,7 @@ void AddonOptions()
         "Food early warning",
         &foodWarningMinutes,
         1,
-        120,
+        60,
         "%d min"))
     {
         g_Settings.foodWarningSeconds =
@@ -305,7 +308,7 @@ void AddonOptions()
         "Utility early warning",
         &utilityWarningMinutes,
         1,
-        120,
+        60,
         "%d min"))
     {
         g_Settings.utilityWarningSeconds =
@@ -386,6 +389,128 @@ void AddonOptions()
         ImGui::Text(
             "Utility: Not detected"
         );
+    }
+
+    if (BuffTracker::HasMetabolicPrimer())
+    {
+        const int64_t primerMs =
+            BuffTracker::GetMetabolicPrimerRemainingMilliseconds();
+
+        const int64_t primerSeconds =
+            primerMs / 1000;
+
+        const int64_t primerHours =
+            primerSeconds / 3600;
+
+        const int64_t primerMinutes =
+            (primerSeconds % 3600) / 60;
+
+        const int64_t primerRemainingSeconds =
+            primerSeconds % 60;
+
+        ImGui::Text(
+            "Metabolic Primer: %02lld:%02lld:%02lld",
+            primerHours,
+            primerMinutes,
+            primerRemainingSeconds
+        );
+    }
+    else
+    {
+        const int64_t foodMs =
+            BuffTracker::GetFoodRemainingMilliseconds();
+
+        const int64_t twoHoursMs =
+            2LL * 60LL * 60LL * 1000LL;
+
+        if (foodMs > twoHoursMs)
+        {
+            const int64_t foodSeconds =
+                foodMs / 1000;
+
+            const int64_t foodHours =
+                foodSeconds / 3600;
+
+            const int64_t foodMinutes =
+                (foodSeconds % 3600) / 60;
+
+            const int64_t foodRemainingSeconds =
+                foodSeconds % 60;
+
+            ImGui::Text(
+                "Metabolic Primer: ~%02lld:%02lld:%02lld (inferred)",
+                foodHours,
+                foodMinutes,
+                foodRemainingSeconds
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Metabolic Primer: Not detected"
+            );
+        }
+    }
+
+    if (BuffTracker::HasUtilityPrimer())
+    {
+        const int64_t primerMs =
+            BuffTracker::GetUtilityPrimerRemainingMilliseconds();
+
+        const int64_t primerSeconds =
+            primerMs / 1000;
+
+        const int64_t primerHours =
+            primerSeconds / 3600;
+
+        const int64_t primerMinutes =
+            (primerSeconds % 3600) / 60;
+
+        const int64_t primerRemainingSeconds =
+            primerSeconds % 60;
+
+        ImGui::Text(
+            "Utility Primer:   %02lld:%02lld:%02lld",
+            primerHours,
+            primerMinutes,
+            primerRemainingSeconds
+        );
+    }
+    else
+    {
+        const int64_t utilityMs =
+            BuffTracker::GetUtilityRemainingMilliseconds();
+
+        const int64_t twoHoursMs =
+            2LL * 60LL * 60LL * 1000LL;
+
+        if (utilityMs > twoHoursMs)
+        {
+            const int64_t utilitySeconds =
+                utilityMs / 1000;
+
+            const int64_t utilityHours =
+                utilitySeconds / 3600;
+
+            const int64_t utilityMinutes =
+                (utilitySeconds % 3600) / 60;
+
+            const int64_t utilityRemainingSeconds =
+                utilitySeconds % 60;
+
+            ImGui::Text(
+                "Utility Primer:   ~%02lld:%02lld:%02lld (inferred)",
+                utilityHours,
+                utilityMinutes,
+                utilityRemainingSeconds
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Utility Primer:   Not detected"
+            );
+        }
     }
 
     ImGui::Spacing();
