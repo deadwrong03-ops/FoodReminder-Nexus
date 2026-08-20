@@ -469,8 +469,12 @@ void AddonRender()
 
     //
     // Optional compact tracker HUD.
+    // Hide it outside active gameplay,
+    // including character select.
     //
-    if (g_Settings.showTracker)
+    if (g_Settings.showTracker &&
+        NexusLink != nullptr &&
+        NexusLink->IsGameplay)
     {
         RenderCompactTracker(
             hasFood,
