@@ -27,6 +27,14 @@ HMODULE hSelf = nullptr;
 AddonAPI_t* APIDefs = nullptr;
 NexusLinkData_t* NexusLink = nullptr;
 
+// Developer-only tracker color test.
+// 0 = Live
+// 1 = Normal
+// 2 = Warning
+// 3 = Critical
+// 4 = Missing
+int g_TrackerColorTestMode = 0;
+
 BOOL APIENTRY DllMain(
     HMODULE hModule,
     DWORD ul_reason_for_call,
@@ -187,15 +195,100 @@ void RenderCompactTracker(
         ImGuiWindowFlags_AlwaysAutoResize |
         ImGuiWindowFlags_NoCollapse;
 
+    const ImVec4 normalColor(
+        0.40f,
+        1.00f,
+        0.40f,
+        1.00f
+    );
+
+    const ImVec4 warningColor(
+        1.00f,
+        0.85f,
+        0.20f,
+        1.00f
+    );
+
+    const ImVec4 criticalColor(
+        1.00f,
+        0.30f,
+        0.30f,
+        1.00f
+    );
+
+    const ImVec4 missingColor(
+        0.65f,
+        0.65f,
+        0.65f,
+        1.00f
+    );
+
+    bool displayHasFood =
+        hasFood;
+
+    bool displayHasUtility =
+        hasUtility;
+
+    int64_t displayFoodRemaining =
+        foodRemaining;
+
+    int64_t displayUtilityRemaining =
+        utilityRemaining;
+
+    if (g_TrackerColorTestMode == 1)
+    {
+        displayHasFood = true;
+        displayHasUtility = true;
+
+        displayFoodRemaining =
+            2LL * 60LL * 60LL * 1000LL;
+
+        displayUtilityRemaining =
+            2LL * 60LL * 60LL * 1000LL;
+    }
+    else if (
+        g_TrackerColorTestMode == 2)
+    {
+        displayHasFood = true;
+        displayHasUtility = true;
+
+        displayFoodRemaining =
+            5LL * 60LL * 1000LL;
+
+        displayUtilityRemaining =
+            5LL * 60LL * 1000LL;
+    }
+    else if (
+        g_TrackerColorTestMode == 3)
+    {
+        displayHasFood = true;
+        displayHasUtility = true;
+
+        displayFoodRemaining =
+            30LL * 1000LL;
+
+        displayUtilityRemaining =
+            30LL * 1000LL;
+    }
+    else if (
+        g_TrackerColorTestMode == 4)
+    {
+        displayHasFood = false;
+        displayHasUtility = false;
+
+        displayFoodRemaining = 0;
+        displayUtilityRemaining = 0;
+    }
+
     if (ImGui::Begin(
         "Food Reminder Tracker",
         nullptr,
         trackerFlags))
     {
-        if (hasFood)
+        if (displayHasFood)
         {
             const int64_t totalSeconds =
-                foodRemaining / 1000;
+                displayFoodRemaining / 1000;
 
             const int64_t hours =
                 totalSeconds / 3600;
@@ -206,7 +299,39 @@ void RenderCompactTracker(
             const int64_t seconds =
                 totalSeconds % 60;
 
-            ImGui::Text(
+            const ImVec4* foodColor =
+                &normalColor;
+
+            if (g_TrackerColorTestMode == 2)
+            {
+                foodColor =
+                    &warningColor;
+            }
+            else if (
+                g_TrackerColorTestMode == 3)
+            {
+                foodColor =
+                    &criticalColor;
+            }
+            else if (
+                g_TrackerColorTestMode != 1)
+            {
+                if (totalSeconds <= 60)
+                {
+                    foodColor =
+                        &criticalColor;
+                }
+                else if (
+                    totalSeconds <=
+                    g_Settings.foodWarningSeconds)
+                {
+                    foodColor =
+                        &warningColor;
+                }
+            }
+
+            ImGui::TextColored(
+                *foodColor,
                 "Food:    %02lld:%02lld:%02lld",
                 hours,
                 minutes,
@@ -215,15 +340,16 @@ void RenderCompactTracker(
         }
         else
         {
-            ImGui::TextUnformatted(
+            ImGui::TextColored(
+                missingColor,
                 "Food:    Not detected"
             );
         }
 
-        if (hasUtility)
+        if (displayHasUtility)
         {
             const int64_t totalSeconds =
-                utilityRemaining / 1000;
+                displayUtilityRemaining / 1000;
 
             const int64_t hours =
                 totalSeconds / 3600;
@@ -234,7 +360,39 @@ void RenderCompactTracker(
             const int64_t seconds =
                 totalSeconds % 60;
 
-            ImGui::Text(
+            const ImVec4* utilityColor =
+                &normalColor;
+
+            if (g_TrackerColorTestMode == 2)
+            {
+                utilityColor =
+                    &warningColor;
+            }
+            else if (
+                g_TrackerColorTestMode == 3)
+            {
+                utilityColor =
+                    &criticalColor;
+            }
+            else if (
+                g_TrackerColorTestMode != 1)
+            {
+                if (totalSeconds <= 60)
+                {
+                    utilityColor =
+                        &criticalColor;
+                }
+                else if (
+                    totalSeconds <=
+                    g_Settings.utilityWarningSeconds)
+                {
+                    utilityColor =
+                        &warningColor;
+                }
+            }
+
+            ImGui::TextColored(
+                *utilityColor,
                 "Utility: %02lld:%02lld:%02lld",
                 hours,
                 minutes,
@@ -243,7 +401,8 @@ void RenderCompactTracker(
         }
         else
         {
-            ImGui::TextUnformatted(
+            ImGui::TextColored(
+                missingColor,
                 "Utility: Not detected"
             );
         }
@@ -907,6 +1066,59 @@ void AddonOptions()
             ReminderManager::
                 TriggerBothPrimerTest();
         }
+
+        ImGui::Spacing();
+
+        ImGui::TextUnformatted(
+            "Tracker Color Tests"
+        );
+
+        if (ImGui::Button(
+            "Tracker Live"))
+        {
+            g_TrackerColorTestMode = 0;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button(
+            "Tracker Normal"))
+        {
+            g_TrackerColorTestMode = 1;
+        }
+
+        if (ImGui::Button(
+            "Tracker Warning"))
+        {
+            g_TrackerColorTestMode = 2;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button(
+            "Tracker Critical"))
+        {
+            g_TrackerColorTestMode = 3;
+        }
+
+        if (ImGui::Button(
+            "Tracker Missing"))
+        {
+            g_TrackerColorTestMode = 4;
+        }
+
+        ImGui::Text(
+            "Tracker test mode: %s",
+            g_TrackerColorTestMode == 0
+            ? "Live"
+            : g_TrackerColorTestMode == 1
+            ? "Normal"
+            : g_TrackerColorTestMode == 2
+            ? "Warning"
+            : g_TrackerColorTestMode == 3
+            ? "Critical"
+            : "Missing"
+        );
 
         ImGui::Separator();
 
