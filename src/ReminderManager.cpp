@@ -15,6 +15,13 @@ namespace
 
     bool g_FoodWarningSent = false;
     bool g_UtilityWarningSent = false;
+
+    bool g_MetabolicPrimerWarningSent = false;
+    bool g_UtilityPrimerWarningSent = false;
+
+    constexpr int64_t PRIMER_WARNING_MILLISECONDS =
+        30LL * 60LL * 1000LL;
+
     int64_t g_BuffRemainingMilliseconds = 0;
 
     constexpr int REMINDER_DISPLAY_SECONDS = 5;
@@ -58,8 +65,6 @@ void ReminderManager::Update(
     const int64_t utilityWarningMilliseconds =
         static_cast<int64_t>(utilityWarningSeconds) * 1000;
 
-    // If the buff disappears, allow the next buff
-    // to generate a fresh warning.
     if (!hasFood)
     {
         g_FoodWarningSent = false;
@@ -70,8 +75,6 @@ void ReminderManager::Update(
         g_UtilityWarningSent = false;
     }
 
-    // If a buff gets refreshed above its warning
-    // threshold, re-arm the warning.
     if (hasFood &&
         foodRemainingMilliseconds >
         foodWarningMilliseconds)
@@ -100,12 +103,11 @@ void ReminderManager::Update(
         utilityWarningMilliseconds &&
         !g_UtilityWarningSent;
 
-    // If both happen together, show one clean
-    // combined reminder instead of overlapping alerts.
     if (foodWarningDue && utilityWarningDue)
     {
         g_BuffRemainingMilliseconds =
-            foodRemainingMilliseconds < utilityRemainingMilliseconds
+            foodRemainingMilliseconds <
+            utilityRemainingMilliseconds
             ? foodRemainingMilliseconds
             : utilityRemainingMilliseconds;
 
@@ -124,6 +126,7 @@ void ReminderManager::Update(
     {
         g_BuffRemainingMilliseconds =
             foodRemainingMilliseconds;
+
         ShowReminder(
             "FOOD REMINDER",
             "Your food is expiring soon."
@@ -146,6 +149,85 @@ void ReminderManager::Update(
     }
 }
 
+void ReminderManager::UpdatePrimerWarnings(
+    bool hasMetabolicPrimer,
+    int64_t metabolicPrimerRemainingMilliseconds,
+    bool hasUtilityPrimer,
+    int64_t utilityPrimerRemainingMilliseconds
+)
+{
+    if (!hasMetabolicPrimer)
+    {
+        g_MetabolicPrimerWarningSent = false;
+    }
+
+    if (!hasUtilityPrimer)
+    {
+        g_UtilityPrimerWarningSent = false;
+    }
+
+    if (hasMetabolicPrimer &&
+        metabolicPrimerRemainingMilliseconds >
+        PRIMER_WARNING_MILLISECONDS)
+    {
+        g_MetabolicPrimerWarningSent = false;
+    }
+
+    if (hasUtilityPrimer &&
+        utilityPrimerRemainingMilliseconds >
+        PRIMER_WARNING_MILLISECONDS)
+    {
+        g_UtilityPrimerWarningSent = false;
+    }
+
+    const bool metabolicWarningDue =
+        hasMetabolicPrimer &&
+        metabolicPrimerRemainingMilliseconds > 0 &&
+        metabolicPrimerRemainingMilliseconds <=
+        PRIMER_WARNING_MILLISECONDS &&
+        !g_MetabolicPrimerWarningSent;
+
+    const bool utilityWarningDue =
+        hasUtilityPrimer &&
+        utilityPrimerRemainingMilliseconds > 0 &&
+        utilityPrimerRemainingMilliseconds <=
+        PRIMER_WARNING_MILLISECONDS &&
+        !g_UtilityPrimerWarningSent;
+
+    if (metabolicWarningDue && utilityWarningDue)
+    {
+        ShowReminder(
+            "PRIMERS EXPIRING",
+            "Your Metabolic and Utility Primers are expiring soon."
+        );
+
+        g_MetabolicPrimerWarningSent = true;
+        g_UtilityPrimerWarningSent = true;
+
+        return;
+    }
+
+    if (metabolicWarningDue)
+    {
+        ShowReminder(
+            "METABOLIC PRIMER EXPIRING",
+            "Your Metabolic Primer is expiring soon."
+        );
+
+        g_MetabolicPrimerWarningSent = true;
+    }
+
+    if (utilityWarningDue)
+    {
+        ShowReminder(
+            "UTILITY PRIMER EXPIRING",
+            "Your Utility Primer is expiring soon."
+        );
+
+        g_UtilityPrimerWarningSent = true;
+    }
+}
+
 bool ReminderManager::IsReminderActive()
 {
     return Clock::now() < g_ReminderEnds;
@@ -160,10 +242,12 @@ const char* ReminderManager::GetReminderMessage()
 {
     return g_ReminderMessage.c_str();
 }
+
 int64_t ReminderManager::GetBuffRemainingMilliseconds()
 {
     return g_BuffRemainingMilliseconds;
 }
+
 float ReminderManager::GetReminderSecondsRemaining()
 {
     if (!IsReminderActive())

@@ -172,6 +172,29 @@ void AddonRender()
         g_Settings.utilityWarningSeconds
     );
 
+    const bool hasMetabolicPrimer =
+        BuffTracker::HasMetabolicPrimer();
+
+    const bool hasUtilityPrimer =
+        BuffTracker::HasUtilityPrimer();
+
+    const int64_t metabolicPrimerRemaining =
+        hasMetabolicPrimer
+        ? BuffTracker::GetMetabolicPrimerRemainingMilliseconds()
+        : 0;
+
+    const int64_t utilityPrimerRemaining =
+        hasUtilityPrimer
+        ? BuffTracker::GetUtilityPrimerRemainingMilliseconds()
+        : 0;
+
+    ReminderManager::UpdatePrimerWarnings(
+        hasMetabolicPrimer,
+        metabolicPrimerRemaining,
+        hasUtilityPrimer,
+        utilityPrimerRemaining
+    );
+
     if (!ReminderManager::IsReminderActive())
     {
         return;
