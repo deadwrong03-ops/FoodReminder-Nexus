@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <Windows.h>
 #include <string>
 #include <cfloat>
@@ -1391,10 +1392,32 @@ void RenderSquadTab()
 
     ImGui::Separator();
 
-    const std::vector<
+    std::vector<
         SquadTrackedPlayer
     > trackedPlayers =
         SquadTracker::GetPlayers();
+
+    std::sort(
+        trackedPlayers.begin(),
+        trackedPlayers.end(),
+        [](
+            const SquadTrackedPlayer& a,
+            const SquadTrackedPlayer& b
+            )
+        {
+            if (a.subgroup != b.subgroup)
+            {
+                return a.subgroup < b.subgroup;
+            }
+
+            if (a.isSelf != b.isSelf)
+            {
+                return a.isSelf;
+            }
+
+            return a.characterName < b.characterName;
+        }
+    );
 
     ImGui::Text(
         "ArcDPS tracked players: %llu",
