@@ -1407,7 +1407,7 @@ void RenderSquadTab()
 
     ImGui::TextWrapped(
         "Players appear here when ArcDPS begins tracking them in your current area/instance. "
-        "Food and Utility states fill in as ArcDPS reports their buffs."
+        "? means ArcDPS has not established that consumable state yet."
     );
 
     ImGui::Spacing();
@@ -1488,7 +1488,20 @@ void RenderSquadTab()
 
                 ImGui::TableSetColumnIndex(2);
 
-                if (player.hasFood)
+                if (!player.foodStateKnown)
+                {
+                    ImGui::TextUnformatted(
+                        "?"
+                    );
+
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::SetTooltip(
+                            "Food state has not been established by ArcDPS yet."
+                        );
+                    }
+                }
+                else if (player.hasFood)
                 {
                     const int64_t totalSeconds =
                         player.foodRemainingMilliseconds /
@@ -1548,7 +1561,20 @@ void RenderSquadTab()
 
                 ImGui::TableSetColumnIndex(3);
 
-                if (player.hasUtility)
+                if (!player.utilityStateKnown)
+                {
+                    ImGui::TextUnformatted(
+                        "?"
+                    );
+
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::SetTooltip(
+                            "Utility state has not been established by ArcDPS yet."
+                        );
+                    }
+                }
+                else if (player.hasUtility)
                 {
                     const int64_t totalSeconds =
                         player.utilityRemainingMilliseconds /

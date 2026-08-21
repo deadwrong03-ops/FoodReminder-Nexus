@@ -82,6 +82,30 @@ namespace
         }
     }
 
+    void MarkUnknownStatesAsNone()
+    {
+        for (
+            auto& entry :
+            g_Players
+            )
+        {
+            SquadTrackedPlayerState& state =
+                entry.second;
+
+            if (!state.player.foodStateKnown)
+            {
+                state.player.foodStateKnown = true;
+                state.player.hasFood = false;
+            }
+
+            if (!state.player.utilityStateKnown)
+            {
+                state.player.utilityStateKnown = true;
+                state.player.hasUtility = false;
+            }
+        }
+    }
+
     int64_t GetRemainingMilliseconds(
         bool hasBuff,
         int64_t durationMilliseconds,
@@ -117,6 +141,7 @@ namespace
         SquadTrackedPlayerState& state
     )
     {
+        state.player.foodStateKnown = true;
         state.player.hasFood = false;
         state.player.foodSkillID = 0;
         state.player.foodRemainingMilliseconds = 0;
@@ -128,6 +153,7 @@ namespace
         SquadTrackedPlayerState& state
     )
     {
+        state.player.utilityStateKnown = true;
         state.player.hasUtility = false;
         state.player.utilitySkillID = 0;
         state.player.utilityRemainingMilliseconds = 0;
@@ -289,6 +315,21 @@ void SquadTracker::ProcessEvent(
     );
 
     //
+    // ArcDPS sends BuffInitial records as the combat-start
+    // snapshot. Once that snapshot begins, any player state
+    // that is still unknown can safely become known-none.
+    // A following Food/Utility BuffInitial record will then
+    // overwrite the appropriate state with the active buff.
+    //
+    constexpr uint8_t STATECHANGE_BUFF_INITIAL = 18;
+
+    if (ev.IsStatechange ==
+        STATECHANGE_BUFF_INITIAL)
+    {
+        MarkUnknownStatesAsNone();
+    }
+
+    //
     // ArcDPS buff removals use the source agent ID.
     //
     if (ev.IsBuffRemove != 0)
@@ -329,8 +370,6 @@ void SquadTracker::ProcessEvent(
     // differently for these records, so do NOT reject
     // them just because BuffDamage is non-zero.
     //
-    constexpr uint8_t STATECHANGE_BUFF_INITIAL = 18;
-
     const bool isBuffInitial =
         ev.IsStatechange ==
         STATECHANGE_BUFF_INITIAL;
@@ -375,6 +414,7 @@ void SquadTracker::ProcessEvent(
 
     if (isFood)
     {
+        state.player.foodStateKnown = true;
         state.player.hasFood = true;
 
         state.player.foodSkillID =
@@ -401,6 +441,7 @@ void SquadTracker::ProcessEvent(
     }
     else
     {
+        state.player.utilityStateKnown = true;
         state.player.hasUtility = true;
 
         state.player.utilitySkillID =

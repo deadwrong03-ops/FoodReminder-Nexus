@@ -22,6 +22,9 @@ struct SquadTrackedPlayer
 
     bool isSelf = false;
 
+    bool foodStateKnown = false;
+    bool utilityStateKnown = false;
+
     bool hasFood = false;
     bool hasUtility = false;
 
