@@ -1410,6 +1410,13 @@ void RenderSquadTab()
         "? means ArcDPS has not established that consumable state yet."
     );
 
+    static bool showSquadDebugColumns = false;
+
+    ImGui::Checkbox(
+        "Show squad debug columns",
+        &showSquadDebugColumns
+    );
+
     ImGui::Spacing();
 
     if (trackedPlayers.empty())
@@ -1426,9 +1433,14 @@ void RenderSquadTab()
             ImGuiTableFlags_SizingStretchProp |
             ImGuiTableFlags_ScrollX;
 
+        const int squadColumnCount =
+            showSquadDebugColumns
+            ? 7
+            : 4;
+
         if (ImGui::BeginTable(
             "##FoodReminderArcPlayers",
-            7,
+            squadColumnCount,
             playerTableFlags))
         {
             ImGui::TableSetupColumn(
@@ -1447,17 +1459,20 @@ void RenderSquadTab()
                 "Utility"
             );
 
-            ImGui::TableSetupColumn(
-                "Account"
-            );
+            if (showSquadDebugColumns)
+            {
+                ImGui::TableSetupColumn(
+                    "Account"
+                );
 
-            ImGui::TableSetupColumn(
-                "Agent ID"
-            );
+                ImGui::TableSetupColumn(
+                    "Agent ID"
+                );
 
-            ImGui::TableSetupColumn(
-                "Self"
-            );
+                ImGui::TableSetupColumn(
+                    "Self"
+                );
+            }
 
             ImGui::TableHeadersRow();
 
@@ -1632,32 +1647,35 @@ void RenderSquadTab()
                     );
                 }
 
-                ImGui::TableSetColumnIndex(4);
+                if (showSquadDebugColumns)
+                {
+                    ImGui::TableSetColumnIndex(4);
 
-                ImGui::TextUnformatted(
-                    player.accountName.empty()
-                    ? "-"
-                    : player.accountName.c_str()
-                );
+                    ImGui::TextUnformatted(
+                        player.accountName.empty()
+                        ? "-"
+                        : player.accountName.c_str()
+                    );
 
-                ImGui::TableSetColumnIndex(5);
+                    ImGui::TableSetColumnIndex(5);
 
-                ImGui::Text(
-                    "%llu",
-                    static_cast<
-                    unsigned long long
-                    >(
-                        player.agentID
-                        )
-                );
+                    ImGui::Text(
+                        "%llu",
+                        static_cast<
+                        unsigned long long
+                        >(
+                            player.agentID
+                            )
+                    );
 
-                ImGui::TableSetColumnIndex(6);
+                    ImGui::TableSetColumnIndex(6);
 
-                ImGui::TextUnformatted(
-                    player.isSelf
-                    ? "Yes"
-                    : "No"
-                );
+                    ImGui::TextUnformatted(
+                        player.isSelf
+                        ? "Yes"
+                        : "No"
+                    );
+                }
             }
 
             ImGui::EndTable();
@@ -1667,55 +1685,60 @@ void RenderSquadTab()
     ImGui::Spacing();
     ImGui::Separator();
 
-    const bool extrasAvailable =
-        ExtrasIntegration::IsAvailable();
-
-    ImGui::Text(
-        "Unofficial Extras: %s",
-        extrasAvailable
-        ? "Connected"
-        : "Not detected"
-    );
-
-    if (extrasAvailable)
+    if (ImGui::CollapsingHeader(
+        "Developer / Unofficial Extras"
+    ))
     {
-        const std::string extrasVersion =
-            ExtrasIntegration::GetVersion();
+        const bool extrasAvailable =
+            ExtrasIntegration::IsAvailable();
 
         ImGui::Text(
-            "Version: %s",
-            extrasVersion.empty()
-            ? "Unknown"
-            : extrasVersion.c_str()
+            "Unofficial Extras: %s",
+            extrasAvailable
+            ? "Connected"
+            : "Not detected"
         );
 
-        const std::vector<
-            ExtrasSquadMember
-        > squadMembers =
-            ExtrasIntegration::
-            GetSquadMembers();
+        if (extrasAvailable)
+        {
+            const std::string extrasVersion =
+                ExtrasIntegration::GetVersion();
 
-        ImGui::Text(
-            "Extras squad updates received: %llu",
-            static_cast<
-            unsigned long long
-            >(
-                squadMembers.size()
-                )
-        );
-    }
-    else
-    {
+            ImGui::Text(
+                "Version: %s",
+                extrasVersion.empty()
+                ? "Unknown"
+                : extrasVersion.c_str()
+            );
+
+            const std::vector<
+                ExtrasSquadMember
+            > squadMembers =
+                ExtrasIntegration::
+                GetSquadMembers();
+
+            ImGui::Text(
+                "Extras squad updates received: %llu",
+                static_cast<
+                unsigned long long
+                >(
+                    squadMembers.size()
+                    )
+            );
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "Extras is optional. ArcDPS player and consumable tracking does not depend on it."
+            );
+        }
+
+        ImGui::Spacing();
+
         ImGui::TextDisabled(
-            "Extras is optional. ArcDPS player and consumable tracking does not depend on it."
+            "Test stage: ArcDPS player discovery + Food/Utility buff tracking."
         );
     }
-
-    ImGui::Spacing();
-
-    ImGui::TextDisabled(
-        "Test stage: ArcDPS player discovery + Food/Utility buff tracking."
-    );
 }
 
 void AddonOptions()
