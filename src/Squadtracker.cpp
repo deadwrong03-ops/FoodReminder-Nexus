@@ -62,6 +62,26 @@ namespace
         return result;
     }
 
+    bool IsIgnoredSquadBuff(
+        uint32_t skillID
+    )
+    {
+        switch (skillID)
+        {
+        case 10110:
+        case 10104:
+        case 64528:
+        case 32289:
+        case 32293:
+        case 33046:
+        case 65475:
+            return true;
+
+        default:
+            return false;
+        }
+    }
+
     int64_t GetRemainingMilliseconds(
         bool hasBuff,
         int64_t durationMilliseconds,
@@ -236,6 +256,16 @@ void SquadTracker::ProcessEvent(
 
     const ArcDPS::CombatEvent& ev =
         *combatData->ev;
+
+    //
+    // Ignore known proc/secondary effects that should
+    // not replace the player's actual consumable state.
+    //
+    if (IsIgnoredSquadBuff(
+        ev.SkillID))
+    {
+        return;
+    }
 
     const std::string skillName =
         combatData->skillname != nullptr

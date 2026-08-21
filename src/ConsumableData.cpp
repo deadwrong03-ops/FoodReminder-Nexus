@@ -93,6 +93,18 @@ namespace
     };
 
     //
+    // FOOD - CONCENTRATION
+    //
+    const ConsumableInfo BeefCarpaccioSalsa =
+    {
+        "PConc",
+        "Beef Carpaccio with Salsa Garnish",
+        "66% Life Steal Chance\n"
+        "+100 Concentration\n"
+        "+70 Power"
+    };
+
+    //
     // UTILITY - POWER
     //
     const ConsumableInfo SuperiorSharpeningStone =
@@ -198,18 +210,12 @@ namespace ConsumableData
     {
         switch (skillID)
         {
-            //
-            // Power
-            //
         case 17825:
             return SweetSpicyButternutSoup;
 
         case 57883:
             return SpicyMoaWings;
 
-            //
-            // Precision
-            //
         case 9829:
             return CurryButternutSoup;
 
@@ -219,20 +225,17 @@ namespace ConsumableData
         case 37540:
             return WinterberrySteak;
 
-            //
-            // Condition Damage
-            //
         case 49686:
             return BeefRendang;
 
-            //
-            // Expertise
-            //
         case 10009:
             return RareVeggiePizza;
 
         case 46273:
             return RedLentilSaobosa;
+
+        case 57042:
+            return BeefCarpaccioSalsa;
 
         default:
             return UnknownFood;
@@ -245,9 +248,6 @@ namespace ConsumableData
     {
         switch (skillID)
         {
-            //
-            // Power
-            //
         case 9963:
             return SuperiorSharpeningStone;
 
@@ -257,9 +257,6 @@ namespace ConsumableData
         case 25882:
             return FuriousSharpeningStone;
 
-            //
-            // Condition Damage / Expertise
-            //
         case 21828:
             return ToxicFocusingCrystal;
 
@@ -272,9 +269,6 @@ namespace ConsumableData
         case 25878:
             return FuriousTuningCrystal;
 
-            //
-            // Concentration
-            //
         case 53374:
             return PotentLucentOil;
 
@@ -289,6 +283,26 @@ namespace ConsumableData
 
         default:
             return UnknownUtility;
+        }
+    }
+
+    bool IsIgnoredBuff(
+        uint32_t skillID
+    )
+    {
+        switch (skillID)
+        {
+        case 10110:
+        case 10104:
+        case 64528:
+        case 32289:
+        case 32293:
+        case 33046:
+        case 65475:
+            return true;
+
+        default:
+            return false;
         }
     }
 }

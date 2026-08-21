@@ -1509,13 +1509,31 @@ void RenderSquadTab()
                             player.foodSkillID
                         );
 
-                    ImGui::Text(
-                        "%s %02lld:%02lld:%02lld",
-                        foodInfo.label,
-                        hours,
-                        minutes,
-                        seconds
-                    );
+                    const std::string foodLabel =
+                        foodInfo.label != nullptr
+                        ? foodInfo.label
+                        : "";
+
+                    if (foodLabel == "Unknown")
+                    {
+                        ImGui::Text(
+                            "Unknown (%u) %02lld:%02lld:%02lld",
+                            player.foodSkillID,
+                            hours,
+                            minutes,
+                            seconds
+                        );
+                    }
+                    else
+                    {
+                        ImGui::Text(
+                            "%s %02lld:%02lld:%02lld",
+                            foodInfo.label,
+                            hours,
+                            minutes,
+                            seconds
+                        );
+                    }
 
                     RenderConsumableTooltip(
                         foodInfo
@@ -1551,13 +1569,31 @@ void RenderSquadTab()
                             player.utilitySkillID
                         );
 
-                    ImGui::Text(
-                        "%s %02lld:%02lld:%02lld",
-                        utilityInfo.label,
-                        hours,
-                        minutes,
-                        seconds
-                    );
+                    const std::string utilityLabel =
+                        utilityInfo.label != nullptr
+                        ? utilityInfo.label
+                        : "";
+
+                    if (utilityLabel == "Unknown")
+                    {
+                        ImGui::Text(
+                            "Unknown (%u) %02lld:%02lld:%02lld",
+                            player.utilitySkillID,
+                            hours,
+                            minutes,
+                            seconds
+                        );
+                    }
+                    else
+                    {
+                        ImGui::Text(
+                            "%s %02lld:%02lld:%02lld",
+                            utilityInfo.label,
+                            hours,
+                            minutes,
+                            seconds
+                        );
+                    }
 
                     RenderConsumableTooltip(
                         utilityInfo
