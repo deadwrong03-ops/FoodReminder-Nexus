@@ -24,7 +24,7 @@ Features, interfaces, configuration formats, and internal systems may change as 
 
 ## Current Status
 
-FoodReminder-Nexus has a working Nexus addon framework with ArcDPS-powered tracking for food, utility, combat state, and primer-related reminders.
+FoodReminder-Nexus has a working Nexus addon framework with ArcDPS-powered tracking for food, utility, combat state, primer-related reminders, and nearby player consumables.
 
 The addon can currently:
 
@@ -39,8 +39,15 @@ The addon can currently:
 - Detect entering and leaving combat
 - Detect character changes and clear stale Food/Utility state
 - Persist reminder settings between sessions
+- Track nearby players reported by ArcDPS
+- Track Food and Utility buffs for ArcDPS-tracked players
+- Display live squad Food and Utility countdown timers
+- Classify recognized consumable effects
+- Display unknown consumable effect IDs for future database expansion
 
-The current development focus is improving reliability across character changes, map changes, login states, and other normal gameplay situations while continuing to refine the reminder interface.
+Live open-world testing has shown the new squad consumable timers matching the existing ArcDPS Food Tracker to approximately one second.
+
+The current development focus is improving state synchronization, expanding consumable identification, refining the Squad interface, and continuing stability testing during normal gameplay.
 
 ---
 
@@ -122,6 +129,27 @@ The current development focus is improving reliability across character changes,
 - Correct Primer countdown display in reminder popups
 - Primer-state inference from unusually long Food/Utility durations when direct Primer state is unavailable
 
+### Squad Consumable Tracking
+
+- ArcDPS nearby-player discovery
+- Character-name tracking
+- Account-name tracking
+- ArcDPS agent and instance ID tracking
+- Profession and elite-specialization tracking
+- Subgroup and team tracking
+- Local-player identification
+- Squad Food tracking
+- Squad Utility tracking
+- Live squad consumable countdown timers
+- Food and Utility buff application handling
+- Food and Utility buff removal handling
+- ArcDPS `BuffInitial` snapshot handling
+- Consumable proc-effect filtering
+- Known consumable classification
+- Unknown consumable effect ID display
+- Expanded Food and Utility definition database
+- Live comparison testing against the existing ArcDPS Food Tracker
+
 ### Debugging and Testing
 
 - ArcDPS event counter
@@ -132,6 +160,8 @@ The current development focus is improving reliability across character changes,
 - Primer warning test buttons
 - Buff debug reset
 - Source/destination event inspection during development
+- Squad player tracking inspection
+- Unknown squad consumable ID inspection
 
 ---
 
@@ -168,6 +198,36 @@ Inferred Primer values are clearly labeled as:
 
 `(inferred)`
 
+### Squad Tracking
+
+Nearby player discovery uses ArcDPS tracking-change events.
+
+Players appear in the Squad tracker when ArcDPS begins tracking them in the current area or instance.
+
+This means the Squad tracker represents players currently known to ArcDPS and does not necessarily represent every member of a full squad at all times.
+
+When combat begins, ArcDPS can provide `BuffInitial` records containing existing Food and Utility state for tracked players.
+
+FoodReminder-Nexus uses these records to populate active consumables and calculate their remaining durations.
+
+Known consumables are displayed using a short classification such as:
+
+- `Power`
+- `Prec`
+- `Condi`
+- `Exper`
+- `PConc`
+- `CConc`
+- `Heal`
+- `Slay`
+- `All`
+
+If ArcDPS reports an active Food or Utility effect that is not currently present in the internal consumable database, FoodReminder-Nexus displays:
+
+`Unknown (Effect ID)`
+
+This allows the effect to remain tracked while also making unidentified consumables easier to investigate and add later.
+
 ---
 
 ## Jade Tech Protocol Investigation
@@ -198,15 +258,28 @@ This remains an experimental/future investigation.
 
 Current priorities include:
 
-- Improve initial Food/Utility detection after login or map change
+- Improve Food/Utility state synchronization after login or map change
 - Improve synchronization with already-active buffs
 - Improve character-switch synchronization before the first ArcDPS self event
-- Verify behavior while solo and while grouped
+- Refine Squad Food/Utility state handling
+- Distinguish unknown state from confirmed missing consumables
+- Continue expanding the consumable definition database
+- Improve Squad tracker presentation
+- Continue live Squad tracking validation
 - Continue buff replacement and refresh testing
 - Continue expiration/reminder edge-case testing
 - Improve the player-facing reminder interface
 - Reduce/remove development debug information once tracking is stable
 - Continue stability testing across maps and characters
+
+The current Squad state-refinement work is intended to distinguish:
+
+- `?` — ArcDPS has not established the Food/Utility state yet
+- `None` — ArcDPS has established that no Food/Utility buff is active
+- Known label — recognized active consumable
+- `Unknown (ID)` — active consumable whose effect ID is not yet mapped
+
+This state-refinement implementation currently builds successfully but still requires live gameplay validation before being considered complete.
 
 ---
 
@@ -223,8 +296,10 @@ Future development may include:
 - Per-character preferred consumables
 - Optional wrong-consumable warning
 - Additional supported consumable effects
+- Continued consumable database expansion
 - Improved initial-state synchronization
 - Improved character-change synchronization
+- Squad tracker UI cleanup and customization
 - Optional Jade Tech tracking if a reliable data source becomes available
 
 ---
@@ -249,6 +324,8 @@ This currently displays information such as:
 - Destination agent name
 - Primer reminder test controls
 
+Additional Squad development information is currently visible through the Squad interface, including player identity data and unknown consumable effect IDs.
+
 This interface exists for development and testing and is not intended to represent the final addon UI.
 
 ---
@@ -264,6 +341,7 @@ The addon should:
 - Give clear warnings before important consumable buffs expire
 - Warn when important consumables are missing at the start of combat
 - Remain useful for normal open-world and solo PvE gameplay
+- Provide useful squad consumable information without becoming a full combat meter
 - Avoid unnecessary complexity
 - Prefer reliable tracking over guessed or misleading information
 - Prioritize stability before additional features
@@ -279,6 +357,8 @@ It integrates with:
 - Guild Wars 2
 - Nexus
 - ArcDPS combat events
+
+Optional integration with **Unofficial Extras** is also being investigated for additional squad metadata.
 
 The project is currently being developed and tested directly in Guild Wars 2.
 

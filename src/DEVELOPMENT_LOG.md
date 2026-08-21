@@ -512,3 +512,101 @@ Before the final end-of-session commit, temporary Jade Tech diagnostic changes s
 8. Refine the player-facing reminder presentation.
 9. Decide whether the Developer Debug interface should remain available behind a development option.
 10. Revisit Jade Tech Protocol tracking only if a reliable Offensive/Defensive data source becomes available.
+
+
+
+## 2026-08-21 - Squad Consumable Tracking Milestone
+
+### Squad Player Discovery
+
+Implemented ArcDPS-based nearby player tracking using ArcDPS tracking-change events.
+
+Tracked player information now includes:
+
+- Character name
+- Account name
+- ArcDPS agent ID
+- Instance ID
+- Profession
+- Elite specialization
+- Subgroup
+- Team
+- Self identification
+
+This replaces earlier unsuccessful squad identity experiments and follows the same general tracking approach used by the original ArcDPS Food Reminder.
+
+### Squad Food and Utility Tracking
+
+Implemented Food and Utility tracking for ArcDPS-tracked players.
+
+The Squad tab now supports:
+
+- Food detection
+- Utility detection
+- Remaining duration
+- Live countdown timers
+- Buff application handling
+- Buff removal handling
+- ArcDPS BuffInitial snapshot handling
+- Proc-effect ignore filtering
+- Known consumable labels
+- Unknown consumable effect ID display
+
+Live comparison against the existing ArcDPS Food Tracker showed the new timers consistently matching within approximately one second.
+
+Examples observed during live meta testing:
+
+- Power Food timers matched
+- Precision Food timers matched
+- Power Utility timers matched
+- None states matched
+- Unknown consumables were successfully detected and displayed with their ArcDPS effect IDs
+
+### Consumable Database Expansion
+
+Expanded the internal consumable database with additional Food and Utility definitions.
+
+Recent additions include:
+
+- Power foods
+- Precision foods
+- Concentration foods
+- All-stat foods
+- On-kill foods
+- Slaying utilities
+- Decade Enhancement
+
+Unknown consumable IDs remain visible in the Squad tracker so additional database entries can be identified without losing tracking information.
+
+### Proc Filtering
+
+Added filtering for known food-related proc effects that should not replace the player's actual Food or Utility state.
+
+Ignored effect IDs currently include:
+
+- 10110
+- 10104
+- 64528
+- 32289
+- 32293
+- 33046
+- 65475
+
+### Validation
+
+Squad consumable tracking has now been successfully tested during live open-world meta events.
+
+Core player tracking, consumable detection, and countdown behavior are considered functional.
+
+### In Progress
+
+Started improving Food/Utility state semantics.
+
+Planned display behavior:
+
+- `?` = state has not yet been established by ArcDPS
+- `None` = ArcDPS has established that no consumable is active
+- Known label = recognized active consumable
+- `Unknown (ID)` = active consumable with an unmapped effect ID
+
+The state-semantics implementation currently builds successfully but still requires live testing before being considered complete.
