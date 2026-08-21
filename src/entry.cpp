@@ -20,6 +20,121 @@ void AddonRender();
 void AddonOptions();
 void OnArcDPSCombat(void* eventArgs);
 
+const char* GetSquadConsumableLabel(
+    const char* label
+)
+{
+    if (label == nullptr)
+    {
+        return "";
+    }
+
+    const std::string value =
+        label;
+
+    if (value == "Prec")
+    {
+        return "Precision";
+    }
+
+    if (value == "Condi")
+    {
+        return "Condition";
+    }
+
+    if (value == "Exper")
+    {
+        return "Expertise";
+    }
+
+    if (value == "PConc")
+    {
+        return "Power/Conc.";
+    }
+
+    if (value == "CConc")
+    {
+        return "Condi/Conc.";
+    }
+
+    if (value == "HConc")
+    {
+        return "Heal/Conc.";
+    }
+
+    if (value == "TConc")
+    {
+        return "Tough/Conc.";
+    }
+
+    if (value == "Heal")
+    {
+        return "Healing";
+    }
+
+    if (value == "Slay")
+    {
+        return "Slaying";
+    }
+
+    if (value == "All")
+    {
+        return "All Stats";
+    }
+
+    if (value == "MF")
+    {
+        return "Magic Find";
+    }
+
+    if (value == "Move")
+    {
+        return "Movement";
+    }
+
+    if (value == "Kill")
+    {
+        return "On Kill";
+    }
+
+    if (value == "Burn")
+    {
+        return "Burning";
+    }
+
+    if (value == "Bleed")
+    {
+        return "Bleeding";
+    }
+
+    if (value == "Torm")
+    {
+        return "Torment";
+    }
+
+    if (value == "Confu")
+    {
+        return "Confusion";
+    }
+
+    if (value == "Endu")
+    {
+        return "Endurance";
+    }
+
+    if (value == "OnHeal")
+    {
+        return "On Heal";
+    }
+
+    if (value == "Res")
+    {
+        return "Revive";
+    }
+
+    return label;
+}
+
 void RenderCompactTracker(
     bool hasFood,
     int64_t foodRemaining,
@@ -29,6 +144,10 @@ void RenderCompactTracker(
 
 void RenderConsumableTooltip(
     const ConsumableInfo& info
+);
+
+const char* GetSquadConsumableLabel(
+    const char* label
 );
 
 void RenderGeneralTab();
@@ -1579,7 +1698,9 @@ void RenderSquadTab()
                     {
                         ImGui::Text(
                             "%s %02lld:%02lld:%02lld",
-                            foodInfo.label,
+                            GetSquadConsumableLabel(
+                                foodInfo.label
+                            ),
                             hours,
                             minutes,
                             seconds
@@ -1652,7 +1773,9 @@ void RenderSquadTab()
                     {
                         ImGui::Text(
                             "%s %02lld:%02lld:%02lld",
-                            utilityInfo.label,
+                            GetSquadConsumableLabel(
+                                utilityInfo.label
+                            ),
                             hours,
                             minutes,
                             seconds
