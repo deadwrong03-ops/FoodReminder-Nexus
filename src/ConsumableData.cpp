@@ -35,6 +35,14 @@ namespace
         "+70 Ferocity"
     };
 
+    const ConsumableInfo OrrianSteakFrittes =
+    {
+        "Power",
+        "Plate of Orrian Steak Frittes / Crunchy Grasshopper",
+        "+100 Power\n"
+        "+70 Vitality"
+    };
+
     //
     // FOOD - PRECISION
     //
@@ -62,6 +70,15 @@ namespace
         "+70 Precision"
     };
 
+    const ConsumableInfo SesameCoqAuVin =
+    {
+        "Prec",
+        "Plate of Sesame-Crusted Coq Au Vin",
+        "Health every second\n"
+        "+100 Power\n"
+        "+70 Precision"
+    };
+
     //
     // FOOD - CONDITION DAMAGE
     //
@@ -71,6 +88,15 @@ namespace
         "Plate of Beef Rendang",
         "+100 Condition Damage\n"
         "+70 Expertise"
+    };
+
+    const ConsumableInfo SpicyPumpkinCookie =
+    {
+        "Condi",
+        "Spicy Pumpkin Cookie",
+        "+70 Condition Damage\n"
+        "+30% Magic Find\n"
+        "+15% Experience from Kills"
     };
 
     //
@@ -102,6 +128,111 @@ namespace
         "66% Life Steal Chance\n"
         "+100 Concentration\n"
         "+70 Power"
+    };
+
+    //
+    // FOOD - ALL ATTRIBUTES
+    //
+    const ConsumableInfo BirthdayCake =
+    {
+        "All",
+        "Birthday Cake / Cake Shot",
+        "+40 All Attributes\n"
+        "+10% Karma\n"
+        "+15% Magic Find\n"
+        "+15% Experience from Kills"
+    };
+
+    //
+    // FOOD - MAGIC FIND
+    //
+    const ConsumableInfo PeppermintOmnomberryBar =
+    {
+        "MF",
+        "Peppermint Omnomberry Bar",
+        "+30% Magic Find\n"
+        "+40% Gold from Monsters\n"
+        "+10% Karma\n"
+        "+10% Experience from Kills"
+    };
+
+    //
+    // FOOD - MOVEMENT
+    //
+    const ConsumableInfo WinterberrySeaweedSalad =
+    {
+        "Move",
+        "Bowl of Winterberry Seaweed Salad",
+        "60% Chance to Gain Swiftness on Kill\n"
+        "+5% Damage While Moving\n"
+        "+30% Magic Find\n"
+        "+10% Experience from Kills"
+    };
+
+    //
+    // FOOD - ON KILL
+    //
+    const ConsumableInfo PowerOnKillFood =
+    {
+        "Kill",
+        "Dragon's Breath Bun / Carrot Souffle",
+        "+200 Power for 30 Seconds on Kill\n"
+        "+70 Ferocity\n"
+        "+10% Experience from Kills"
+    };
+
+    //
+    // FOOD - ASCENDED POWER
+    //
+    const ConsumableInfo CilantroLimeSousVideSteak =
+    {
+        "Power",
+        "Cilantro Lime Sous-Vide Steak",
+        "66% Life Steal Chance\n"
+        "+100 Power\n"
+        "+70 Ferocity"
+    };
+
+    const ConsumableInfo PeppercornSousVideSteak =
+    {
+        "Power",
+        "Peppercorn-Crusted Sous-Vide Steak",
+        "-10% Incoming Damage\n"
+        "+100 Power\n"
+        "+70 Ferocity"
+    };
+
+    //
+    // FOOD - CONCENTRATION
+    //
+    const ConsumableInfo SoulPastry =
+    {
+        "PConc",
+        "Soul Pastry",
+        "+100 Concentration\n"
+        "+70 Power"
+    };
+
+    //
+    // FOOD - ON KILL
+    //
+    const ConsumableInfo BlockOfTofu =
+    {
+        "Kill",
+        "Block of Tofu",
+        "+100 Power & Ferocity on Kill\n"
+        "+70 Precision"
+    };
+
+    //
+    // FOOD - ALL ATTRIBUTES
+    //
+    const ConsumableInfo PeppercornOysterSoup =
+    {
+        "All",
+        "Spherified Peppercorn-Spiced Oyster Soup",
+        "-10% Incoming Damage\n"
+        "+45 All Attributes"
     };
 
     //
@@ -200,6 +331,36 @@ namespace
         "3% Concentration from Precision\n"
         "6% Concentration from Healing Power"
     };
+
+    //
+    // UTILITY - SLAYING
+    //
+    const ConsumableInfo MordremSlayingPotion =
+    {
+        "Slay",
+        "Powerful Potion of Mordrem Slaying",
+        "+10% Damage vs. Mordrem\n"
+        "-10% Damage from Mordrem\n"
+        "+10% Experience from Kills"
+    };
+
+    const ConsumableInfo ScarletsArmiesSlayingPotion =
+    {
+        "Slay",
+        "Powerful Potion of Slaying Scarlet's Armies",
+        "+10% Damage against Scarlet's Armies\n"
+        "-10% Damage from Scarlet's Armies"
+    };
+
+    //
+    // UTILITY - ALL ATTRIBUTES
+    //
+    const ConsumableInfo DecadeEnhancement =
+    {
+        "All",
+        "Decade Enhancement",
+        "+3% All Attributes"
+    };
 }
 
 namespace ConsumableData
@@ -216,6 +377,9 @@ namespace ConsumableData
         case 57883:
             return SpicyMoaWings;
 
+        case 9773:
+            return OrrianSteakFrittes;
+
         case 9829:
             return CurryButternutSoup;
 
@@ -228,6 +392,9 @@ namespace ConsumableData
         case 49686:
             return BeefRendang;
 
+        case 15260:
+            return SpicyPumpkinCookie;
+
         case 10009:
             return RareVeggiePizza;
 
@@ -236,6 +403,36 @@ namespace ConsumableData
 
         case 57042:
             return BeefCarpaccioSalsa;
+
+        case 25318:
+            return BirthdayCake;
+
+        case 34188:
+            return PeppermintOmnomberryBar;
+
+        case 37111:
+            return WinterberrySeaweedSalad;
+
+        case 9750:
+            return PowerOnKillFood;
+
+        case 57244:
+            return CilantroLimeSousVideSteak;
+
+        case 57051:
+            return PeppercornSousVideSteak;
+
+        case 53222:
+            return SoulPastry;
+
+        case 65937:
+            return BlockOfTofu;
+
+        case 57165:
+            return PeppercornOysterSoup;
+
+        case 57290:
+            return SesameCoqAuVin;
 
         default:
             return UnknownFood;
@@ -280,6 +477,15 @@ namespace ConsumableData
 
         case 9968:
             return MasterMaintenanceOil;
+
+        case 56772:
+            return MordremSlayingPotion;
+
+        case 68235:
+            return DecadeEnhancement;
+
+        case 23228:
+            return ScarletsArmiesSlayingPotion;
 
         default:
             return UnknownUtility;
