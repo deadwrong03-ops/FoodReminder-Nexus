@@ -1714,11 +1714,24 @@ void RenderSquadTab()
                             );
 
                             ImGui::TextWrapped(
+                                "Click this Food entry to copy the Effect ID."
+                            );
+
+                            ImGui::TextWrapped(
                                 "This effect is being tracked correctly, "
                                 "but it has not been added to the consumable database yet."
                             );
 
                             ImGui::EndTooltip();
+                        }
+
+                        if (ImGui::IsItemClicked())
+                        {
+                            ImGui::SetClipboardText(
+                                std::to_string(
+                                    player.foodSkillID
+                                ).c_str()
+                            );
                         }
                     }
                     else
@@ -1816,11 +1829,24 @@ void RenderSquadTab()
                             );
 
                             ImGui::TextWrapped(
+                                "Click this Utility entry to copy the Effect ID."
+                            );
+
+                            ImGui::TextWrapped(
                                 "This effect is being tracked correctly, "
                                 "but it has not been added to the consumable database yet."
                             );
 
                             ImGui::EndTooltip();
+                        }
+
+                        if (ImGui::IsItemClicked())
+                        {
+                            ImGui::SetClipboardText(
+                                std::to_string(
+                                    player.utilitySkillID
+                                ).c_str()
+                            );
                         }
                     }
                     else
