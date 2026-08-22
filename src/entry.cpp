@@ -1693,6 +1693,33 @@ void RenderSquadTab()
                             minutes,
                             seconds
                         );
+
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::BeginTooltip();
+
+                            ImGui::TextUnformatted(
+                                "Unmapped Food effect"
+                            );
+
+                            ImGui::Separator();
+
+                            ImGui::Text(
+                                "Effect ID: %u",
+                                player.foodSkillID
+                            );
+
+                            ImGui::TextUnformatted(
+                                "Type: Food"
+                            );
+
+                            ImGui::TextWrapped(
+                                "This effect is being tracked correctly, "
+                                "but it has not been added to the consumable database yet."
+                            );
+
+                            ImGui::EndTooltip();
+                        }
                     }
                     else
                     {
@@ -1768,6 +1795,33 @@ void RenderSquadTab()
                             minutes,
                             seconds
                         );
+
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::BeginTooltip();
+
+                            ImGui::TextUnformatted(
+                                "Unmapped Utility effect"
+                            );
+
+                            ImGui::Separator();
+
+                            ImGui::Text(
+                                "Effect ID: %u",
+                                player.utilitySkillID
+                            );
+
+                            ImGui::TextUnformatted(
+                                "Type: Utility"
+                            );
+
+                            ImGui::TextWrapped(
+                                "This effect is being tracked correctly, "
+                                "but it has not been added to the consumable database yet."
+                            );
+
+                            ImGui::EndTooltip();
+                        }
                     }
                     else
                     {
