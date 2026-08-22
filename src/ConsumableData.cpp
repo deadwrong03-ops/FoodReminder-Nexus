@@ -235,6 +235,114 @@ namespace
         "+45 All Attributes"
     };
 
+    const ConsumableInfo CilantroCuredMeatFlatbread =
+    {
+        "Condi",
+        "Cilantro and Cured Meat Flatbread",
+        "66% Life Steal Chance\n"
+        "+100 Condition Damage\n"
+        "+70 Expertise"
+    };
+
+    const ConsumableInfo PoultryAspicSalsa =
+    {
+        "Condi",
+        "Plate of Poultry Aspic with Salsa Garnish",
+        "+100 Condition Damage\n"
+        "+70 Expertise"
+    };
+    const ConsumableInfo GuildBanquetNourishment =
+    {
+        "All",
+        "Guild Banquet Table Nourishment",
+        "+2 All Attributes"
+    };
+
+    const ConsumableInfo ChocolateOmnomberryCream =
+    {
+        "Boon",
+        "Chocolate Omnomberry Cream",
+        "+40% Magic Find while under a Boon\n"
+        "+20% Boon Duration\n"
+        "+10% Experience from Kills"
+    };
+
+    const ConsumableInfo OmnomberryBar =
+    {
+        "Gold",
+        "Omnomberry Bar",
+        "+40% Gold from Monsters\n"
+        "+10% Magic Find\n"
+        "+10% Experience from Kills"
+    };
+    const ConsumableInfo PepperedCuredMeatFlatbread =
+    {
+        "Condi",
+        "Peppered Cured Meat Flatbread",
+        "Food effect"
+    };
+
+    const ConsumableInfo PeppercornSpicedCoqAuVin =
+    {
+        "Prec",
+        "Plate of Peppercorn-Spiced Coq Au Vin",
+        "Food effect"
+    };
+
+    const ConsumableInfo RaspberryPeachBar =
+    {
+        "Food",
+        "Raspberry Peach Bar",
+        "Food effect"
+    };
+
+    const ConsumableInfo MushroomCloveSousVideSteak =
+    {
+        "Food",
+        "Mushroom Clove Sous-Vide Steak",
+        "Food effect"
+    };
+
+    const ConsumableInfo FruitSaladMintGarnish =
+    {
+        "Food",
+        "Bowl of Fruit Salad with Mint Garnish",
+        "Food effect"
+    };
+    const ConsumableInfo OmnomberryTart =
+    {
+        "MF",
+        "Omnomberry Tart",
+        "+30% Magic Find\n"
+        "+70 Power\n"
+        "+10% Experience from Kills"
+    };
+    const ConsumableInfo BeefCarpaccioMintGarnish =
+    {
+        "Power",
+        "Plate of Beef Carpaccio with Mint Garnish",
+        "Food effect"
+    };
+    const ConsumableInfo SoySesameSousVideSteak =
+    {
+        "Power",
+        "Soy-Sesame Sous-Vide Steak",
+        "Food effect"
+    };
+    const ConsumableInfo SharedCondiFood9822 =
+    {
+        "Condi",
+        "Loaf of Zucchini Bread / Red Bean Cake",
+        "Shared Nourishment effect"
+    };
+
+    const ConsumableInfo MangoPie =
+    {
+        "Food",
+        "Mango Pie",
+        "Nourishment"
+    };
+
     //
     // UTILITY - POWER
     //
@@ -296,6 +404,12 @@ namespace
         "3% Condition Damage from Precision\n"
         "3% Expertise from Precision"
     };
+    const ConsumableInfo BountifulMaintenanceOil =
+    {
+        "Condi",
+        "Bountiful Maintenance Oil",
+        "Condition-oriented utility"
+    };
 
     //
     // UTILITY - CONCENTRATION
@@ -330,6 +444,20 @@ namespace
         "Master Maintenance Oil",
         "3% Concentration from Precision\n"
         "6% Concentration from Healing Power"
+    };
+    const ConsumableInfo MasterfulAccuracy =
+    {
+        "Prec",
+        "Writ / Thesis of Masterful Accuracy",
+        "+200 Precision while above 90% Health\n"
+        "+10% Experience from Kills"
+    };
+
+    const ConsumableInfo StudiedSpeed =
+    {
+        "Speed",
+        "Writ / Thesis of Studied Speed",
+        "Movement-speed utility effect"
     };
 
     //
@@ -434,6 +562,44 @@ namespace ConsumableData
         case 57290:
             return SesameCoqAuVin;
 
+        case 57409:
+            return CilantroCuredMeatFlatbread;
+
+        case 57341:
+            return PoultryAspicSalsa;
+        case 937:
+            return GuildBanquetNourishment;
+
+        case 9987:
+            return ChocolateOmnomberryCream;
+
+        case 10001:
+            return OmnomberryBar;
+        case 57127:
+            return PepperedCuredMeatFlatbread;
+
+        case 57260:
+            return PeppercornSpicedCoqAuVin;
+
+        case 10000:
+            return RaspberryPeachBar;
+
+        case 57393:
+            return MushroomCloveSousVideSteak;
+
+        case 57100:
+            return FruitSaladMintGarnish;
+        case 10137:
+            return OmnomberryTart;
+        case 57421:
+            return SoySesameSousVideSteak;
+        case 37339:
+            return BeefCarpaccioMintGarnish;
+        case 9822:
+            return SharedCondiFood9822;
+
+        case 9993:
+            return MangoPie;
         default:
             return UnknownFood;
         }
@@ -465,6 +631,8 @@ namespace ConsumableData
 
         case 25878:
             return FuriousTuningCrystal;
+        case 25879:
+            return BountifulMaintenanceOil;
 
         case 53374:
             return PotentLucentOil;
@@ -486,6 +654,11 @@ namespace ConsumableData
 
         case 23228:
             return ScarletsArmiesSlayingPotion;
+        case 31970:
+            return MasterfulAccuracy;
+
+        case 33005:
+            return StudiedSpeed;
 
         default:
             return UnknownUtility;
