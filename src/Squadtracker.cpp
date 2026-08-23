@@ -671,6 +671,7 @@ void SquadTracker::ClearUnknownConsumables()
     g_UnknownConsumables.clear();
     g_Settings.unknownConsumables.clear();
 }
+
 void SquadTracker::RestoreUnknownConsumables()
 {
     std::lock_guard<std::mutex> lock(
@@ -686,6 +687,25 @@ void SquadTracker::RestoreUnknownConsumables()
     {
         const SavedUnknownConsumable& saved =
             entry.second;
+
+        const ConsumableInfo& info =
+            saved.isFood
+            ? ConsumableData::GetFoodInfo(
+                saved.skillID
+            )
+            : ConsumableData::GetUtilityInfo(
+                saved.skillID
+            );
+
+        const std::string label =
+            info.label != nullptr
+            ? info.label
+            : "";
+
+        if (label != "Unknown")
+        {
+            continue;
+        }
 
         UnknownConsumable unknown;
 
