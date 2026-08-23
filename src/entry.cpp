@@ -233,9 +233,9 @@ void AddonLoad(AddonAPI_t* aApi)
         (void (*)(void*, void*))
         APIDefs->ImguiFree
     );
-
     Settings::Load(hSelf);
     BuffTracker::RestorePrimerState();
+    SquadTracker::RestoreUnknownConsumables();
 
     NexusLink =
         (NexusLinkData_t*)
@@ -291,12 +291,11 @@ void OnArcDPSCombat(void* eventArgs)
 void AddonUnload()
 {
     BuffTracker::SavePrimerState();
+    SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
 
     ExtrasIntegration::Reset();
     SquadTracker::Reset();
-
-    if (APIDefs != nullptr)
     {
         APIDefs->Events_Unsubscribe(
             "EV_ARCDPS_COMBATEVENT_SQUAD_RAW",
@@ -1907,7 +1906,148 @@ void RenderSquadTab()
             ImGui::EndTable();
         }
     }
+    ImGui::Spacing();
+    ImGui::Separator();
 
+    if (ImGui::CollapsingHeader(
+        "Unknown Consumables",
+        ImGuiTreeNodeFlags_DefaultOpen
+    ))
+    {
+        const std::vector<UnknownConsumable>
+            unknownConsumables =
+            SquadTracker::GetUnknownConsumables();
+
+        ImGui::Text(
+            "Unique unknown effects captured: %llu",
+            static_cast<unsigned long long>(
+                unknownConsumables.size()
+                )
+        );
+
+        ImGui::TextWrapped(
+            "Unknown Food and Utility effects are captured automatically "
+            "from ArcDPS squad events even when this tab is closed."
+        );
+
+        ImGui::Spacing();
+
+        if (unknownConsumables.empty())
+        {
+            ImGui::TextDisabled(
+                "No unknown consumables captured yet."
+            );
+        }
+        else
+        {
+            if (ImGui::BeginTable(
+                "##UnknownConsumablesTable",
+                3,
+                ImGuiTableFlags_Borders |
+                ImGuiTableFlags_RowBg |
+                ImGuiTableFlags_SizingStretchProp
+            ))
+            {
+                ImGui::TableSetupColumn(
+                    "Type"
+                );
+
+                ImGui::TableSetupColumn(
+                    "Effect ID"
+                );
+
+                ImGui::TableSetupColumn(
+                    "Seen"
+                );
+
+                ImGui::TableHeadersRow();
+
+                for (
+                    const UnknownConsumable& unknown :
+                    unknownConsumables
+                    )
+                {
+                    ImGui::TableNextRow();
+
+                    ImGui::TableSetColumnIndex(0);
+
+                    ImGui::TextUnformatted(
+                        unknown.isFood
+                        ? "Food"
+                        : "Utility"
+                    );
+
+                    ImGui::TableSetColumnIndex(1);
+
+                    ImGui::Text(
+                        "%u",
+                        unknown.skillID
+                    );
+
+                    ImGui::TableSetColumnIndex(2);
+
+                    ImGui::Text(
+                        "%llu",
+                        static_cast<unsigned long long>(
+                            unknown.seenCount
+                            )
+                    );
+                }
+
+                ImGui::EndTable();
+            }
+
+            ImGui::Spacing();
+
+            if (ImGui::Button(
+                "Copy All Unknown IDs"
+            ))
+            {
+                std::string clipboardText;
+
+                for (
+                    const UnknownConsumable& unknown :
+                    unknownConsumables
+                    )
+                {
+                    clipboardText +=
+                        unknown.isFood
+                        ? "Food,"
+                        : "Utility,";
+
+                    clipboardText +=
+                        std::to_string(
+                            unknown.skillID
+                        );
+
+                    clipboardText +=
+                        ",Seen:";
+
+                    clipboardText +=
+                        std::to_string(
+                            unknown.seenCount
+                        );
+
+                    clipboardText +=
+                        "\n";
+                }
+
+                ImGui::SetClipboardText(
+                    clipboardText.c_str()
+                );
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button(
+                "Clear Unknown List"
+            ))
+            {
+                SquadTracker::
+                    ClearUnknownConsumables();
+            }
+        }
+    }
     ImGui::Spacing();
     ImGui::Separator();
 

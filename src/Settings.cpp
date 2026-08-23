@@ -80,7 +80,7 @@ bool Settings::Load(void* moduleHandle)
     }
 
     g_Settings.characterConsumables.clear();
-
+    g_Settings.unknownConsumables.clear();
     std::string line;
 
     while (std::getline(file, line))
@@ -279,6 +279,103 @@ bool Settings::Load(void* moduleHandle)
                     }
                 }
             }
+            else if (
+                key.rfind("unknown.", 0) == 0)
+                {
+                    const std::string typeSuffix =
+                        ".type";
+
+                    const std::string seenSuffix =
+                        ".seen";
+
+                    const size_t idStart =
+                        std::string("unknown.").size();
+
+                    if (EndsWith(
+                        key,
+                        typeSuffix))
+                    {
+                        const size_t idLength =
+                            key.size() -
+                            idStart -
+                            typeSuffix.size();
+
+                        const std::string idText =
+                            key.substr(
+                                idStart,
+                                idLength
+                            );
+
+                        const uint32_t skillID =
+                            static_cast<uint32_t>(
+                                std::stoul(idText)
+                                );
+
+                        const bool isUtility =
+                            value == "Utility";
+
+                        const uint64_t storageKey =
+                            (static_cast<uint64_t>(
+                                isUtility ? 1 : 0
+                                ) << 32) |
+                            static_cast<uint64_t>(
+                                skillID
+                                );
+
+                        SavedUnknownConsumable& unknown =
+                            g_Settings.unknownConsumables[
+                                storageKey
+                            ];
+
+                        unknown.skillID =
+                            skillID;
+
+                        unknown.isFood =
+                            !isUtility;
+
+                        unknown.isUtility =
+                            isUtility;
+                    }
+                    else if (
+                        EndsWith(
+                            key,
+                            seenSuffix))
+                    {
+                        const size_t idLength =
+                            key.size() -
+                            idStart -
+                            seenSuffix.size();
+
+                        const std::string idText =
+                            key.substr(
+                                idStart,
+                                idLength
+                            );
+
+                        const uint32_t skillID =
+                            static_cast<uint32_t>(
+                                std::stoul(idText)
+                                );
+
+                        for (
+                            auto& entry :
+                            g_Settings.unknownConsumables
+                            )
+                        {
+                            SavedUnknownConsumable& unknown =
+                                entry.second;
+
+                            if (unknown.skillID ==
+                                skillID)
+                            {
+                                unknown.seenCount =
+                                    std::stoull(value);
+
+                                break;
+                            }
+                        }
+                    }
+}
         }
         catch (...)
         {
@@ -418,6 +515,28 @@ bool Settings::Save(void* moduleHandle)
             << characterName
             << ".utilitySkillID="
             << state.utilitySkillID
+            << '\n';
+    }
+    for (const auto& entry :
+        g_Settings.unknownConsumables)
+    {
+        const SavedUnknownConsumable& unknown =
+            entry.second;
+
+        file
+            << "unknown."
+            << unknown.skillID
+            << ".type="
+            << (unknown.isUtility
+                ? "Utility"
+                : "Food")
+            << '\n';
+
+        file
+            << "unknown."
+            << unknown.skillID
+            << ".seen="
+            << unknown.seenCount
             << '\n';
     }
 

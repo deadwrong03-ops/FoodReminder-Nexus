@@ -34,6 +34,15 @@ struct SquadTrackedPlayer
     int64_t foodRemainingMilliseconds = 0;
     int64_t utilityRemainingMilliseconds = 0;
 };
+struct UnknownConsumable
+{
+    uint32_t skillID = 0;
+
+    bool isFood = false;
+    bool isUtility = false;
+
+    uint64_t seenCount = 0;
+};
 
 namespace SquadTracker
 {
@@ -43,6 +52,15 @@ namespace SquadTracker
 
     std::vector<SquadTrackedPlayer>
         GetPlayers();
+
+    std::vector<UnknownConsumable>
+        GetUnknownConsumables();
+
+    void ClearUnknownConsumables();
+
+    void RestoreUnknownConsumables();
+
+    void SaveUnknownConsumables();
 
     void Reset();
 }

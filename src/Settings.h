@@ -17,7 +17,15 @@ struct CharacterConsumableState
     uint32_t foodSkillID = 0;
     uint32_t utilitySkillID = 0;
 };
+struct SavedUnknownConsumable
+{
+    uint32_t skillID = 0;
 
+    bool isFood = false;
+    bool isUtility = false;
+
+    uint64_t seenCount = 0;
+};
 struct FoodReminderSettings
 {
     bool enabled = true;
@@ -38,6 +46,9 @@ struct FoodReminderSettings
 
     std::unordered_map<std::string, CharacterConsumableState>
         characterConsumables;
+
+    std::unordered_map<uint64_t, SavedUnknownConsumable>
+        unknownConsumables;
 };
 
 extern FoodReminderSettings g_Settings;

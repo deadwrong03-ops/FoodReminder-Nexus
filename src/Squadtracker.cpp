@@ -1,4 +1,6 @@
 #include "SquadTracker.h"
+#include "ConsumableData.h"
+#include "Settings.h"
 
 #include <algorithm>
 #include <chrono>
@@ -29,6 +31,72 @@ namespace
         uintptr_t,
         SquadTrackedPlayerState
     > g_Players;
+    std::unordered_map<
+        uint64_t,
+        UnknownConsumable
+    > g_UnknownConsumables;
+
+    uint64_t MakeUnknownConsumableKey(
+        uint32_t skillID,
+        bool isUtility
+    )
+    {
+        return
+            (static_cast<uint64_t>(
+                isUtility ? 1 : 0
+                ) << 32) |
+            static_cast<uint64_t>(
+                skillID
+                );
+    }
+
+    void RecordUnknownConsumable(
+        uint32_t skillID,
+        bool isFood,
+        bool isUtility
+    )
+    {
+        const ConsumableInfo& info =
+            isFood
+            ? ConsumableData::GetFoodInfo(
+                skillID
+            )
+            : ConsumableData::GetUtilityInfo(
+                skillID
+            );
+
+        const std::string label =
+            info.label != nullptr
+            ? info.label
+            : "";
+
+        if (label != "Unknown")
+        {
+            return;
+        }
+
+        const uint64_t key =
+            MakeUnknownConsumableKey(
+                skillID,
+                isUtility
+            );
+
+        UnknownConsumable& unknown =
+            g_UnknownConsumables[
+                key
+            ];
+
+        unknown.skillID =
+            skillID;
+
+        unknown.isFood =
+            isFood;
+
+        unknown.isUtility =
+            isUtility;
+
+        ++unknown.seenCount;
+    }
 
     std::string ReadName(
         const char* value
@@ -394,6 +462,11 @@ void SquadTracker::ProcessEvent(
     {
         return;
     }
+    RecordUnknownConsumable(
+        ev.SkillID,
+        isFood,
+        isUtility
+    );
 
     const uintptr_t playerID =
         combatData->dst->ID;
@@ -544,7 +617,131 @@ SquadTracker::GetPlayers()
 
     return result;
 }
+std::vector<UnknownConsumable>
+SquadTracker::GetUnknownConsumables()
+{
+    std::lock_guard<std::mutex> lock(
+        g_SquadTrackerMutex
+    );
 
+    std::vector<UnknownConsumable> result;
+
+    result.reserve(
+        g_UnknownConsumables.size()
+    );
+
+    for (
+        const auto& entry :
+        g_UnknownConsumables
+        )
+    {
+        result.push_back(
+            entry.second
+        );
+    }
+
+    std::sort(
+        result.begin(),
+        result.end(),
+        [](
+            const UnknownConsumable& a,
+            const UnknownConsumable& b
+            )
+        {
+            if (a.isFood != b.isFood)
+            {
+                return a.isFood;
+            }
+
+            return
+                a.skillID <
+                b.skillID;
+        }
+    );
+
+    return result;
+}
+
+void SquadTracker::ClearUnknownConsumables()
+{
+    std::lock_guard<std::mutex> lock(
+        g_SquadTrackerMutex
+    );
+
+    g_UnknownConsumables.clear();
+    g_Settings.unknownConsumables.clear();
+}
+void SquadTracker::RestoreUnknownConsumables()
+{
+    std::lock_guard<std::mutex> lock(
+        g_SquadTrackerMutex
+    );
+
+    g_UnknownConsumables.clear();
+
+    for (
+        const auto& entry :
+        g_Settings.unknownConsumables
+        )
+    {
+        const SavedUnknownConsumable& saved =
+            entry.second;
+
+        UnknownConsumable unknown;
+
+        unknown.skillID =
+            saved.skillID;
+
+        unknown.isFood =
+            saved.isFood;
+
+        unknown.isUtility =
+            saved.isUtility;
+
+        unknown.seenCount =
+            saved.seenCount;
+
+        g_UnknownConsumables[
+            entry.first
+        ] = unknown;
+    }
+}
+
+void SquadTracker::SaveUnknownConsumables()
+{
+    std::lock_guard<std::mutex> lock(
+        g_SquadTrackerMutex
+    );
+
+    g_Settings.unknownConsumables.clear();
+
+    for (
+        const auto& entry :
+        g_UnknownConsumables
+        )
+    {
+        const UnknownConsumable& unknown =
+            entry.second;
+
+        SavedUnknownConsumable saved;
+
+        saved.skillID =
+            unknown.skillID;
+
+        saved.isFood =
+            unknown.isFood;
+
+        saved.isUtility =
+            unknown.isUtility;
+
+        saved.seenCount =
+            unknown.seenCount;
+
+        g_Settings.unknownConsumables[
+            entry.first
+        ] = saved;
+    }
+}
 void SquadTracker::Reset()
 {
     std::lock_guard<std::mutex> lock(
