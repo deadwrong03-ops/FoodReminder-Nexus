@@ -329,6 +329,46 @@ namespace
         "Soy-Sesame Sous-Vide Steak",
         "Food effect"
     };
+    const ConsumableInfo CoqAuVinSalsa =
+    {
+        "Food",
+        "Plate of Coq Au Vin with Salsa",
+        "Nourishment"
+    };
+
+    const ConsumableInfo CloveVeggieFlatbread =
+    {
+        "Food",
+        "Clove and Veggie Flatbread",
+        "Nourishment"
+    };
+
+    const ConsumableInfo SpherifiedCilantroOysterSoup =
+    {
+        "Food",
+        "Spherified Cilantro Oyster Soup",
+        "Nourishment"
+    };
+
+    const ConsumableInfo PeppercornVeggieFlatbread =
+    {
+        "Food",
+        "Peppercorn and Veggie Flatbread",
+        "Nourishment"
+    };
+    const ConsumableInfo MushroomPizza =
+    {
+        "Food",
+        "Mushroom Pizza",
+        "Nourishment"
+    };
+
+    const ConsumableInfo DecadeDesserts =
+    {
+        "All",
+        "Tray of Decade Desserts",
+        "Nourishment"
+    };
     const ConsumableInfo SharedCondiFood9822 =
     {
         "Condi",
@@ -479,6 +519,39 @@ namespace
         "+10% Damage against Scarlet's Armies\n"
         "-10% Damage from Scarlet's Armies"
     };
+    const ConsumableInfo PowerfulDemonSlayingPotion =
+    {
+        "Slay",
+        "Powerful Potion of Demon Slaying",
+        "Utility effect"
+    };
+
+    const ConsumableInfo WritMasterfulStrength =
+    {
+        "Power",
+        "Writ of Masterful Strength",
+        "Utility effect"
+    };
+    const ConsumableInfo WritMasterfulMalice =
+    {
+        "Condi",
+        "Writ of Masterful Malice",
+        "Utility effect"
+    };
+
+    const ConsumableInfo PeppermintOil =
+    {
+        "Condi",
+        "Peppermint Oil",
+        "Utility effect"
+    };
+
+    const ConsumableInfo MagnanimousMaintenanceOil =
+    {
+        "Condi",
+        "Magnanimous Maintenance Oil",
+        "Utility effect"
+    };
 
     //
     // UTILITY - ALL ATTRIBUTES
@@ -591,8 +664,24 @@ namespace ConsumableData
             return FruitSaladMintGarnish;
         case 10137:
             return OmnomberryTart;
-        case 57421:
+        case 57241:
             return SoySesameSousVideSteak;
+        case 57253:
+            return CoqAuVinSalsa;
+
+        case 57344:
+            return CloveVeggieFlatbread;
+
+        case 57356:
+            return SpherifiedCilantroOysterSoup;
+
+        case 57382:
+            return PeppercornVeggieFlatbread;
+        case 10006:
+            return MushroomPizza;
+
+        case 68232:
+            return DecadeDesserts;
         case 37339:
             return BeefCarpaccioMintGarnish;
         case 9822:
@@ -654,6 +743,19 @@ namespace ConsumableData
 
         case 23228:
             return ScarletsArmiesSlayingPotion;
+        case 9901:
+            return PowerfulDemonSlayingPotion;
+
+        case 33297:
+            return WritMasterfulStrength;
+        case 33836:
+            return WritMasterfulMalice;
+
+        case 34187:
+            return PeppermintOil;
+
+        case 38605:
+            return MagnanimousMaintenanceOil;
         case 31970:
             return MasterfulAccuracy;
 
