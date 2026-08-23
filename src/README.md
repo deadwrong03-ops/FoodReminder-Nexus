@@ -42,12 +42,16 @@ The addon can currently:
 - Track nearby players reported by ArcDPS
 - Track Food and Utility buffs for ArcDPS-tracked players
 - Display live squad Food and Utility countdown timers
+- Distinguish unknown, missing, known, and unmapped consumable states
 - Classify recognized consumable effects
 - Display unknown consumable effect IDs for future database expansion
+- Capture unknown consumable IDs automatically in the background
+- Persist collected unknown consumables between game sessions
+- Export collected unknown IDs for database expansion
 
 Live open-world testing has shown the new squad consumable timers matching the existing ArcDPS Food Tracker to approximately one second.
 
-The current development focus is improving state synchronization, expanding consumable identification, refining the Squad interface, and continuing stability testing during normal gameplay.
+The current development focus is expanding consumable identification, refining the Squad interface, improving synchronization, and continuing stability testing during normal gameplay.
 
 ---
 
@@ -149,6 +153,56 @@ The current development focus is improving state synchronization, expanding cons
 - Unknown consumable effect ID display
 - Expanded Food and Utility definition database
 - Live comparison testing against the existing ArcDPS Food Tracker
+- Live-tested Food/Utility state semantics
+- Unknown-state display using `?`
+- Confirmed missing-consumable display using `None`
+- Known consumable short labels
+- Unmapped consumable display using `Unknown (ID)`
+
+### Unknown Consumable Collector
+
+FoodReminder-Nexus now includes a development-oriented collector for unidentified Food and Utility effects.
+
+The collector supports:
+
+- Automatic background capture of unmapped Food and Utility effect IDs
+- Collection without requiring the Squad window to remain open
+- Separate Food and Utility classification
+- Unique effect-ID deduplication
+- `Seen` counters for repeated observations
+- Copy All Unknown IDs
+- Clear Unknown List
+- Persistent unknown-consumable storage through `FoodReminder.ini`
+- Restoration of collected unknowns after restarting the game/addon
+
+Persistence has been verified in game.
+
+During testing, unknown Utility effects remained visible in the collector after a full restart while at character select with zero ArcDPS-tracked players, confirming that the entries were restored from disk rather than rediscovered during the new session.
+
+The collector is intended to make expansion of the consumable database significantly easier without requiring the Squad interface to be watched continuously.
+
+### Consumable Database Expansion
+
+The internal Food and Utility database has been expanded substantially through live ArcDPS testing and comparison with known consumables.
+
+Recent identified effects include examples such as:
+
+- Mushroom Pizza
+- Soy-Sesame Sous-Vide Steak
+- Tray of Decade Desserts
+- Plate of Coq Au Vin with Salsa
+- Clove and Veggie Flatbread
+- Spherified Cilantro Oyster Soup
+- Peppercorn and Veggie Flatbread
+- Powerful Potion of Demon Slaying
+- Writ of Masterful Strength
+- Writ of Masterful Malice
+- Peppermint Oil
+- Magnanimous Maintenance Oil
+
+Unknown effects are intentionally retained as `Unknown (ID)` rather than guessed.
+
+This allows tracking to continue while unidentified effects are collected for later research and mapping.
 
 ### Debugging and Testing
 
@@ -162,6 +216,10 @@ The current development focus is improving state synchronization, expanding cons
 - Source/destination event inspection during development
 - Squad player tracking inspection
 - Unknown squad consumable ID inspection
+- Background unknown-consumable collection
+- Unknown effect Seen counters
+- Unknown effect export
+- Persistent unknown-effect restoration testing
 
 ---
 
@@ -210,7 +268,14 @@ When combat begins, ArcDPS can provide `BuffInitial` records containing existing
 
 FoodReminder-Nexus uses these records to populate active consumables and calculate their remaining durations.
 
-Known consumables are displayed using a short classification such as:
+The Squad tracker distinguishes four states:
+
+- `?` — ArcDPS has not yet established the player's Food/Utility state
+- `None` — ArcDPS has established that no Food/Utility buff is active
+- Known label — recognized active consumable
+- `Unknown (ID)` — active consumable whose effect ID is not yet mapped
+
+Known consumables are displayed using short classifications such as:
 
 - `Power`
 - `Prec`
@@ -226,7 +291,25 @@ If ArcDPS reports an active Food or Utility effect that is not currently present
 
 `Unknown (Effect ID)`
 
-This allows the effect to remain tracked while also making unidentified consumables easier to investigate and add later.
+The effect remains tracked normally while its ID is also captured by the Unknown Consumable Collector.
+
+### Unknown Consumable Collection
+
+Unknown consumables are captured from ArcDPS events in the background.
+
+The Squad window does not need to remain open for collection to occur.
+
+Each unique unknown is stored with:
+
+- Food or Utility classification
+- ArcDPS effect ID
+- Seen count
+
+The Seen count represents the number of times the collector has observed the effect. It does not necessarily represent a unique-player count because ArcDPS may report the same effect multiple times.
+
+Collected unknowns are persisted through `FoodReminder.ini` and restored after restart.
+
+This allows unidentified effects to accumulate naturally during normal group gameplay rather than requiring manual monitoring of the Squad window.
 
 ---
 
@@ -261,9 +344,8 @@ Current priorities include:
 - Improve Food/Utility state synchronization after login or map change
 - Improve synchronization with already-active buffs
 - Improve character-switch synchronization before the first ArcDPS self event
-- Refine Squad Food/Utility state handling
-- Distinguish unknown state from confirmed missing consumables
 - Continue expanding the consumable definition database
+- Automatically remove newly recognized effects from the persistent Unknown Consumables list
 - Improve Squad tracker presentation
 - Continue live Squad tracking validation
 - Continue buff replacement and refresh testing
@@ -272,14 +354,9 @@ Current priorities include:
 - Reduce/remove development debug information once tracking is stable
 - Continue stability testing across maps and characters
 
-The current Squad state-refinement work is intended to distinguish:
+Several unknown Utility effect IDs remain intentionally unmapped until they can be reliably identified.
 
-- `?` — ArcDPS has not established the Food/Utility state yet
-- `None` — ArcDPS has established that no Food/Utility buff is active
-- Known label — recognized active consumable
-- `Unknown (ID)` — active consumable whose effect ID is not yet mapped
-
-This state-refinement implementation currently builds successfully but still requires live gameplay validation before being considered complete.
+FoodReminder-Nexus prefers displaying an effect as unknown rather than assigning an uncertain or guessed consumable name.
 
 ---
 
@@ -300,6 +377,7 @@ Future development may include:
 - Improved initial-state synchronization
 - Improved character-change synchronization
 - Squad tracker UI cleanup and customization
+- Automatic cleanup of mapped entries from the Unknown Consumables collector
 - Optional Jade Tech tracking if a reliable data source becomes available
 
 ---
@@ -324,7 +402,7 @@ This currently displays information such as:
 - Destination agent name
 - Primer reminder test controls
 
-Additional Squad development information is currently visible through the Squad interface, including player identity data and unknown consumable effect IDs.
+Additional Squad development information is currently visible through the Squad interface, including player identity data, unknown consumable effect IDs, and the Unknown Consumable Collector.
 
 This interface exists for development and testing and is not intended to represent the final addon UI.
 
