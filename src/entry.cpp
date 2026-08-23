@@ -139,7 +139,11 @@ void RenderCompactTracker(
     bool hasFood,
     int64_t foodRemaining,
     bool hasUtility,
-    int64_t utilityRemaining
+    int64_t utilityRemaining,
+    bool hasMetabolicPrimer,
+    int64_t metabolicPrimerRemaining,
+    bool hasUtilityPrimer,
+    int64_t utilityPrimerRemaining
 );
 
 void RenderConsumableTooltip(
@@ -349,7 +353,11 @@ void RenderCompactTracker(
     bool hasFood,
     int64_t foodRemaining,
     bool hasUtility,
-    int64_t utilityRemaining
+    int64_t utilityRemaining,
+    bool hasMetabolicPrimer,
+    int64_t metabolicPrimerRemaining,
+    bool hasUtilityPrimer,
+    int64_t utilityPrimerRemaining
 )
 {
     ImGuiWindowFlags trackerFlags =
@@ -621,6 +629,103 @@ void RenderCompactTracker(
                 "Utility: Not detected"
             );
         }
+        //
+// Metabolic Primer
+//
+        if (hasMetabolicPrimer)
+        {
+            const int64_t totalSeconds =
+                metabolicPrimerRemaining / 1000;
+
+            const int64_t hours =
+                totalSeconds / 3600;
+
+            const int64_t minutes =
+                (totalSeconds % 3600) / 60;
+
+            const int64_t seconds =
+                totalSeconds % 60;
+
+            const ImVec4* primerColor =
+                &normalColor;
+
+            if (totalSeconds <= 60)
+            {
+                primerColor =
+                    &criticalColor;
+            }
+            else if (
+                totalSeconds <=
+                g_Settings.metabolicPrimerWarningSeconds)
+            {
+                primerColor =
+                    &warningColor;
+            }
+
+            ImGui::TextColored(
+                *primerColor,
+                "Metabolic: %02lld:%02lld:%02lld",
+                hours,
+                minutes,
+                seconds
+            );
+        }
+        else
+        {
+            ImGui::TextColored(
+                missingColor,
+                "Metabolic: Not detected"
+            );
+        }
+
+        //
+        // Utility Primer
+        //
+        if (hasUtilityPrimer)
+        {
+            const int64_t totalSeconds =
+                utilityPrimerRemaining / 1000;
+
+            const int64_t hours =
+                totalSeconds / 3600;
+
+            const int64_t minutes =
+                (totalSeconds % 3600) / 60;
+
+            const int64_t seconds =
+                totalSeconds % 60;
+
+            const ImVec4* primerColor =
+                &normalColor;
+
+            if (totalSeconds <= 60)
+            {
+                primerColor =
+                    &criticalColor;
+            }
+            else if (
+                totalSeconds <=
+                g_Settings.utilityPrimerWarningSeconds)
+            {
+                primerColor =
+                    &warningColor;
+            }
+
+            ImGui::TextColored(
+                *primerColor,
+                "Utility P: %02lld:%02lld:%02lld",
+                hours,
+                minutes,
+                seconds
+            );
+        }
+        else
+        {
+            ImGui::TextColored(
+                missingColor,
+                "Utility P: Not detected"
+            );
+        }
     }
 
     ImGui::End();
@@ -686,7 +791,11 @@ void AddonRender()
             hasFood,
             foodRemaining,
             hasUtility,
-            utilityRemaining
+            utilityRemaining,
+            hasMetabolicPrimer,
+            metabolicPrimerRemaining,
+            hasUtilityPrimer,
+            utilityPrimerRemaining
         );
     }
 
