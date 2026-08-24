@@ -14,6 +14,7 @@
 #include "ConsumableData.h"
 #include "ExtrasIntegration.h"
 #include "SquadTracker.h"
+#include "SessionTracker.h"
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -232,7 +233,7 @@ const char* GetSquadConsumableLabel(
 
 void RenderGeneralTab();
 void RenderSquadTab();
-
+void RenderSessionTab();
 AddonDefinition_t AddonDef = {};
 HMODULE hSelf = nullptr;
 AddonAPI_t* APIDefs = nullptr;
@@ -963,9 +964,24 @@ void AddonRender()
         GetUtilityPrimerRemainingMilliseconds()
         : 0;
 
-    if (g_Settings.showTracker &&
+    const bool inCombat =
+        BuffTracker::IsInCombat();
+
+    const bool isGameplay =
         NexusLink != nullptr &&
-        NexusLink->IsGameplay)
+        NexusLink->IsGameplay;
+
+    if (isGameplay)
+    {
+        SessionTracker::Update(
+            hasFood,
+            hasUtility,
+            inCombat
+        );
+    }
+
+    if (g_Settings.showTracker &&
+        isGameplay)
     {
         RenderCompactTracker(
             hasFood,
@@ -1004,8 +1020,7 @@ void AddonRender()
         .utilityPrimerWarningSeconds
     );
 
-    const bool inCombat =
-        BuffTracker::IsInCombat();
+
 
     ReminderManager::
         UpdateMissingBuffWarnings(
@@ -2395,6 +2410,167 @@ void RenderSquadTab()
         );
     }
 }
+void RenderSessionTab()
+{
+    const SessionStats stats =
+        SessionTracker::GetStats();
+
+    const auto FormatDuration =
+        [](int64_t milliseconds)
+        {
+            const int64_t totalSeconds =
+                milliseconds / 1000;
+
+            const int64_t hours =
+                totalSeconds / 3600;
+
+            const int64_t minutes =
+                (totalSeconds % 3600) / 60;
+
+            const int64_t seconds =
+                totalSeconds % 60;
+
+            char buffer[32] = {};
+
+            snprintf(
+                buffer,
+                sizeof(buffer),
+                "%02lld:%02lld:%02lld",
+                hours,
+                minutes,
+                seconds
+            );
+
+            return std::string(buffer);
+        };
+
+    const auto CalculateCoverage =
+        [](int64_t activeMilliseconds,
+            int64_t totalMilliseconds)
+        {
+            if (totalMilliseconds <= 0)
+            {
+                return 0.0;
+            }
+
+            return
+                (static_cast<double>(
+                    activeMilliseconds
+                    ) /
+                    static_cast<double>(
+                        totalMilliseconds
+                        )) *
+                100.0;
+        };
+
+    const double foodSessionCoverage =
+        CalculateCoverage(
+            stats.foodActiveMilliseconds,
+            stats.sessionMilliseconds
+        );
+
+    const double utilitySessionCoverage =
+        CalculateCoverage(
+            stats.utilityActiveMilliseconds,
+            stats.sessionMilliseconds
+        );
+
+    const double foodCombatCoverage =
+        CalculateCoverage(
+            stats.foodCombatMilliseconds,
+            stats.combatMilliseconds
+        );
+
+    const double utilityCombatCoverage =
+        CalculateCoverage(
+            stats.utilityCombatMilliseconds,
+            stats.combatMilliseconds
+        );
+
+    ImGui::TextUnformatted(
+        "Session Report"
+    );
+
+    ImGui::Separator();
+
+    ImGui::Text(
+        "Session Time: %s",
+        FormatDuration(
+            stats.sessionMilliseconds
+        ).c_str()
+    );
+
+    ImGui::Text(
+        "Combat Time:  %s",
+        FormatDuration(
+            stats.combatMilliseconds
+        ).c_str()
+    );
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    ImGui::TextUnformatted(
+        "Food Coverage"
+    );
+
+    ImGui::Text(
+        "Session: %.1f%%",
+        foodSessionCoverage
+    );
+
+    ImGui::Text(
+        "In Combat: %.1f%%",
+        foodCombatCoverage
+    );
+
+    ImGui::Text(
+        "Active Time: %s",
+        FormatDuration(
+            stats.foodActiveMilliseconds
+        ).c_str()
+    );
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    ImGui::TextUnformatted(
+        "Utility Coverage"
+    );
+
+    ImGui::Text(
+        "Session: %.1f%%",
+        utilitySessionCoverage
+    );
+
+    ImGui::Text(
+        "In Combat: %.1f%%",
+        utilityCombatCoverage
+    );
+
+    ImGui::Text(
+        "Active Time: %s",
+        FormatDuration(
+            stats.utilityActiveMilliseconds
+        ).c_str()
+    );
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    if (ImGui::Button(
+        "Reset Session"
+    ))
+    {
+        SessionTracker::Reset();
+    }
+
+    ImGui::SameLine();
+
+    ImGui::TextDisabled(
+        "Resets the current report only."
+    );
+}
 
 void AddonOptions()
 {
@@ -2419,6 +2595,14 @@ void AddonOptions()
             "Squad"))
         {
             RenderSquadTab();
+
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem(
+            "Session"))
+        {
+            RenderSessionTab();
 
             ImGui::EndTabItem();
         }

@@ -402,6 +402,39 @@ namespace
         "Nourishment"
     };
 
+    const ConsumableInfo SesameAsparagusCuredMeatFlatbread =
+    {
+        "Condi",
+        "Sesame-Asparagus and Cured Meat Flatbread",
+        "Gain Health Every Second\n"
+        "+100 Condition Damage\n"
+        "+70 Expertise",
+        91867
+    };
+
+    const ConsumableInfo ChefsTastingPlatter =
+    {
+        "Kill",
+        "Chef's Tasting Platter",
+        "+80 Power for 30 Seconds on Kill\n"
+        "+50 Precision\n"
+        "+50 Condition Damage\n"
+        "+30% Magic Find\n"
+        "+10% Experience from Kills",
+        91689
+    };
+
+    const ConsumableInfo SharedFood9994 =
+    {
+        "Food",
+        "Shared Food Effect",
+        "Multiple foods share this nourishment effect"
+    };
+
+    //
+    // UTILITY - POWER
+    //
+
     //
     // UTILITY - POWER
     //
