@@ -7,6 +7,8 @@ struct ConsumableInfo
     const char* label;
     const char* name;
     const char* effects;
+
+    uint32_t itemID = 0;
 };
 
 namespace ConsumableData

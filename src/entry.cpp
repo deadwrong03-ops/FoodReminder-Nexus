@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <string>
 #include <cfloat>
+#include <array>
 
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
@@ -133,6 +134,81 @@ const char* GetSquadConsumableLabel(
     }
 
     return label;
+}
+std::string CreateItemChatLink(
+    uint32_t itemID
+)
+{
+    if (itemID == 0)
+    {
+        return "";
+    }
+
+    const std::array<unsigned char, 6> data =
+    {
+        0x02,
+        0x01,
+        static_cast<unsigned char>(
+            itemID & 0xFF
+        ),
+        static_cast<unsigned char>(
+            (itemID >> 8) & 0xFF
+        ),
+        static_cast<unsigned char>(
+            (itemID >> 16) & 0xFF
+        ),
+        static_cast<unsigned char>(
+            (itemID >> 24) & 0xFF
+        )
+    };
+
+    static const char base64Table[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz"
+        "0123456789+/";
+
+    std::string encoded;
+
+    for (size_t i = 0;
+        i < data.size();
+        i += 3)
+    {
+        const uint32_t value =
+            (static_cast<uint32_t>(
+                data[i]
+                ) << 16) |
+            (static_cast<uint32_t>(
+                data[i + 1]
+                ) << 8) |
+            static_cast<uint32_t>(
+                data[i + 2]
+                );
+
+        encoded +=
+            base64Table[
+                (value >> 18) & 0x3F
+            ];
+
+        encoded +=
+            base64Table[
+                (value >> 12) & 0x3F
+            ];
+
+        encoded +=
+            base64Table[
+                (value >> 6) & 0x3F
+            ];
+
+        encoded +=
+            base64Table[
+                value & 0x3F
+            ];
+    }
+
+    return
+        "[&" +
+        encoded +
+        "]";
 }
 
 void RenderCompactTracker(
@@ -532,7 +608,6 @@ void RenderCompactTracker(
             ImGui::SameLine(
                 155.0f
             );
-
             ImGui::TextUnformatted(
                 foodInfo.label
             );
@@ -540,6 +615,59 @@ void RenderCompactTracker(
             RenderConsumableTooltip(
                 foodInfo
             );
+
+            if (ImGui::BeginPopupContextItem(
+                "FoodContextMenu"
+            ))
+            {
+                ImGui::TextDisabled(
+                    "Food"
+                );
+
+                ImGui::Separator();
+
+                if (foodInfo.itemID != 0)
+                {
+                    if (ImGui::MenuItem(
+                        "Copy item chat link"
+                    ))
+                    {
+                        const std::string chatLink =
+                            CreateItemChatLink(
+                                foodInfo.itemID
+                            );
+
+                        ImGui::SetClipboardText(
+                            chatLink.c_str()
+                        );
+                    }
+                }
+
+                if (ImGui::MenuItem(
+                    "Copy item name"
+                ))
+                {
+                    ImGui::SetClipboardText(
+                        foodInfo.name
+                    );
+                }
+
+                if (ImGui::MenuItem(
+                    "Copy effect ID"
+                ))
+                {
+                    const std::string effectID =
+                        std::to_string(
+                            foodSkillID
+                        );
+
+                    ImGui::SetClipboardText(
+                        effectID.c_str()
+                    );
+                }
+
+                ImGui::EndPopup();
+            }
         }
         else
         {
@@ -621,6 +749,58 @@ void RenderCompactTracker(
             RenderConsumableTooltip(
                 utilityInfo
             );
+            if (ImGui::BeginPopupContextItem(
+                "UtilityContextMenu"
+            ))
+            {
+                ImGui::TextDisabled(
+                    "Utility"
+                );
+
+                ImGui::Separator();
+
+                if (utilityInfo.itemID != 0)
+                {
+                    if (ImGui::MenuItem(
+                        "Copy item chat link"
+                    ))
+                    {
+                        const std::string chatLink =
+                            CreateItemChatLink(
+                                utilityInfo.itemID
+                            );
+
+                        ImGui::SetClipboardText(
+                            chatLink.c_str()
+                        );
+                    }
+                }
+
+                if (ImGui::MenuItem(
+                    "Copy item name"
+                ))
+                {
+                    ImGui::SetClipboardText(
+                        utilityInfo.name
+                    );
+                }
+
+                if (ImGui::MenuItem(
+                    "Copy effect ID"
+                ))
+                {
+                    const std::string effectID =
+                        std::to_string(
+                            utilitySkillID
+                        );
+
+                    ImGui::SetClipboardText(
+                        effectID.c_str()
+                    );
+                }
+
+                ImGui::EndPopup();
+            }
         }
         else
         {

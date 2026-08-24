@@ -24,7 +24,8 @@ namespace
         "Power",
         "Bowl of Sweet and Spicy Butternut Squash Soup",
         "+100 Power\n"
-        "+70 Ferocity"
+        "+70 Ferocity",
+        41569
     };
 
     const ConsumableInfo SpicyMoaWings =
@@ -32,7 +33,8 @@ namespace
         "Power",
         "Plate of Spicy Moa Wings",
         "+100 Power\n"
-        "+70 Ferocity"
+        "+70 Ferocity",
+        91917
     };
 
     const ConsumableInfo OrrianSteakFrittes =
@@ -51,7 +53,8 @@ namespace
         "Prec",
         "Bowl of Curry Butternut Squash Soup",
         "+100 Precision\n"
-        "+70 Power"
+        "+70 Power",
+        12486
     };
 
     const ConsumableInfo TruffleSteak =
@@ -59,7 +62,8 @@ namespace
         "Prec",
         "Plate of Truffle Steak",
         "+100 Power\n"
-        "+70 Precision"
+        "+70 Precision",
+        12467
     };
 
     const ConsumableInfo WinterberrySteak =
@@ -67,7 +71,8 @@ namespace
         "Prec",
         "Steak with Winterberry Sauce",
         "+100 Power\n"
-        "+70 Precision"
+        "+70 Precision",
+        79786
     };
 
     const ConsumableInfo SesameCoqAuVin =
@@ -76,7 +81,8 @@ namespace
         "Plate of Sesame-Crusted Coq Au Vin",
         "Health every second\n"
         "+100 Power\n"
-        "+70 Precision"
+        "+70 Precision",
+        9219
     };
 
     //
@@ -87,7 +93,8 @@ namespace
         "Condi",
         "Plate of Beef Rendang",
         "+100 Condition Damage\n"
-        "+70 Expertise"
+        "+70 Expertise",
+        86997
     };
 
     const ConsumableInfo SpicyPumpkinCookie =
@@ -96,7 +103,8 @@ namespace
         "Spicy Pumpkin Cookie",
         "+70 Condition Damage\n"
         "+30% Magic Find\n"
-        "+15% Experience from Kills"
+        "+15% Experience from Kills",
+        36084
     };
 
     //
@@ -107,7 +115,8 @@ namespace
         "Exper",
         "Rare Veggie Pizza",
         "+100 Expertise\n"
-        "+70 Condition Damage"
+        "+70 Condition Damage",
+        12465
     };
 
     const ConsumableInfo RedLentilSaobosa =
@@ -115,7 +124,8 @@ namespace
         "Exper",
         "Red Lentil Saobosa",
         "+100 Expertise\n"
-        "+70 Condition Damage"
+        "+70 Condition Damage",
+        81079
     };
 
     //
@@ -127,7 +137,8 @@ namespace
         "Beef Carpaccio with Salsa Garnish",
         "66% Life Steal Chance\n"
         "+100 Concentration\n"
-        "+70 Power"
+        "+70 Power",
+        91862
     };
 
     //
@@ -153,7 +164,8 @@ namespace
         "+30% Magic Find\n"
         "+40% Gold from Monsters\n"
         "+10% Karma\n"
-        "+10% Experience from Kills"
+        "+10% Experience from Kills",
+        36041
     };
 
     //
@@ -166,7 +178,8 @@ namespace
         "60% Chance to Gain Swiftness on Kill\n"
         "+5% Damage While Moving\n"
         "+30% Magic Find\n"
-        "+10% Experience from Kills"
+        "+10% Experience from Kills",
+        79793
     };
 
     //
@@ -190,7 +203,8 @@ namespace
         "Cilantro Lime Sous-Vide Steak",
         "66% Life Steal Chance\n"
         "+100 Power\n"
-        "+70 Ferocity"
+        "+70 Ferocity",
+        91805
     };
 
     const ConsumableInfo PeppercornSousVideSteak =
@@ -199,7 +213,8 @@ namespace
         "Peppercorn-Crusted Sous-Vide Steak",
         "-10% Incoming Damage\n"
         "+100 Power\n"
-        "+70 Ferocity"
+        "+70 Ferocity",
+        91734
     };
 
     //
@@ -210,7 +225,8 @@ namespace
         "PConc",
         "Soul Pastry",
         "+100 Concentration\n"
-        "+70 Power"
+        "+70 Power",
+        89002
     };
 
     //
@@ -221,7 +237,8 @@ namespace
         "Kill",
         "Block of Tofu",
         "+100 Power & Ferocity on Kill\n"
-        "+70 Precision"
+        "+70 Precision",
+        96793
     };
 
     //
@@ -264,7 +281,8 @@ namespace
         "Chocolate Omnomberry Cream",
         "+40% Magic Find while under a Boon\n"
         "+20% Boon Duration\n"
-        "+10% Experience from Kills"
+        "+10% Experience from Kills",
+        12453
     };
 
     const ConsumableInfo OmnomberryBar =
@@ -273,7 +291,8 @@ namespace
         "Omnomberry Bar",
         "+40% Gold from Monsters\n"
         "+10% Magic Find\n"
-        "+10% Experience from Kills"
+        "+10% Experience from Kills",
+        12452
     };
     const ConsumableInfo PepperedCuredMeatFlatbread =
     {
@@ -391,7 +410,29 @@ namespace
         "Power",
         "Superior Sharpening Stone",
         "3% Power from Precision\n"
-        "6% Power from Ferocity"
+        "6% Power from Ferocity",
+        78305
+    };
+    const ConsumableInfo HardenedSharpeningStone =
+    {
+        "Power",
+        "Hardened Sharpening Stone",
+        "2% Power from Precision\n"
+        "4% Power from Ferocity",
+        9440
+    };
+    const ConsumableInfo RoughTinySharpeningStone =
+    {
+        "Power",
+        "Rough / Tiny Sharpening Stone",
+        "Gain Power from Precision\n"
+        "+10% Experience from Kills"
+    };
+    const ConsumableInfo SharpeningGolem =
+    {
+        "Power",
+        "Sharpening Golem",
+        "Utility effect"
     };
 
     const ConsumableInfo TinOfFruitcake =
@@ -399,7 +440,8 @@ namespace
         "Power",
         "Tin of Fruitcake",
         "3% Power from Precision\n"
-        "6% Power from Ferocity"
+        "6% Power from Ferocity",
+        77569
     };
 
     const ConsumableInfo FuriousSharpeningStone =
@@ -408,6 +450,15 @@ namespace
         "Furious Sharpening Stone",
         "3% Power from Precision\n"
         "3% Ferocity from Precision"
+    };
+    const ConsumableInfo CorsairSharpeningStone =
+    {
+        "Power",
+        "Corsair Sharpening Stone",
+        "3% Power from Toughness\n"
+        "3% Expertise from Toughness\n"
+        "+10% Experience from Kills",
+        86378
     };
 
     //
@@ -418,7 +469,8 @@ namespace
         "Condi",
         "Toxic Focusing Crystal",
         "3% Condition Damage from Power\n"
-        "3% Condition Damage from Precision"
+        "3% Condition Damage from Precision",
+        48917
     };
 
     const ConsumableInfo MasterTuningCrystal =
@@ -426,7 +478,8 @@ namespace
         "Condi",
         "Master Tuning Crystal",
         "3% Condition Damage from Precision\n"
-        "8% Condition Damage from Expertise"
+        "8% Condition Damage from Expertise",
+        9476
     };
 
     const ConsumableInfo TuningIcicle =
@@ -434,7 +487,8 @@ namespace
         "Condi",
         "Tuning Icicle",
         "3% Condition Damage from Precision\n"
-        "8% Condition Damage from Expertise"
+        "8% Condition Damage from Expertise",
+        77567
     };
 
     const ConsumableInfo FuriousTuningCrystal =
@@ -442,13 +496,15 @@ namespace
         "Exper",
         "Furious Tuning Crystal",
         "3% Condition Damage from Precision\n"
-        "3% Expertise from Precision"
+        "3% Expertise from Precision",
+        67524
     };
     const ConsumableInfo BountifulMaintenanceOil =
     {
         "Condi",
         "Bountiful Maintenance Oil",
-        "Condition-oriented utility"
+        "Condition-oriented utility",
+        67528
     };
 
     //
@@ -459,7 +515,8 @@ namespace
         "PConc",
         "Potent Lucent Oil",
         "3% Concentration from Power\n"
-        "3% Concentration from Precision"
+        "3% Concentration from Precision",
+        89203
     };
 
     const ConsumableInfo EnhancedLucentOil =
@@ -467,7 +524,8 @@ namespace
         "PConc",
         "Enhanced Lucent Oil",
         "6% Concentration from Condition Damage\n"
-        "3% Concentration from Precision"
+        "3% Concentration from Precision",
+        89157
     };
 
     const ConsumableInfo ToxicMaintenanceOil =
@@ -475,7 +533,8 @@ namespace
         "CConc",
         "Toxic Maintenance Oil",
         "3% Concentration from Power\n"
-        "6% Concentration from Condition Damage"
+        "6% Concentration from Condition Damage",
+        48916
     };
 
     const ConsumableInfo MasterMaintenanceOil =
@@ -483,7 +542,8 @@ namespace
         "HConc",
         "Master Maintenance Oil",
         "3% Concentration from Precision\n"
-        "6% Concentration from Healing Power"
+        "6% Concentration from Healing Power",
+        9461
     };
     const ConsumableInfo MasterfulAccuracy =
     {
@@ -509,7 +569,8 @@ namespace
         "Powerful Potion of Mordrem Slaying",
         "+10% Damage vs. Mordrem\n"
         "-10% Damage from Mordrem\n"
-        "+10% Experience from Kills"
+        "+10% Experience from Kills",
+        91350
     };
 
     const ConsumableInfo ScarletsArmiesSlayingPotion =
@@ -703,11 +764,21 @@ namespace ConsumableData
         case 9963:
             return SuperiorSharpeningStone;
 
+        case 9962:
+            return HardenedSharpeningStone;
+
+        case 9958:
+            return RoughTinySharpeningStone;
+        case 77466:
+            return SharpeningGolem;
+
         case 34211:
             return TinOfFruitcake;
 
         case 25882:
             return FuriousSharpeningStone;
+        case 46925:
+            return CorsairSharpeningStone;
 
         case 21828:
             return ToxicFocusingCrystal;
