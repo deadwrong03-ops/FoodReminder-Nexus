@@ -24,7 +24,7 @@ Features, interfaces, configuration formats, and internal systems may change as 
 
 ## Current Status
 
-FoodReminder-Nexus has a working Nexus addon framework with ArcDPS-powered tracking for food, utility, combat state, primer-related reminders, and nearby player consumables.
+FoodReminder-Nexus has a working Nexus addon framework with ArcDPS-powered tracking for food, utility, combat state, primer-related reminders, nearby player consumables, and per-session consumable statistics.
 
 The addon can currently:
 
@@ -48,10 +48,16 @@ The addon can currently:
 - Capture unknown consumable IDs automatically in the background
 - Persist collected unknown consumables between game sessions
 - Export collected unknown IDs for database expansion
+- Track session and combat time
+- Measure Food and Utility coverage for the full session
+- Measure Food and Utility coverage specifically while in combat
+- Track Food and Utility applications
+- Distinguish consumable refreshes from replacements
+- Track Food and Utility expirations that occur during combat
 
-Live open-world testing has shown the new squad consumable timers matching the existing ArcDPS Food Tracker to approximately one second.
+Live open-world testing has shown the squad consumable timers matching the existing ArcDPS Food Tracker to approximately one second.
 
-The current development focus is expanding consumable identification, refining the Squad interface, improving synchronization, and continuing stability testing during normal gameplay.
+The current development focus is expanding session reporting, continuing consumable identification, refining the Squad interface, improving synchronization, and continuing stability testing during normal gameplay.
 
 ---
 
@@ -161,7 +167,7 @@ The current development focus is expanding consumable identification, refining t
 
 ### Unknown Consumable Collector
 
-FoodReminder-Nexus now includes a development-oriented collector for unidentified Food and Utility effects.
+FoodReminder-Nexus includes a development-oriented collector for unidentified Food and Utility effects.
 
 The collector supports:
 
@@ -194,6 +200,7 @@ Recent identified effects include examples such as:
 - Clove and Veggie Flatbread
 - Spherified Cilantro Oyster Soup
 - Peppercorn and Veggie Flatbread
+- Sesame Asparagus and Cured Meat Flatbread
 - Powerful Potion of Demon Slaying
 - Writ of Masterful Strength
 - Writ of Masterful Malice
@@ -203,6 +210,45 @@ Recent identified effects include examples such as:
 Unknown effects are intentionally retained as `Unknown (ID)` rather than guessed.
 
 This allows tracking to continue while unidentified effects are collected for later research and mapping.
+
+### Session Reporting
+
+FoodReminder-Nexus now includes a Session Report for analyzing consumable usage during the current gameplay session.
+
+The report currently tracks:
+
+- Total session time
+- Total combat time
+- Food active time
+- Utility active time
+- Food coverage across the full session
+- Utility coverage across the full session
+- Food coverage specifically while in combat
+- Utility coverage specifically while in combat
+- Food application count
+- Utility application count
+- Food refresh count
+- Utility refresh count
+- Food replacement count
+- Utility replacement count
+- Food expirations occurring during combat
+- Utility expirations occurring during combat
+
+Session Coverage and In-Combat Coverage are intentionally separate.
+
+This allows the addon to distinguish between a player being without consumables while idle or traveling and actually entering combat without active consumables.
+
+Consumable applications are also classified independently:
+
+- An application occurs when a consumable becomes active after previously being inactive.
+- A refresh occurs when the same active consumable is applied again.
+- A replacement occurs when an active consumable is replaced with a different consumable.
+
+Food and Utility maintain independent statistics.
+
+A `Reset Session` control clears the current Session Report without altering active consumable or reminder state.
+
+Application, refresh, replacement, and in-combat expiration tracking have been validated in game for both Food and Utility.
 
 ### Debugging and Testing
 
@@ -220,6 +266,10 @@ This allows tracking to continue while unidentified effects are collected for la
 - Unknown effect Seen counters
 - Unknown effect export
 - Persistent unknown-effect restoration testing
+- Session/combat coverage validation
+- Food/Utility application classification testing
+- Food/Utility refresh and replacement testing
+- In-combat expiration testing
 
 ---
 
@@ -311,6 +361,18 @@ Collected unknowns are persisted through `FoodReminder.ini` and restored after r
 
 This allows unidentified effects to accumulate naturally during normal group gameplay rather than requiring manual monitoring of the Squad window.
 
+### Session Reporting Behavior
+
+Session statistics are accumulated while the addon is active during gameplay.
+
+Food and Utility coverage are measured independently.
+
+The report separates total-session coverage from in-combat coverage so time spent traveling, waiting, or otherwise outside combat does not obscure consumable performance during actual combat.
+
+The report is currently session-based rather than a permanent historical record.
+
+Using `Reset Session` clears the current report statistics.
+
 ---
 
 ## Jade Tech Protocol Investigation
@@ -341,6 +403,11 @@ This remains an experimental/future investigation.
 
 Current priorities include:
 
+- Add per-consumable usage history to the Session Report
+- Record Food and Utility effect IDs used during a session
+- Display recognized consumable names in session history
+- Track per-consumable usage counts
+- Explore optional consumable usage/cost analysis after usage history is reliable
 - Improve Food/Utility state synchronization after login or map change
 - Improve synchronization with already-active buffs
 - Improve character-switch synchronization before the first ArcDPS self event
@@ -348,7 +415,6 @@ Current priorities include:
 - Automatically remove newly recognized effects from the persistent Unknown Consumables list
 - Improve Squad tracker presentation
 - Continue live Squad tracking validation
-- Continue buff replacement and refresh testing
 - Continue expiration/reminder edge-case testing
 - Improve the player-facing reminder interface
 - Reduce/remove development debug information once tracking is stable
@@ -364,6 +430,10 @@ FoodReminder-Nexus prefers displaying an effect as unknown rather than assigning
 
 Future development may include:
 
+- Per-consumable session usage history
+- Consumable usage analysis
+- Optional consumable cost analysis
+- Session cost-per-hour estimates
 - Compact optional Food/Utility timer HUD
 - Color stages for remaining duration
 - Additional reminder customization
@@ -420,6 +490,7 @@ The addon should:
 - Warn when important consumables are missing at the start of combat
 - Remain useful for normal open-world and solo PvE gameplay
 - Provide useful squad consumable information without becoming a full combat meter
+- Provide useful consumable-session information that is not readily visible in the normal Guild Wars 2 interface
 - Avoid unnecessary complexity
 - Prefer reliable tracking over guessed or misleading information
 - Prioritize stability before additional features

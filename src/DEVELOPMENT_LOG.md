@@ -312,3 +312,276 @@ At the end of this development period:
 8. Continue expiration and reminder edge-case testing.
 9. Continue stability testing during normal open-world and group gameplay.
 10. Reduce development-only interface elements as the underlying tracking systems stabilize.
+---
+
+
+
+## 2026-08-24 — Session Report, Consumable Usage Tracking, and Combat Expiration Validation
+
+### Session Report Foundation
+
+Added a new `Session` tab to the Food Reminder options interface.
+
+The Session Report provides statistics for the current gameplay session without affecting the normal Food Reminder tracker or reminder behavior.
+
+The initial report tracks:
+
+- Session time.
+- Combat time.
+- Food coverage during the entire session.
+- Food coverage while in combat.
+- Food active time.
+- Utility coverage during the entire session.
+- Utility coverage while in combat.
+- Utility active time.
+- Food applications.
+- Food refreshes.
+- Food replacements.
+- Food expirations while in combat.
+- Utility applications.
+- Utility refreshes.
+- Utility replacements.
+- Utility expirations while in combat.
+
+A `Reset Session` button was also added.
+
+Resetting the Session Report clears the current report statistics only and does not alter active Food, Utility, Primer, or reminder state.
+
+### Session and Combat Coverage
+
+The Session Tracker continuously accumulates gameplay-session time while the player is in the game.
+
+Food and Utility active time are accumulated independently.
+
+Combat time is also tracked separately using the existing ArcDPS combat-state information.
+
+This allows the report to calculate two different coverage measurements:
+
+#### Session Coverage
+
+Percentage of the entire tracked session during which the consumable was active.
+
+#### In-Combat Coverage
+
+Percentage of tracked combat time during which the consumable was active.
+
+This distinction is important because a player may intentionally spend significant time outside combat without consumables while still maintaining near-complete consumable coverage during actual combat.
+
+### Application Tracking
+
+Food and Utility applications are now recorded independently.
+
+Each application is classified as one of three behaviors:
+
+- `Application` — a consumable becomes active after previously being inactive.
+- `Refresh` — the currently tracked consumable is applied again.
+- `Replacement` — an active consumable is replaced by a different consumable.
+
+Food and Utility maintain separate counters.
+
+### Application Classification Fix
+
+Initial testing exposed an issue with application classification.
+
+The live `BuffTracker` updates the active Food or Utility effect ID before the Session Tracker receives the application notification.
+
+Using only the current live buff state therefore made it unreliable to determine whether the new event represented a refresh or a replacement.
+
+The Session Tracker was changed to maintain its own previously observed Food and Utility effect IDs.
+
+This allows application classification to compare the newly received effect against the previously recorded effect independently of the live BuffTracker state.
+
+Temporary development helpers were used to validate the classification behavior and were removed after testing.
+
+### Food Application Validation
+
+Food application tracking was tested using multiple consumable changes and refreshes.
+
+A validated test produced:
+
+- Applications: `3`
+- Refreshes: `1`
+- Replacements: `1`
+
+This confirmed that Food applications, same-consumable refreshes, and different-consumable replacements are being distinguished correctly.
+
+### Utility Application Validation
+
+Utility application tracking was tested separately.
+
+A validated test produced:
+
+- Applications: `3`
+- Refreshes: `1`
+- Replacements: `1`
+
+This confirmed that Utility application classification behaves independently from Food application tracking.
+
+### Counter Placement Fix
+
+During the first Session Report implementation, Utility application statistics were accidentally displayed inside the Food Coverage section.
+
+The affected counters included:
+
+- Applications.
+- Refreshes.
+- Replacements.
+- Expired In Combat.
+
+The report layout was corrected so Food statistics appear under Food Coverage and Utility statistics appear under Utility Coverage.
+
+### Expired-In-Combat Tracking
+
+Added tracking for Food and Utility effects that expire while the player is actively in combat.
+
+The Session Tracker records the transition from an active consumable to an inactive consumable and checks the current combat state.
+
+If the transition occurs during combat, the corresponding counter increments:
+
+- Food `Expired In Combat`.
+- Utility `Expired In Combat`.
+
+Food and Utility are tracked independently.
+
+### Food Expiration Validation
+
+A controlled development test was performed to force Food expiration while the player was actively fighting.
+
+The Session Report correctly changed:
+
+`Expired In Combat: 0`
+
+to:
+
+`Expired In Combat: 1`
+
+for Food.
+
+The temporary Food expiration test hook was removed after successful validation.
+
+### Utility Expiration Validation
+
+A separate controlled development test was performed for Utility expiration.
+
+While the player was actively in combat, the Utility effect was forced to expire.
+
+The Session Report correctly changed:
+
+`Expired In Combat: 0`
+
+to:
+
+`Expired In Combat: 1`
+
+for Utility.
+
+The temporary Utility expiration test hook was removed after successful validation.
+
+### Live Coverage Validation
+
+Live combat testing confirmed that Session Coverage and In-Combat Coverage respond independently.
+
+Observed tests demonstrated:
+
+- Session coverage decreasing when a consumable was missing outside combat.
+- In-combat coverage reflecting whether the consumable was active during actual combat.
+- Food and Utility percentages being calculated independently.
+- Combat time accumulating only while ArcDPS reports the player as in combat.
+
+This provides a more useful measurement than simple total-session uptime alone.
+
+### Session Reset Validation
+
+The `Reset Session` button was tested successfully.
+
+Resetting clears:
+
+- Session time.
+- Combat time.
+- Food active time.
+- Utility active time.
+- Food/Utility coverage statistics.
+- Application counters.
+- Refresh counters.
+- Replacement counters.
+- Expired-in-combat counters.
+
+The reset affects the current Session Report only.
+
+Active Food and Utility tracking continues normally.
+
+### Temporary Test Hooks Removed
+
+Temporary developer functions used to force Food and Utility expiration were removed after validation.
+
+The final implementation therefore does not retain artificial expiration behavior in the production tracking path.
+
+### Build Validation
+
+The Session Report implementation went through multiple build/test cycles.
+
+Issues discovered during development included:
+
+- Application-tracking function signature mismatches.
+- Missing or mismatched SessionTracker declarations.
+- Temporary BuffTracker expiration-test declaration mismatches.
+- Incorrect placement of Utility counters in the Food section.
+
+These issues were corrected during development.
+
+The final checkpoint builds successfully.
+
+### Git Checkpoint
+
+The completed Session Report work was committed and pushed after successful live validation.
+
+This preserves a stable checkpoint containing:
+
+- Session tracking.
+- Combat tracking.
+- Food/Utility coverage.
+- Application tracking.
+- Refresh tracking.
+- Replacement tracking.
+- Expired-in-combat tracking.
+- Session reset.
+- Removal of temporary expiration-test code.
+
+### Current Working Checkpoint
+
+At the end of this development checkpoint:
+
+- Session Report tab is working.
+- Session time tracking is working.
+- Combat time tracking is working.
+- Food session coverage is working.
+- Food in-combat coverage is working.
+- Utility session coverage is working.
+- Utility in-combat coverage is working.
+- Food active-time tracking is working.
+- Utility active-time tracking is working.
+- Food application counting is working.
+- Utility application counting is working.
+- Food refresh detection is working.
+- Utility refresh detection is working.
+- Food replacement detection is working.
+- Utility replacement detection is working.
+- Food expiration during combat is detected.
+- Utility expiration during combat is detected.
+- Session reset is working.
+- Temporary expiration test hooks have been removed.
+- Final build completes successfully.
+- Session Report work has been committed and pushed.
+
+### Next Development Steps
+
+1. Add per-consumable usage history to the Session Report.
+2. Record the Food/Utility effect IDs used during the session.
+3. Track usage counts for individual consumables.
+4. Distinguish repeated use of the same consumable from switching to another consumable in session history.
+5. Use the existing consumable database to display recognized consumable names in the report.
+6. Preserve unknown effect IDs when a consumable is not yet mapped.
+7. Explore optional consumable usage/cost analysis after per-consumable history is reliable.
+8. Continue expanding the consumable database during normal gameplay.
+9. Continue Session Report and combat-state edge-case testing.
+10. Continue reducing development-only test code as each tracking system is validated.
