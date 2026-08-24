@@ -9,6 +9,9 @@ namespace
 
     SessionStats g_Stats;
 
+    uint32_t g_LastFoodSkillID = 0;
+    uint32_t g_LastUtilitySkillID = 0;
+
     bool g_HasLastUpdate = false;
 
     std::chrono::steady_clock::time_point
@@ -84,6 +87,90 @@ void SessionTracker::Update(
     }
 }
 
+void SessionTracker::RecordFoodApplication(
+    uint32_t skillID
+)
+{
+    std::lock_guard<std::mutex> lock(
+        g_SessionMutex
+    );
+
+    ++g_Stats.foodApplications;
+
+    if (g_LastFoodSkillID != 0)
+    {
+        if (g_LastFoodSkillID == skillID)
+        {
+            ++g_Stats.foodRefreshes;
+        }
+        else
+        {
+            ++g_Stats.foodReplacements;
+        }
+    }
+
+    g_LastFoodSkillID =
+        skillID;
+}
+
+void SessionTracker::RecordUtilityApplication(
+    uint32_t skillID
+)
+{
+    std::lock_guard<std::mutex> lock(
+        g_SessionMutex
+    );
+
+    ++g_Stats.utilityApplications;
+
+    if (g_LastUtilitySkillID != 0)
+    {
+        if (g_LastUtilitySkillID == skillID)
+        {
+            ++g_Stats.utilityRefreshes;
+        }
+        else
+        {
+            ++g_Stats.utilityReplacements;
+        }
+    }
+
+    g_LastUtilitySkillID =
+        skillID;
+}
+
+void SessionTracker::RecordFoodExpired(
+    bool inCombat
+)
+{
+    if (!inCombat)
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(
+        g_SessionMutex
+    );
+
+    ++g_Stats.foodExpiredInCombat;
+}
+
+void SessionTracker::RecordUtilityExpired(
+    bool inCombat
+)
+{
+    if (!inCombat)
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(
+        g_SessionMutex
+    );
+
+    ++g_Stats.utilityExpiredInCombat;
+}
+
 SessionStats SessionTracker::GetStats()
 {
     std::lock_guard<std::mutex> lock(
@@ -100,6 +187,9 @@ void SessionTracker::Reset()
     );
 
     g_Stats = {};
+
+    g_LastFoodSkillID = 0;
+    g_LastUtilitySkillID = 0;
 
     g_HasLastUpdate = false;
 

@@ -1,6 +1,6 @@
 #include "BuffTracker.h"
 #include "Settings.h"
-
+#include "SessionTracker.h"
 #include <mutex>
 #include <vector>
 #include <chrono>
@@ -672,6 +672,8 @@ void BuffTracker::ProcessEvent(
         if (isFoodEvent &&
             hasDuration)
         {
+           
+
             g_HasFood = true;
 
             g_FoodDurationMilliseconds =
@@ -687,6 +689,11 @@ void BuffTracker::ProcessEvent(
 
             g_FoodSkillName =
                 skillName;
+
+            SessionTracker::RecordFoodApplication(
+                ev.SkillID
+            
+            );
 
             if (!g_SelfCharacterName.empty())
             {
@@ -712,6 +719,13 @@ void BuffTracker::ProcessEvent(
             isUtilityEvent &&
             hasDuration)
         {
+            const bool wasAlreadyActive =
+                g_HasUtility;
+
+            const bool sameConsumable =
+                wasAlreadyActive &&
+                g_UtilitySkillID == ev.SkillID;
+
             g_HasUtility = true;
 
             g_UtilityDurationMilliseconds =
@@ -727,6 +741,10 @@ void BuffTracker::ProcessEvent(
 
             g_UtilitySkillName =
                 skillName;
+
+            SessionTracker::RecordUtilityApplication(
+                ev.SkillID
+            );
 
             if (!g_SelfCharacterName.empty())
             {
@@ -924,6 +942,10 @@ bool BuffTracker::HasFood()
     if (elapsed >=
         g_FoodDurationMilliseconds)
     {
+        SessionTracker::RecordFoodExpired(
+            g_IsInCombat
+        );
+
         g_HasFood = false;
         g_FoodDurationMilliseconds = 0;
 
@@ -971,6 +993,10 @@ bool BuffTracker::HasUtility()
     if (elapsed >=
         g_UtilityDurationMilliseconds)
     {
+        SessionTracker::RecordUtilityExpired(
+            g_IsInCombat
+        );
+
         g_HasUtility = false;
         g_UtilityDurationMilliseconds = 0;
 

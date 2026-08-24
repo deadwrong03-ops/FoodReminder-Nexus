@@ -1657,6 +1657,7 @@ void RenderGeneralTab()
         ImGui::TextUnformatted(
             "Reminder Tests"
         );
+        
 
         if (ImGui::Button(
             "Test Metabolic Primer Warning"))
@@ -2531,6 +2532,26 @@ void RenderSessionTab()
         ).c_str()
     );
 
+    ImGui::Text(
+        "Applications: %u",
+        stats.foodApplications
+    );
+
+    ImGui::Text(
+        "Refreshes: %u",
+        stats.foodRefreshes
+    );
+
+    ImGui::Text(
+        "Replacements: %u",
+        stats.foodReplacements
+    );
+
+    ImGui::Text(
+        "Expired In Combat: %u",
+        stats.foodExpiredInCombat
+    );
+
     ImGui::Spacing();
     ImGui::Separator();
 
@@ -2553,6 +2574,26 @@ void RenderSessionTab()
         FormatDuration(
             stats.utilityActiveMilliseconds
         ).c_str()
+    );
+
+    ImGui::Text(
+        "Applications: %u",
+        stats.utilityApplications
+    );
+
+    ImGui::Text(
+        "Refreshes: %u",
+        stats.utilityRefreshes
+    );
+
+    ImGui::Text(
+        "Replacements: %u",
+        stats.utilityReplacements
+    );
+
+    ImGui::Text(
+        "Expired In Combat: %u",
+        stats.utilityExpiredInCombat
     );
 
     ImGui::Spacing();
