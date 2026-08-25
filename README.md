@@ -1,4 +1,4 @@
-# FoodReminder-Nexus
+﻿# FoodReminder-Nexus
 
 > ⚠️ **Early Development Build**
 >
