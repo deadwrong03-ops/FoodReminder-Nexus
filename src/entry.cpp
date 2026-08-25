@@ -2525,6 +2525,20 @@ void RenderSessionTab()
         foodCombatCoverage
     );
 
+    const int64_t foodUnbuffedCombatMilliseconds =
+        stats.combatMilliseconds >
+        stats.foodCombatMilliseconds
+        ? stats.combatMilliseconds -
+        stats.foodCombatMilliseconds
+        : 0;
+
+    ImGui::Text(
+        "Unbuffed in Combat: %s",
+        FormatDuration(
+            foodUnbuffedCombatMilliseconds
+        ).c_str()
+    );
+
     ImGui::Text(
         "Active Time: %s",
         FormatDuration(
@@ -2639,6 +2653,21 @@ void RenderSessionTab()
         "In Combat: %.1f%%",
         utilityCombatCoverage
     );
+
+    const int64_t utilityUnbuffedCombatMilliseconds =
+        stats.combatMilliseconds >
+        stats.utilityCombatMilliseconds
+        ? stats.combatMilliseconds -
+        stats.utilityCombatMilliseconds
+        : 0;
+
+    ImGui::Text(
+        "Unbuffed in Combat: %s",
+        FormatDuration(
+            utilityUnbuffedCombatMilliseconds
+        ).c_str()
+    );
+    
 
     ImGui::Text(
         "Active Time: %s",
@@ -2990,25 +3019,55 @@ void RenderSessionTab()
             else if (std::string(info.label) ==
                 "Unknown")
             {
-                ImGui::Text(
-                    "%02lld:%02lld:%02lld  %s Unknown (%u)",
-                    hours,
-                    minutes,
-                    seconds,
-                    actionText,
-                    event.skillID
-                );
+                if (event.type ==
+                    SessionConsumableEventType::Expired &&
+                    event.inCombat)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Expired Unknown (%u) (in combat)",
+                        hours,
+                        minutes,
+                        seconds,
+                        event.skillID
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s Unknown (%u)",
+                        hours,
+                        minutes,
+                        seconds,
+                        actionText,
+                        event.skillID
+                    );
+                }
             }
             else
             {
-                ImGui::Text(
-                    "%02lld:%02lld:%02lld  %s %s",
-                    hours,
-                    minutes,
-                    seconds,
-                    actionText,
-                    info.name
-                );
+                if (event.type ==
+                    SessionConsumableEventType::Expired &&
+                    event.inCombat)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Expired %s (in combat)",
+                        hours,
+                        minutes,
+                        seconds,
+                        info.name
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s %s",
+                        hours,
+                        minutes,
+                        seconds,
+                        actionText,
+                        info.name
+                    );
+                }
             }
         }
     }

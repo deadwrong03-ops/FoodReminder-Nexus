@@ -25,6 +25,7 @@ struct SessionConsumableEvent
     int64_t previousRemainingMilliseconds = 0;
 
     bool isFood = false;
+    bool inCombat = false;
 
     SessionConsumableEventType type =
         SessionConsumableEventType::Applied;

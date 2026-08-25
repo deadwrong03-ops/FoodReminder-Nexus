@@ -45,6 +45,7 @@ namespace
         uint32_t previousSkillID,
         int64_t previousRemainingMilliseconds,
         bool isFood,
+        bool inCombat,
         SessionConsumableEventType type
     )
     {
@@ -63,7 +64,8 @@ namespace
 
         event.isFood =
             isFood;
-
+        event.inCombat =
+            inCombat;
         event.type =
             type;
 
@@ -167,6 +169,7 @@ void SessionTracker::RecordFoodApplication(
             0,
             0,
             true,
+            false,
             SessionConsumableEventType::Applied
         );
     }
@@ -177,6 +180,7 @@ void SessionTracker::RecordFoodApplication(
             g_LastFoodSkillID,
             0,
             true,
+            false,
             SessionConsumableEventType::Refreshed
         );
     }
@@ -187,6 +191,7 @@ void SessionTracker::RecordFoodApplication(
             g_LastFoodSkillID,
             previousRemainingMilliseconds,
             true,
+            false,
             SessionConsumableEventType::Replaced
         );
     }
@@ -240,6 +245,7 @@ void SessionTracker::RecordUtilityApplication(
             0,
             0,
             false,
+            false,
             SessionConsumableEventType::Applied
         );
     }
@@ -249,6 +255,7 @@ void SessionTracker::RecordUtilityApplication(
             skillID,
             g_LastUtilitySkillID,
             0,
+            false,
             false,
             SessionConsumableEventType::Refreshed
         );
@@ -260,9 +267,11 @@ void SessionTracker::RecordUtilityApplication(
             g_LastUtilitySkillID,
             previousRemainingMilliseconds,
             false,
+            false,
             SessionConsumableEventType::Replaced
         );
     }
+
     if (g_LastUtilitySkillID != 0)
     {
         if (g_LastUtilitySkillID == skillID)
@@ -311,6 +320,7 @@ void SessionTracker::RecordFoodExpired(
         g_LastFoodSkillID,
         0,
         true,
+        inCombat,
         SessionConsumableEventType::Expired
     );
 }
@@ -329,11 +339,13 @@ void SessionTracker::RecordUtilityExpired(
     );
 
     ++g_Stats.utilityExpiredInCombat;
+
     AddHistoryEvent(
         g_LastUtilitySkillID,
         g_LastUtilitySkillID,
         0,
         false,
+        inCombat,
         SessionConsumableEventType::Expired
     );
 }
