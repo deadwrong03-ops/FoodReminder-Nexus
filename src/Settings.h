@@ -32,6 +32,7 @@ struct FoodReminderSettings
 
     bool showTracker = false;
     bool lockTrackerPosition = false;
+    bool lockReminderPosition = false;
 
     int foodWarningSeconds = 300;
     int utilityWarningSeconds = 300;

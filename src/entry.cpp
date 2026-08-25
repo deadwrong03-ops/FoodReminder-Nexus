@@ -1047,20 +1047,28 @@ void AddonRender()
 
     ImGui::SetNextWindowPos(
         center,
-        ImGuiCond_Always,
+        ImGuiCond_FirstUseEver,
         ImVec2(0.5f, 0.5f)
     );
 
     ImGui::SetNextWindowBgAlpha(
         0.90f
     );
-
-    const ImGuiWindowFlags flags =
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_WindowPadding,
+        ImVec2(24.0f, 18.0f)
+    );
+    ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_AlwaysAutoResize |
-        ImGuiWindowFlags_NoSavedSettings |
         ImGuiWindowFlags_NoFocusOnAppearing |
         ImGuiWindowFlags_NoNav;
+
+    if (g_Settings.lockReminderPosition)
+    {
+        flags |=
+            ImGuiWindowFlags_NoMove;
+    }
 
     if (ImGui::Begin(
         "##FoodReminderAlert",
@@ -1129,6 +1137,8 @@ void AddonRender()
         const int64_t seconds =
             remainingSeconds % 60;
 
+        ImGui::SetWindowFontScale(1.35f);
+
         ImGui::TextUnformatted(
             ReminderManager::
             GetReminderTitle()
@@ -1144,6 +1154,8 @@ void AddonRender()
 
         if (isMissingBuffReminder)
         {
+            ImGui::SetWindowFontScale(1.15f);
+
             ImGui::TextUnformatted(
                 ReminderManager::
                 GetReminderMessage()
@@ -1151,6 +1163,8 @@ void AddonRender()
         }
         else
         {
+            ImGui::SetWindowFontScale(1.20f);
+
             ImGui::Text(
                 "%02lld:%02lld:%02lld remaining",
                 hours,
@@ -1158,9 +1172,13 @@ void AddonRender()
                 seconds
             );
         }
+
+        ImGui::SetWindowFontScale(1.0f);
     }
 
     ImGui::End();
+
+    ImGui::PopStyleVar();
 }
 
 void RenderGeneralTab()
@@ -1184,6 +1202,13 @@ void RenderGeneralTab()
     if (ImGui::Checkbox(
         "Lock tracker position",
         &g_Settings.lockTrackerPosition))
+    {
+        settingsChanged = true;
+    }
+
+    if (ImGui::Checkbox(
+        "Lock reminder position",
+        &g_Settings.lockReminderPosition))
     {
         settingsChanged = true;
     }
@@ -2773,99 +2798,136 @@ void RenderSessionTab()
         "Efficiency"
     );
 
-    ImGui::Text(
-        "Food Replacements: %u",
-        stats.foodReplacements
-    );
-
-    ImGui::Text(
-        "Food Wasted: %s",
-        FormatDuration(
-            stats.foodWastedMilliseconds
-        ).c_str()
-    );
-    if (stats.worstFoodWasteMilliseconds > 0 &&
-        stats.worstFoodWasteSkillID != 0)
-    {
-        const ConsumableInfo& worstFoodInfo =
-            ConsumableData::GetFoodInfo(
-                stats.worstFoodWasteSkillID
-            );
-
-        if (std::string(worstFoodInfo.label) ==
-            "Unknown")
-        {
-            ImGui::Text(
-                "Worst Food Waste: %s - Unknown (%u)",
-                FormatDuration(
-                    stats.worstFoodWasteMilliseconds
-                ).c_str(),
-                stats.worstFoodWasteSkillID
-            );
-        }
-        else
-        {
-            ImGui::Text(
-                "Worst Food Waste: %s - %s",
-                FormatDuration(
-                    stats.worstFoodWasteMilliseconds
-                ).c_str(),
-                worstFoodInfo.name
-            );
-        }
-    }
-
-    ImGui::Text(
-        "Utility Replacements: %u",
-        stats.utilityReplacements
-    );
-
-    ImGui::Text(
-        "Utility Wasted: %s",
-        FormatDuration(
-            stats.utilityWastedMilliseconds
-        ).c_str()
-    );
-    if (stats.worstUtilityWasteMilliseconds > 0 &&
-        stats.worstUtilityWasteSkillID != 0)
-    {
-        const ConsumableInfo& worstUtilityInfo =
-            ConsumableData::GetUtilityInfo(
-                stats.worstUtilityWasteSkillID
-            );
-
-        if (std::string(worstUtilityInfo.label) ==
-            "Unknown")
-        {
-            ImGui::Text(
-                "Worst Utility Waste: %s - Unknown (%u)",
-                FormatDuration(
-                    stats.worstUtilityWasteMilliseconds
-                ).c_str(),
-                stats.worstUtilityWasteSkillID
-            );
-        }
-        else
-        {
-            ImGui::Text(
-                "Worst Utility Waste: %s - %s",
-                FormatDuration(
-                    stats.worstUtilityWasteMilliseconds
-                ).c_str(),
-                worstUtilityInfo.name
-            );
-        }
-    }
     const int64_t totalWastedMilliseconds =
         stats.foodWastedMilliseconds +
         stats.utilityWastedMilliseconds;
 
-    ImGui::Text(
-        "Total Wasted: %s",
-        FormatDuration(
-            totalWastedMilliseconds
-        ).c_str()
-    );
+    const bool hasFoodWaste =
+        stats.foodReplacements > 0 ||
+        stats.foodWastedMilliseconds > 0;
+
+    const bool hasUtilityWaste =
+        stats.utilityReplacements > 0 ||
+        stats.utilityWastedMilliseconds > 0;
+
+    if (!hasFoodWaste &&
+        !hasUtilityWaste)
+    {
+        ImGui::TextDisabled(
+            "No consumable time wasted."
+        );
+    }
+    else
+    {
+        if (hasFoodWaste)
+        {
+            ImGui::Text(
+                "Food Replacements: %u",
+                stats.foodReplacements
+            );
+
+            ImGui::Text(
+                "Food Wasted: %s",
+                FormatDuration(
+                    stats.foodWastedMilliseconds
+                ).c_str()
+            );
+
+            if (
+                stats.worstFoodWasteMilliseconds > 0 &&
+                stats.worstFoodWasteSkillID != 0
+                )
+            {
+                const ConsumableInfo& worstFoodInfo =
+                    ConsumableData::GetFoodInfo(
+                        stats.worstFoodWasteSkillID
+                    );
+
+                if (
+                    std::string(
+                        worstFoodInfo.label
+                    ) == "Unknown"
+                    )
+                {
+                    ImGui::Text(
+                        "Worst Food Waste: %s - Unknown (%u)",
+                        FormatDuration(
+                            stats.worstFoodWasteMilliseconds
+                        ).c_str(),
+                        stats.worstFoodWasteSkillID
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "Worst Food Waste: %s - %s",
+                        FormatDuration(
+                            stats.worstFoodWasteMilliseconds
+                        ).c_str(),
+                        worstFoodInfo.name
+                    );
+                }
+            }
+        }
+
+        if (hasUtilityWaste)
+        {
+            ImGui::Text(
+                "Utility Replacements: %u",
+                stats.utilityReplacements
+            );
+
+            ImGui::Text(
+                "Utility Wasted: %s",
+                FormatDuration(
+                    stats.utilityWastedMilliseconds
+                ).c_str()
+            );
+
+            if (
+                stats.worstUtilityWasteMilliseconds > 0 &&
+                stats.worstUtilityWasteSkillID != 0
+                )
+            {
+                const ConsumableInfo& worstUtilityInfo =
+                    ConsumableData::GetUtilityInfo(
+                        stats.worstUtilityWasteSkillID
+                    );
+
+                if (
+                    std::string(
+                        worstUtilityInfo.label
+                    ) == "Unknown"
+                    )
+                {
+                    ImGui::Text(
+                        "Worst Utility Waste: %s - Unknown (%u)",
+                        FormatDuration(
+                            stats.worstUtilityWasteMilliseconds
+                        ).c_str(),
+                        stats.worstUtilityWasteSkillID
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "Worst Utility Waste: %s - %s",
+                        FormatDuration(
+                            stats.worstUtilityWasteMilliseconds
+                        ).c_str(),
+                        worstUtilityInfo.name
+                    );
+                }
+            }
+        }
+
+        ImGui::Text(
+            "Total Wasted: %s",
+            FormatDuration(
+                totalWastedMilliseconds
+            ).c_str()
+        );
+    }
     ImGui::Spacing();
     ImGui::Separator();
 

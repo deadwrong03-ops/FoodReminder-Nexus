@@ -118,6 +118,12 @@ bool Settings::Load(void* moduleHandle)
                     ParseBool(value);
             }
             else if (
+                key == "lockReminderPosition")
+            {
+                g_Settings.lockReminderPosition =
+                    ParseBool(value);
+            }
+            else if (
                 key == "foodWarningSeconds")
             {
                 g_Settings.foodWarningSeconds =
@@ -448,6 +454,11 @@ bool Settings::Save(void* moduleHandle)
     file
         << "lockTrackerPosition="
         << (g_Settings.lockTrackerPosition ? 1 : 0)
+        << '\n';
+
+    file
+        << "lockReminderPosition="
+        << (g_Settings.lockReminderPosition ? 1 : 0)
         << '\n';
 
     file
