@@ -576,9 +576,9 @@ void BuffTracker::ProcessEvent(
             combatData->skillname != nullptr
             ? combatData->skillname
             : "";
-
         const bool isFoodEvent =
-            skillName == "Nourishment";
+            skillName == "Nourishment" ||
+            skillName == "Home-Cooked Nourishment";
 
         const bool isUtilityEvent =
             skillName == "Enhancement";
@@ -672,7 +672,34 @@ void BuffTracker::ProcessEvent(
         if (isFoodEvent &&
             hasDuration)
         {
-           
+            const bool wasAlreadyActive =
+                g_HasFood;
+
+            const bool sameConsumable =
+                wasAlreadyActive &&
+                g_FoodSkillID == ev.SkillID;
+            int64_t previousRemainingMilliseconds = 0;
+
+            if (wasAlreadyActive)
+            {
+                const auto previousElapsed =
+                    std::chrono::duration_cast<
+                    std::chrono::milliseconds
+                    >(
+                        std::chrono::steady_clock::now() -
+                        g_FoodReceivedTime
+                    ).count();
+
+                const int64_t remaining =
+                    g_FoodDurationMilliseconds -
+                    previousElapsed;
+
+                if (remaining > 0)
+                {
+                    previousRemainingMilliseconds =
+                        remaining;
+                }
+            }
 
             g_HasFood = true;
 
@@ -691,8 +718,8 @@ void BuffTracker::ProcessEvent(
                 skillName;
 
             SessionTracker::RecordFoodApplication(
-                ev.SkillID
-            
+                ev.SkillID,
+                previousRemainingMilliseconds
             );
 
             if (!g_SelfCharacterName.empty())
@@ -726,6 +753,29 @@ void BuffTracker::ProcessEvent(
                 wasAlreadyActive &&
                 g_UtilitySkillID == ev.SkillID;
 
+            int64_t previousRemainingMilliseconds = 0;
+
+            if (wasAlreadyActive)
+            {
+                const auto previousElapsed =
+                    std::chrono::duration_cast<
+                    std::chrono::milliseconds
+                    >(
+                        std::chrono::steady_clock::now() -
+                        g_UtilityReceivedTime
+                    ).count();
+
+                const int64_t remaining =
+                    g_UtilityDurationMilliseconds -
+                    previousElapsed;
+
+                if (remaining > 0)
+                {
+                    previousRemainingMilliseconds =
+                        remaining;
+                }
+            }
+
             g_HasUtility = true;
 
             g_UtilityDurationMilliseconds =
@@ -743,9 +793,9 @@ void BuffTracker::ProcessEvent(
                 skillName;
 
             SessionTracker::RecordUtilityApplication(
-                ev.SkillID
+                ev.SkillID,
+                previousRemainingMilliseconds
             );
-
             if (!g_SelfCharacterName.empty())
             {
                 CharacterConsumableState& state =

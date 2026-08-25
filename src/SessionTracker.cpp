@@ -43,6 +43,7 @@ namespace
     void AddHistoryEvent(
         uint32_t skillID,
         uint32_t previousSkillID,
+        int64_t previousRemainingMilliseconds,
         bool isFood,
         SessionConsumableEventType type
     )
@@ -57,6 +58,8 @@ namespace
 
         event.previousSkillID =
             previousSkillID;
+        event.previousRemainingMilliseconds =
+            previousRemainingMilliseconds;
 
         event.isFood =
             isFood;
@@ -144,7 +147,8 @@ void SessionTracker::Update(
 }
 
 void SessionTracker::RecordFoodApplication(
-    uint32_t skillID
+    uint32_t skillID,
+    int64_t previousRemainingMilliseconds
 )
 {
     std::lock_guard<std::mutex> lock(
@@ -161,6 +165,7 @@ void SessionTracker::RecordFoodApplication(
         AddHistoryEvent(
             skillID,
             0,
+            0,
             true,
             SessionConsumableEventType::Applied
         );
@@ -170,6 +175,7 @@ void SessionTracker::RecordFoodApplication(
         AddHistoryEvent(
             skillID,
             g_LastFoodSkillID,
+            0,
             true,
             SessionConsumableEventType::Refreshed
         );
@@ -179,6 +185,7 @@ void SessionTracker::RecordFoodApplication(
         AddHistoryEvent(
             skillID,
             g_LastFoodSkillID,
+            previousRemainingMilliseconds,
             true,
             SessionConsumableEventType::Replaced
         );
@@ -192,6 +199,8 @@ void SessionTracker::RecordFoodApplication(
         else
         {
             ++g_Stats.foodReplacements;
+            g_Stats.foodWastedMilliseconds +=
+                previousRemainingMilliseconds;
         }
     }
 
@@ -200,7 +209,8 @@ void SessionTracker::RecordFoodApplication(
 }
 
 void SessionTracker::RecordUtilityApplication(
-    uint32_t skillID
+    uint32_t skillID,
+    int64_t previousRemainingMilliseconds
 )
 {
     std::lock_guard<std::mutex> lock(
@@ -217,6 +227,7 @@ void SessionTracker::RecordUtilityApplication(
         AddHistoryEvent(
             skillID,
             0,
+            0,
             false,
             SessionConsumableEventType::Applied
         );
@@ -226,6 +237,7 @@ void SessionTracker::RecordUtilityApplication(
         AddHistoryEvent(
             skillID,
             g_LastUtilitySkillID,
+            0,
             false,
             SessionConsumableEventType::Refreshed
         );
@@ -235,6 +247,7 @@ void SessionTracker::RecordUtilityApplication(
         AddHistoryEvent(
             skillID,
             g_LastUtilitySkillID,
+            previousRemainingMilliseconds,
             false,
             SessionConsumableEventType::Replaced
         );
@@ -248,6 +261,8 @@ void SessionTracker::RecordUtilityApplication(
         else
         {
             ++g_Stats.utilityReplacements;
+            g_Stats.utilityWastedMilliseconds +=
+                previousRemainingMilliseconds;
         }
     }
 
@@ -272,6 +287,7 @@ void SessionTracker::RecordFoodExpired(
     AddHistoryEvent(
         g_LastFoodSkillID,
         g_LastFoodSkillID,
+        0,
         true,
         SessionConsumableEventType::Expired
     );
@@ -294,6 +310,7 @@ void SessionTracker::RecordUtilityExpired(
     AddHistoryEvent(
         g_LastUtilitySkillID,
         g_LastUtilitySkillID,
+        0,
         false,
         SessionConsumableEventType::Expired
     );

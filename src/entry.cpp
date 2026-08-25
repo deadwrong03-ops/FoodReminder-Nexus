@@ -1657,7 +1657,7 @@ void RenderGeneralTab()
         ImGui::TextUnformatted(
             "Reminder Tests"
         );
-        
+
 
         if (ImGui::Button(
             "Test Metabolic Primer Warning"))
@@ -2551,6 +2551,12 @@ void RenderSessionTab()
         "Expired In Combat: %u",
         stats.foodExpiredInCombat
     );
+    ImGui::Text(
+        "Wasted Duration: %s",
+        FormatDuration(
+            stats.foodWastedMilliseconds
+        ).c_str()
+    );
     ImGui::Spacing();
 
     ImGui::TextUnformatted(
@@ -2659,6 +2665,12 @@ void RenderSessionTab()
     ImGui::Text(
         "Expired In Combat: %u",
         stats.utilityExpiredInCombat
+    );
+    ImGui::Text(
+        "Wasted Duration: %s",
+        FormatDuration(
+            stats.utilityWastedMilliseconds
+        ).c_str()
     );
     ImGui::Spacing();
 
@@ -2810,57 +2822,72 @@ void RenderSessionTab()
                         info.label
                     ) == "Unknown";
 
+                const int64_t previousTotalSeconds =
+                    event.previousRemainingMilliseconds / 1000;
+
+                const int64_t previousMinutes =
+                    previousTotalSeconds / 60;
+
+                const int64_t previousSeconds =
+                    previousTotalSeconds % 60;
+
                 if (!previousUnknown &&
                     !currentUnknown)
                 {
                     ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s -> %s",
+                        "%02lld:%02lld:%02lld  %s -> %s  (%lld:%02lld remaining)",
                         hours,
                         minutes,
                         seconds,
                         previousInfo->name,
-                        info.name
+                        info.name,
+                        previousMinutes,
+                        previousSeconds
                     );
                 }
                 else if (previousUnknown &&
                     !currentUnknown)
                 {
                     ImGui::Text(
-                        "%02lld:%02lld:%02lld  Unknown (%u) -> %s",
+                        "%02lld:%02lld:%02lld  Unknown (%u) -> %s  (%lld:%02lld remaining)",
                         hours,
                         minutes,
                         seconds,
                         event.previousSkillID,
-                        info.name
+                        info.name,
+                        previousMinutes,
+                        previousSeconds
                     );
                 }
                 else if (!previousUnknown &&
                     currentUnknown)
                 {
                     ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s -> Unknown (%u)",
+                        "%02lld:%02lld:%02lld  %s -> Unknown (%u)  (%lld:%02lld remaining)",
                         hours,
                         minutes,
                         seconds,
                         previousInfo->name,
-                        event.skillID
+                        event.skillID,
+                        previousMinutes,
+                        previousSeconds
                     );
                 }
                 else
                 {
                     ImGui::Text(
-                        "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)",
+                        "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)  (%lld:%02lld remaining)",
                         hours,
                         minutes,
                         seconds,
                         event.previousSkillID,
-                        event.skillID
+                        event.skillID,
+                        previousMinutes,
+                        previousSeconds
                     );
                 }
             }
             else if (std::string(info.label) ==
-                "Unknown")
-            if (std::string(info.label) ==
                 "Unknown")
             {
                 ImGui::Text(
