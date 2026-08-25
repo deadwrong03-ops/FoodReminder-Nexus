@@ -201,6 +201,17 @@ void SessionTracker::RecordFoodApplication(
             ++g_Stats.foodReplacements;
             g_Stats.foodWastedMilliseconds +=
                 previousRemainingMilliseconds;
+            if (
+                previousRemainingMilliseconds >
+                g_Stats.worstFoodWasteMilliseconds
+                )
+            {
+                g_Stats.worstFoodWasteMilliseconds =
+                    previousRemainingMilliseconds;
+
+                g_Stats.worstFoodWasteSkillID =
+                    g_LastFoodSkillID;
+            }
         }
     }
 
@@ -263,6 +274,17 @@ void SessionTracker::RecordUtilityApplication(
             ++g_Stats.utilityReplacements;
             g_Stats.utilityWastedMilliseconds +=
                 previousRemainingMilliseconds;
+            if (
+                previousRemainingMilliseconds >
+                g_Stats.worstUtilityWasteMilliseconds
+                )
+            {
+                g_Stats.worstUtilityWasteMilliseconds =
+                    previousRemainingMilliseconds;
+
+                g_Stats.worstUtilityWasteSkillID =
+                    g_LastUtilitySkillID;
+            }
         }
     }
 

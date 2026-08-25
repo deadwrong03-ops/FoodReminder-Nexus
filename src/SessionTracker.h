@@ -46,11 +46,15 @@ struct SessionStats
     uint32_t foodReplacements = 0;
     uint32_t foodExpiredInCombat = 0;
     int64_t foodWastedMilliseconds = 0;
+    int64_t worstFoodWasteMilliseconds = 0;
+    uint32_t worstFoodWasteSkillID = 0;
     uint32_t utilityApplications = 0;
     uint32_t utilityRefreshes = 0;
     uint32_t utilityReplacements = 0;
     uint32_t utilityExpiredInCombat = 0;
     int64_t utilityWastedMilliseconds = 0;
+    int64_t worstUtilityWasteMilliseconds = 0;
+    uint32_t worstUtilityWasteSkillID = 0;
 
     std::vector<SessionConsumableUsage>
         foodUsage;
