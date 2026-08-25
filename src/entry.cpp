@@ -2725,7 +2725,166 @@ void RenderSessionTab()
             }
         }
     }
+    ImGui::Spacing();
+    ImGui::Separator();
 
+    ImGui::TextUnformatted(
+        "Consumable History"
+    );
+
+    if (stats.consumableHistory.empty())
+    {
+        ImGui::TextDisabled(
+            "No consumable events recorded."
+        );
+    }
+    else
+    {
+        for (
+            const SessionConsumableEvent& event :
+            stats.consumableHistory
+            )
+        {
+            const int64_t totalSeconds =
+                event.sessionMilliseconds / 1000;
+
+            const int64_t hours =
+                totalSeconds / 3600;
+
+            const int64_t minutes =
+                (totalSeconds % 3600) / 60;
+
+            const int64_t seconds =
+                totalSeconds % 60;
+
+            const ConsumableInfo& info =
+                event.isFood
+                ? ConsumableData::GetFoodInfo(
+                    event.skillID
+                )
+                : ConsumableData::GetUtilityInfo(
+                    event.skillID
+                );
+
+            const char* actionText =
+                event.type ==
+                SessionConsumableEventType::Applied
+                ? "Applied"
+                : event.type ==
+                SessionConsumableEventType::Refreshed
+                ? "Refreshed"
+                : event.type ==
+                SessionConsumableEventType::Replaced
+                ? "Replaced"
+                : "Expired";
+            const ConsumableInfo* previousInfo = nullptr;
+
+            if (
+                event.type ==
+                SessionConsumableEventType::Replaced &&
+                event.previousSkillID != 0
+                )
+            {
+                previousInfo =
+                    event.isFood
+                    ? &ConsumableData::GetFoodInfo(
+                        event.previousSkillID
+                    )
+                    : &ConsumableData::GetUtilityInfo(
+                        event.previousSkillID
+                    );
+            }
+            if (
+                event.type ==
+                SessionConsumableEventType::Replaced &&
+                previousInfo != nullptr
+                )
+            {
+                const bool previousUnknown =
+                    std::string(
+                        previousInfo->label
+                    ) == "Unknown";
+
+                const bool currentUnknown =
+                    std::string(
+                        info.label
+                    ) == "Unknown";
+
+                if (!previousUnknown &&
+                    !currentUnknown)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s -> %s",
+                        hours,
+                        minutes,
+                        seconds,
+                        previousInfo->name,
+                        info.name
+                    );
+                }
+                else if (previousUnknown &&
+                    !currentUnknown)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Unknown (%u) -> %s",
+                        hours,
+                        minutes,
+                        seconds,
+                        event.previousSkillID,
+                        info.name
+                    );
+                }
+                else if (!previousUnknown &&
+                    currentUnknown)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s -> Unknown (%u)",
+                        hours,
+                        minutes,
+                        seconds,
+                        previousInfo->name,
+                        event.skillID
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)",
+                        hours,
+                        minutes,
+                        seconds,
+                        event.previousSkillID,
+                        event.skillID
+                    );
+                }
+            }
+            else if (std::string(info.label) ==
+                "Unknown")
+            if (std::string(info.label) ==
+                "Unknown")
+            {
+                ImGui::Text(
+                    "%02lld:%02lld:%02lld  %s Unknown (%u)",
+                    hours,
+                    minutes,
+                    seconds,
+                    actionText,
+                    event.skillID
+                );
+            }
+            else
+            {
+                ImGui::Text(
+                    "%02lld:%02lld:%02lld  %s %s",
+                    hours,
+                    minutes,
+                    seconds,
+                    actionText,
+                    info.name
+                );
+            }
+        }
+    }
     ImGui::Spacing();
     ImGui::Separator();
 

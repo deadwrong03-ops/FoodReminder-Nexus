@@ -294,6 +294,20 @@ namespace
         "+10% Experience from Kills",
         12452
     };
+    const ConsumableInfo GrumbleCake =
+    {
+        "Food",
+        "Grumble Cake",
+        "+20 Vitality\n"
+        "+10% Experience from Kills"
+    };
+    const ConsumableInfo ChiliPepperPopper =
+    {
+        "Might",
+        "Chili Pepper Popper",
+        "8% Chance to Gain Might on Critical Hit during the Day\n"
+        "+10% Experience from Kills"
+    };
     const ConsumableInfo PepperedCuredMeatFlatbread =
     {
         "Condi",
@@ -612,6 +626,13 @@ namespace
         "+10% Experience from Kills",
         91350
     };
+    const ConsumableInfo WeakSonsOfSvanirSlayingPotion =
+    {
+        "Slay",
+        "Weak Potion of Sons of Svanir Slaying",
+        "+3% Damage vs. Sons of Svanir\n"
+        "+10% Experience from Kills"
+    };
 
     const ConsumableInfo ScarletsArmiesSlayingPotion =
     {
@@ -749,6 +770,10 @@ namespace ConsumableData
 
         case 10001:
             return OmnomberryBar;
+        case 9778:
+            return GrumbleCake;
+        case 10069:
+            return ChiliPepperPopper;
         case 57127:
             return PepperedCuredMeatFlatbread;
 
@@ -851,6 +876,8 @@ namespace ConsumableData
 
         case 56772:
             return MordremSlayingPotion;
+        case 9902:
+            return WeakSonsOfSvanirSlayingPotion;
 
         case 68235:
             return DecadeEnhancement;

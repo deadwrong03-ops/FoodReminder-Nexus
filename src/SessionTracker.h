@@ -8,6 +8,26 @@ struct SessionConsumableUsage
     uint32_t skillID = 0;
     uint32_t uses = 0;
 };
+enum class SessionConsumableEventType
+{
+    Applied,
+    Refreshed,
+    Replaced,
+    Expired
+};
+
+struct SessionConsumableEvent
+{
+    int64_t sessionMilliseconds = 0;
+
+    uint32_t skillID = 0;
+    uint32_t previousSkillID = 0;
+
+    bool isFood = false;
+
+    SessionConsumableEventType type =
+        SessionConsumableEventType::Applied;
+};
 
 struct SessionStats
 {
@@ -35,6 +55,9 @@ struct SessionStats
 
     std::vector<SessionConsumableUsage>
         utilityUsage;
+    std::vector<SessionConsumableEvent>
+        consumableHistory;
+
 };
 
 namespace SessionTracker

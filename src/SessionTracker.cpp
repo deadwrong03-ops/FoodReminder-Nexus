@@ -40,7 +40,34 @@ namespace
             newEntry
         );
     }
+    void AddHistoryEvent(
+        uint32_t skillID,
+        uint32_t previousSkillID,
+        bool isFood,
+        SessionConsumableEventType type
+    )
+    {
+        SessionConsumableEvent event;
 
+        event.sessionMilliseconds =
+            g_Stats.sessionMilliseconds;
+
+        event.skillID =
+            skillID;
+
+        event.previousSkillID =
+            previousSkillID;
+
+        event.isFood =
+            isFood;
+
+        event.type =
+            type;
+
+        g_Stats.consumableHistory.push_back(
+            event
+        );
+    }
     bool g_HasLastUpdate = false;
 
     std::chrono::steady_clock::time_point
@@ -129,7 +156,33 @@ void SessionTracker::RecordFoodApplication(
         g_Stats.foodUsage,
         skillID
     );
-
+    if (g_LastFoodSkillID == 0)
+    {
+        AddHistoryEvent(
+            skillID,
+            0,
+            true,
+            SessionConsumableEventType::Applied
+        );
+    }
+    else if (g_LastFoodSkillID == skillID)
+    {
+        AddHistoryEvent(
+            skillID,
+            g_LastFoodSkillID,
+            true,
+            SessionConsumableEventType::Refreshed
+        );
+    }
+    else
+    {
+        AddHistoryEvent(
+            skillID,
+            g_LastFoodSkillID,
+            true,
+            SessionConsumableEventType::Replaced
+        );
+    }
     if (g_LastFoodSkillID != 0)
     {
         if (g_LastFoodSkillID == skillID)
@@ -159,7 +212,33 @@ void SessionTracker::RecordUtilityApplication(
         g_Stats.utilityUsage,
         skillID
     );
-
+    if (g_LastUtilitySkillID == 0)
+    {
+        AddHistoryEvent(
+            skillID,
+            0,
+            false,
+            SessionConsumableEventType::Applied
+        );
+    }
+    else if (g_LastUtilitySkillID == skillID)
+    {
+        AddHistoryEvent(
+            skillID,
+            g_LastUtilitySkillID,
+            false,
+            SessionConsumableEventType::Refreshed
+        );
+    }
+    else
+    {
+        AddHistoryEvent(
+            skillID,
+            g_LastUtilitySkillID,
+            false,
+            SessionConsumableEventType::Replaced
+        );
+    }
     if (g_LastUtilitySkillID != 0)
     {
         if (g_LastUtilitySkillID == skillID)
@@ -190,6 +269,12 @@ void SessionTracker::RecordFoodExpired(
     );
 
     ++g_Stats.foodExpiredInCombat;
+    AddHistoryEvent(
+        g_LastFoodSkillID,
+        g_LastFoodSkillID,
+        true,
+        SessionConsumableEventType::Expired
+    );
 }
 
 void SessionTracker::RecordUtilityExpired(
@@ -206,6 +291,12 @@ void SessionTracker::RecordUtilityExpired(
     );
 
     ++g_Stats.utilityExpiredInCombat;
+    AddHistoryEvent(
+        g_LastUtilitySkillID,
+        g_LastUtilitySkillID,
+        false,
+        SessionConsumableEventType::Expired
+    );
 }
 
 SessionStats SessionTracker::GetStats()
