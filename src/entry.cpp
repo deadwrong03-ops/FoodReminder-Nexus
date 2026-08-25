@@ -610,7 +610,9 @@ void RenderCompactTracker(
                 155.0f
             );
             ImGui::TextUnformatted(
-                foodInfo.label
+                foodSkillID == 34210
+                ? foodInfo.name
+                : foodInfo.label
             );
 
             RenderConsumableTooltip(
@@ -677,7 +679,28 @@ void RenderCompactTracker(
                 "Food:    Not detected"
             );
         }
+        // Candy Cane is a separate nourishment-style buff.
+// It does not replace the player's normal Food buff.
+if (BuffTracker::HasCandyCane())
+{
+    const int64_t candyCaneMs =
+        BuffTracker::GetCandyCaneRemainingMilliseconds();
 
+    const int64_t candyCaneSeconds =
+        candyCaneMs / 1000;
+
+    const int64_t candyCaneMinutes =
+        candyCaneSeconds / 60;
+
+    const int64_t candyCaneRemainingSeconds =
+        candyCaneSeconds % 60;
+
+    ImGui::Text(
+        "Candy Cane: %02lld:%02lld",
+        candyCaneMinutes,
+        candyCaneRemainingSeconds
+    );
+}
         if (displayHasUtility)
         {
             const int64_t totalSeconds =
@@ -1549,6 +1572,7 @@ void RenderGeneralTab()
             ? "IN COMBAT"
             : "OUT OF COMBAT"
         );
+      
 
         ImGui::Text(
             "ArcDPS Events: %llu",
@@ -1786,6 +1810,7 @@ void RenderGeneralTab()
         {
             const BuffEventDebug& event =
                 *it;
+           
 
             if (
                 selfOnly &&
