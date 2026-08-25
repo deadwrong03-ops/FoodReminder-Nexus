@@ -11,6 +11,35 @@ namespace
 
     uint32_t g_LastFoodSkillID = 0;
     uint32_t g_LastUtilitySkillID = 0;
+    void IncrementUsage(
+        std::vector<SessionConsumableUsage>& usageList,
+        uint32_t skillID
+    )
+    {
+        for (
+            SessionConsumableUsage& entry :
+            usageList
+            )
+        {
+            if (entry.skillID == skillID)
+            {
+                ++entry.uses;
+                return;
+            }
+        }
+
+        SessionConsumableUsage newEntry;
+
+        newEntry.skillID =
+            skillID;
+
+        newEntry.uses =
+            1;
+
+        usageList.push_back(
+            newEntry
+        );
+    }
 
     bool g_HasLastUpdate = false;
 
@@ -96,6 +125,10 @@ void SessionTracker::RecordFoodApplication(
     );
 
     ++g_Stats.foodApplications;
+    IncrementUsage(
+        g_Stats.foodUsage,
+        skillID
+    );
 
     if (g_LastFoodSkillID != 0)
     {
@@ -122,6 +155,10 @@ void SessionTracker::RecordUtilityApplication(
     );
 
     ++g_Stats.utilityApplications;
+    IncrementUsage(
+        g_Stats.utilityUsage,
+        skillID
+    );
 
     if (g_LastUtilitySkillID != 0)
     {

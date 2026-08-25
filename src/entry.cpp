@@ -2551,6 +2551,71 @@ void RenderSessionTab()
         "Expired In Combat: %u",
         stats.foodExpiredInCombat
     );
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted(
+        "Food Used"
+    );
+
+    if (stats.foodUsage.empty())
+    {
+        ImGui::TextDisabled(
+            "No Food applications recorded."
+        );
+    }
+    else
+    {
+        std::vector<SessionConsumableUsage>
+            sortedFoodUsage =
+            stats.foodUsage;
+
+        std::stable_sort(
+            sortedFoodUsage.begin(),
+            sortedFoodUsage.end(),
+            [](
+                const SessionConsumableUsage& a,
+                const SessionConsumableUsage& b
+                )
+            {
+                return a.uses > b.uses;
+            }
+        );
+
+        for (
+            const SessionConsumableUsage& usage :
+            sortedFoodUsage
+            )
+        {
+            const ConsumableInfo& info =
+                ConsumableData::GetFoodInfo(
+                    usage.skillID
+                );
+
+            if (std::string(info.label) ==
+                "Unknown")
+            {
+                ImGui::Text(
+                    "Unknown (%u): %u use%s",
+                    usage.skillID,
+                    usage.uses,
+                    usage.uses == 1
+                    ? ""
+                    : "s"
+                );
+            }
+            else
+            {
+                ImGui::Text(
+                    "%s: %u use%s",
+                    info.name,
+                    usage.uses,
+                    usage.uses == 1
+                    ? ""
+                    : "s"
+                );
+            }
+        }
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -2595,6 +2660,71 @@ void RenderSessionTab()
         "Expired In Combat: %u",
         stats.utilityExpiredInCombat
     );
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted(
+        "Utility Used"
+    );
+
+    if (stats.utilityUsage.empty())
+    {
+        ImGui::TextDisabled(
+            "No Utility applications recorded."
+        );
+    }
+    else
+    {
+        std::vector<SessionConsumableUsage>
+            sortedUtilityUsage =
+            stats.utilityUsage;
+
+        std::stable_sort(
+            sortedUtilityUsage.begin(),
+            sortedUtilityUsage.end(),
+            [](
+                const SessionConsumableUsage& a,
+                const SessionConsumableUsage& b
+                )
+            {
+                return a.uses > b.uses;
+            }
+        );
+
+        for (
+            const SessionConsumableUsage& usage :
+            sortedUtilityUsage
+            )
+        {
+            const ConsumableInfo& info =
+                ConsumableData::GetUtilityInfo(
+                    usage.skillID
+                );
+
+            if (std::string(info.label) ==
+                "Unknown")
+            {
+                ImGui::Text(
+                    "Unknown (%u): %u use%s",
+                    usage.skillID,
+                    usage.uses,
+                    usage.uses == 1
+                    ? ""
+                    : "s"
+                );
+            }
+            else
+            {
+                ImGui::Text(
+                    "%s: %u use%s",
+                    info.name,
+                    usage.uses,
+                    usage.uses == 1
+                    ? ""
+                    : "s"
+                );
+            }
+        }
+    }
 
     ImGui::Spacing();
     ImGui::Separator();

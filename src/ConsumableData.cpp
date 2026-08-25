@@ -514,7 +514,14 @@ namespace
         "8% Condition Damage from Expertise",
         9476
     };
-
+    const ConsumableInfo ApprenticeTuningCrystal =
+    {
+        "Condi",
+        "Apprentice Tuning Crystal",
+        "1% Condition Damage from Precision\n"
+        "+10% Experience from Kills",
+        9464
+    };
     const ConsumableInfo TuningIcicle =
     {
         "Condi",
@@ -818,6 +825,9 @@ namespace ConsumableData
 
         case 9967:
             return MasterTuningCrystal;
+
+        case 10113:
+            return ApprenticeTuningCrystal;
 
         case 34206:
             return TuningIcicle;

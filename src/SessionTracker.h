@@ -1,6 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
+
+struct SessionConsumableUsage
+{
+    uint32_t skillID = 0;
+    uint32_t uses = 0;
+};
 
 struct SessionStats
 {
@@ -22,6 +29,12 @@ struct SessionStats
     uint32_t utilityRefreshes = 0;
     uint32_t utilityReplacements = 0;
     uint32_t utilityExpiredInCombat = 0;
+
+    std::vector<SessionConsumableUsage>
+        foodUsage;
+
+    std::vector<SessionConsumableUsage>
+        utilityUsage;
 };
 
 namespace SessionTracker
