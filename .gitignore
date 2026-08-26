@@ -10,3 +10,12 @@ Release/
 *.ilk
 *.exp
 *.lib
+
+# Generated GW2 item catalog/cache
+src/gw2_items_catalog.json
+
+# Local backup files
+src/*.bak
+
+# Generated item mapping reports
+src/item_id_mapping_report.csv

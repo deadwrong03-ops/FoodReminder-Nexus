@@ -6,6 +6,7 @@
 
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
+#include "TradingPostPriceManager.h"
 
 #include "Settings.h"
 #include "ReminderManager.h"
@@ -317,6 +318,7 @@ void AddonLoad(AddonAPI_t* aApi)
     Settings::Load(hSelf);
     BuffTracker::RestorePrimerState();
     SquadTracker::RestoreUnknownConsumables();
+    TradingPostPriceManager::Start();
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
 
@@ -376,6 +378,9 @@ void AddonUnload()
     BuffTracker::SavePrimerState();
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
+
+    TradingPostPriceManager::Shutdown();
+    TradingPostPriceManager::Reset();
 
     ExtrasIntegration::Reset();
     SquadTracker::Reset();
@@ -1001,6 +1006,8 @@ void AddonRender()
         SessionTracker::Update(
             hasFood,
             hasUtility,
+            hasMetabolicPrimer,
+            hasUtilityPrimer,
             inCombat
         );
     }
@@ -2628,7 +2635,7 @@ void RenderSessionTab()
     ImGui::TextUnformatted(
         "Food Used"
     );
-
+    uint64_t foodCostCopper = 0;
     if (stats.foodUsage.empty())
     {
         ImGui::TextDisabled(
@@ -2677,15 +2684,115 @@ void RenderSessionTab()
             }
             else
             {
-                ImGui::Text(
-                    "%s: %u use%s",
-                    info.name,
-                    usage.uses,
-                    usage.uses == 1
-                    ? ""
-                    : "s"
-                );
+                TradingPostPrice price;
+
+                if (info.itemID != 0)
+                {
+                    TradingPostPriceManager::RequestPrice(
+                        info.itemID
+                    );
+                }
+
+                const bool hasPrice =
+                    info.itemID != 0 &&
+                    TradingPostPriceManager::TryGetPrice(
+                        info.itemID,
+                        price
+                    );
+
+                if (hasPrice)
+                {
+                    const uint64_t totalCost =
+                        static_cast<uint64_t>(
+                            price.sellUnitPrice
+                            ) *
+                        static_cast<uint64_t>(
+                            usage.uses
+                            );
+
+                    foodCostCopper +=
+                        totalCost;
+
+                    const uint32_t unitGold =
+                        price.sellUnitPrice / 10000;
+
+                    const uint32_t unitSilver =
+                        (
+                            price.sellUnitPrice %
+                            10000
+                            ) / 100;
+
+                    const uint32_t unitCopper =
+                        price.sellUnitPrice % 100;
+
+                    const uint64_t totalGold =
+                        totalCost / 10000;
+
+                    const uint64_t totalSilver =
+                        (
+                            totalCost %
+                            10000
+                            ) / 100;
+
+                    const uint64_t totalCopper =
+                        totalCost % 100;
+
+                    ImGui::Text(
+                        "%s: %u use%s",
+                        info.name,
+                        usage.uses,
+                        usage.uses == 1
+                        ? ""
+                        : "s"
+                    );
+
+                    ImGui::TextDisabled(
+                        "  %ug %us %uc each | %llug %llus %lluc total",
+                        unitGold,
+                        unitSilver,
+                        unitCopper,
+                        totalGold,
+                        totalSilver,
+                        totalCopper
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%s: %u use%s",
+                        info.name,
+                        usage.uses,
+                        usage.uses == 1
+                        ? ""
+                        : "s"
+                    );
+
+                    ImGui::TextDisabled(
+                        "  Price not loaded"
+                    );
+                }
             }
+        }
+        if (foodCostCopper > 0)
+        {
+            const uint64_t foodGold =
+                foodCostCopper / 10000;
+
+            const uint64_t foodSilver =
+                (
+                    foodCostCopper %
+                    10000
+                    ) / 100;
+
+            const uint64_t foodCopper =
+                foodCostCopper % 100;
+
+            ImGui::Text(
+                "Food Cost: %llug %llus %lluc",
+                foodGold,
+                foodSilver,
+                foodCopper
+            );
         }
     }
 
@@ -2727,7 +2834,19 @@ void RenderSessionTab()
             stats.utilityActiveMilliseconds
         ).c_str()
     );
+    ImGui::Text(
+        "Metabolic Primer Active: %s",
+        FormatDuration(
+            stats.metabolicPrimerActiveMilliseconds
+        ).c_str()
+    );
 
+    ImGui::Text(
+        "Utility Primer Active: %s",
+        FormatDuration(
+            stats.utilityPrimerActiveMilliseconds
+        ).c_str()
+    );
     ImGui::Text(
         "Applications: %u",
         stats.utilityApplications
@@ -2758,6 +2877,7 @@ void RenderSessionTab()
     ImGui::TextUnformatted(
         "Utility Used"
     );
+    uint64_t utilityCostCopper = 0;
 
     if (stats.utilityUsage.empty())
     {
@@ -2807,14 +2927,92 @@ void RenderSessionTab()
             }
             else
             {
-                ImGui::Text(
-                    "%s: %u use%s",
-                    info.name,
-                    usage.uses,
-                    usage.uses == 1
-                    ? ""
-                    : "s"
-                );
+                TradingPostPrice price;
+
+                if (info.itemID != 0)
+                {
+                    TradingPostPriceManager::RequestPrice(
+                        info.itemID
+                    );
+                }
+
+                const bool hasPrice =
+                    info.itemID != 0 &&
+                    TradingPostPriceManager::TryGetPrice(
+                        info.itemID,
+                        price
+                    );
+
+                if (hasPrice)
+                {
+                    const uint64_t totalCost =
+                        static_cast<uint64_t>(
+                            price.sellUnitPrice
+                            ) *
+                        static_cast<uint64_t>(
+                            usage.uses
+                            );
+
+                    utilityCostCopper += totalCost;
+
+                    ImGui::Text(
+                        "%s: %u use%s",
+                        info.name,
+                        usage.uses,
+                        usage.uses == 1
+                        ? ""
+                        : "s"
+                    );
+
+                    ImGui::TextDisabled(
+                        "  %ug %us %uc each | %llug %llus %lluc total",
+                        price.sellUnitPrice / 10000,
+                        (price.sellUnitPrice % 10000) / 100,
+                        price.sellUnitPrice % 100,
+                        totalCost / 10000,
+                        (totalCost % 10000) / 100,
+                        totalCost % 100
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%s: %u use%s",
+                        info.name,
+                        usage.uses,
+                        usage.uses == 1
+                        ? ""
+                        : "s"
+                    );
+
+                    ImGui::TextDisabled(
+                        "  Price not loaded"
+                    );
+                }
+                if (utilityCostCopper > 0)
+                {
+                    ImGui::Text(
+                        "Utility Cost: %llug %llus %lluc",
+                        utilityCostCopper / 10000,
+                        (utilityCostCopper % 10000) / 100,
+                        utilityCostCopper % 100
+                    );
+                }
+                const uint64_t totalConsumableCostCopper =
+                    foodCostCopper +
+                    utilityCostCopper;
+
+                if (totalConsumableCostCopper > 0)
+                {
+                    ImGui::Spacing();
+
+                    ImGui::Text(
+                        "Total Consumable Cost: %llug %llus %lluc",
+                        totalConsumableCostCopper / 10000,
+                        (totalConsumableCostCopper % 10000) / 100,
+                        totalConsumableCostCopper % 100
+                    );
+                }
             }
         }
     }
@@ -3203,6 +3401,7 @@ void AddonOptions()
 
             ImGui::EndTabItem();
         }
+
 
         if (ImGui::BeginTabItem(
             "Session"))

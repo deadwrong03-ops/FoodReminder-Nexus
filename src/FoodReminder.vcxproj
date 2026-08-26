@@ -112,6 +112,7 @@
     <ClInclude Include="Settings.h" />
     <ClInclude Include="ReminderManager.h" />
     <ClInclude Include="SquadTracker.h" />
+    <ClInclude Include="TradingPostPriceManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BuffTracker.cpp" />
@@ -127,6 +128,7 @@
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="Squadtracker.cpp" />
+    <ClCompile Include="TradingPostPriceManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="DEVELOPMENT_LOG.md" />

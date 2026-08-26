@@ -422,6 +422,7 @@ void BuffTracker::ProcessEvent(
             // Freeze remaining Food/Utility time
             // and IDs before clearing identity.
             //
+           
             SaveCurrentCharacterConsumablesLocked();
 
             g_HasFood = false;

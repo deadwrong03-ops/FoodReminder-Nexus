@@ -82,6 +82,8 @@ namespace
 void SessionTracker::Update(
     bool hasFood,
     bool hasUtility,
+    bool hasMetabolicPrimer,
+    bool hasUtilityPrimer,
     bool inCombat
 )
 {
@@ -126,6 +128,23 @@ void SessionTracker::Update(
     if (hasUtility)
     {
         g_Stats.utilityActiveMilliseconds +=
+            elapsedMilliseconds;
+    }
+    if (
+        hasFood &&
+        hasMetabolicPrimer
+        )
+    {
+        g_Stats.metabolicPrimerActiveMilliseconds +=
+            elapsedMilliseconds;
+    }
+
+    if (
+        hasUtility &&
+        hasUtilityPrimer
+        )
+    {
+        g_Stats.utilityPrimerActiveMilliseconds +=
             elapsedMilliseconds;
     }
 

@@ -56,7 +56,12 @@ struct SessionStats
     int64_t utilityWastedMilliseconds = 0;
     int64_t worstUtilityWasteMilliseconds = 0;
     uint32_t worstUtilityWasteSkillID = 0;
+    // Primer savings tracking.
+    int64_t metabolicPrimerActiveMilliseconds = 0;
+    int64_t utilityPrimerActiveMilliseconds = 0;
 
+    uint32_t estimatedFoodUsesSaved = 0;
+    uint32_t estimatedUtilityUsesSaved = 0;
     std::vector<SessionConsumableUsage>
         foodUsage;
 
@@ -72,6 +77,8 @@ namespace SessionTracker
     void Update(
         bool hasFood,
         bool hasUtility,
+        bool hasMetabolicPrimer,
+        bool hasUtilityPrimer,
         bool inCombat
     );
 
