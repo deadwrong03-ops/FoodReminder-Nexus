@@ -688,26 +688,26 @@ void RenderCompactTracker(
         }
         // Candy Cane is a separate nourishment-style buff.
 // It does not replace the player's normal Food buff.
-if (BuffTracker::HasCandyCane())
-{
-    const int64_t candyCaneMs =
-        BuffTracker::GetCandyCaneRemainingMilliseconds();
+        if (BuffTracker::HasCandyCane())
+        {
+            const int64_t candyCaneMs =
+                BuffTracker::GetCandyCaneRemainingMilliseconds();
 
-    const int64_t candyCaneSeconds =
-        candyCaneMs / 1000;
+            const int64_t candyCaneSeconds =
+                candyCaneMs / 1000;
 
-    const int64_t candyCaneMinutes =
-        candyCaneSeconds / 60;
+            const int64_t candyCaneMinutes =
+                candyCaneSeconds / 60;
 
-    const int64_t candyCaneRemainingSeconds =
-        candyCaneSeconds % 60;
+            const int64_t candyCaneRemainingSeconds =
+                candyCaneSeconds % 60;
 
-    ImGui::Text(
-        "Candy Cane: %02lld:%02lld",
-        candyCaneMinutes,
-        candyCaneRemainingSeconds
-    );
-}
+            ImGui::Text(
+                "Candy Cane: %02lld:%02lld",
+                candyCaneMinutes,
+                candyCaneRemainingSeconds
+            );
+        }
         if (displayHasUtility)
         {
             const int64_t totalSeconds =
@@ -1581,7 +1581,7 @@ void RenderGeneralTab()
             ? "IN COMBAT"
             : "OUT OF COMBAT"
         );
-      
+
 
         ImGui::Text(
             "ArcDPS Events: %llu",
@@ -1819,7 +1819,7 @@ void RenderGeneralTab()
         {
             const BuffEventDebug& event =
                 *it;
-           
+
 
             if (
                 selfOnly &&
@@ -2547,6 +2547,16 @@ void RenderSessionTab()
             stats.combatMilliseconds
         );
 
+    const double metabolicPrimerUsesSaved =
+        static_cast<double>(
+            stats.metabolicPrimerActiveMilliseconds
+            ) / (30.0 * 60.0 * 1000.0);
+
+    const double utilityPrimerUsesSaved =
+        static_cast<double>(
+            stats.utilityPrimerActiveMilliseconds
+            ) / (30.0 * 60.0 * 1000.0);
+
     ImGui::TextUnformatted(
         "Session Report"
     );
@@ -2603,6 +2613,18 @@ void RenderSessionTab()
         FormatDuration(
             stats.foodActiveMilliseconds
         ).c_str()
+    );
+
+    ImGui::Text(
+        "Metabolic Primer Active: %s",
+        FormatDuration(
+            stats.metabolicPrimerActiveMilliseconds
+        ).c_str()
+    );
+
+    ImGui::Text(
+        "Primer Uses Saved: %.2f",
+        metabolicPrimerUsesSaved
     );
 
     ImGui::Text(
@@ -2826,7 +2848,7 @@ void RenderSessionTab()
             utilityUnbuffedCombatMilliseconds
         ).c_str()
     );
-    
+
 
     ImGui::Text(
         "Active Time: %s",
@@ -2834,18 +2856,19 @@ void RenderSessionTab()
             stats.utilityActiveMilliseconds
         ).c_str()
     );
-    ImGui::Text(
-        "Metabolic Primer Active: %s",
-        FormatDuration(
-            stats.metabolicPrimerActiveMilliseconds
-        ).c_str()
-    );
+
 
     ImGui::Text(
         "Utility Primer Active: %s",
         FormatDuration(
             stats.utilityPrimerActiveMilliseconds
         ).c_str()
+    );
+
+
+    ImGui::Text(
+        "Primer Uses Saved: %.2f",
+        utilityPrimerUsesSaved
     );
     ImGui::Text(
         "Applications: %u",

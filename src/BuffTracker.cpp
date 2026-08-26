@@ -37,7 +37,7 @@ namespace
     bool g_HasCandyCane = false;
     int64_t g_CandyCaneDurationMilliseconds = 0;
     std::chrono::steady_clock::time_point g_CandyCaneReceivedTime;
-    
+
 
     bool g_IsInCombat = false;
 
@@ -94,6 +94,141 @@ namespace
         return
             (remainingMilliseconds + 999) /
             1000;
+    }
+
+
+    constexpr int64_t PRIMER_INFERENCE_THRESHOLD_MILLISECONDS =
+        2LL * 60LL * 60LL * 1000LL;
+
+    constexpr int64_t PRIMER_RECONCILE_TOLERANCE_MILLISECONDS =
+        5LL * 1000LL;
+
+    int64_t GetRemainingMillisecondsLocked(
+        bool hasBuff,
+        int64_t durationMilliseconds,
+        const std::chrono::steady_clock::time_point& receivedTime
+    )
+    {
+        if (!hasBuff ||
+            durationMilliseconds <= 0)
+        {
+            return 0;
+        }
+
+        const auto elapsed =
+            std::chrono::duration_cast<
+            std::chrono::milliseconds
+            >(
+                std::chrono::steady_clock::now() -
+                receivedTime
+            ).count();
+
+        const int64_t remainingMilliseconds =
+            durationMilliseconds - elapsed;
+
+        return remainingMilliseconds > 0
+            ? remainingMilliseconds
+            : 0;
+    }
+
+    int64_t GetEffectiveMetabolicPrimerRemainingMillisecondsLocked()
+    {
+        const int64_t directRemaining =
+            GetRemainingMillisecondsLocked(
+                g_HasMetabolicPrimer,
+                g_MetabolicPrimerDurationMilliseconds,
+                g_MetabolicPrimerReceivedTime
+            );
+
+        const int64_t foodRemaining =
+            GetRemainingMillisecondsLocked(
+                g_HasFood,
+                g_FoodDurationMilliseconds,
+                g_FoodReceivedTime
+            );
+
+        // ArcDPS can report only a partial/stale Primer duration.
+        // A Food duration over two hours is already treated by the
+        // addon as evidence that Metabolic Primer extended it.
+        //
+        // If the extended Food timer is meaningfully longer than
+        // the direct Primer timer, promote that duration into the
+        // Primer state. This keeps the corrected Primer timer valid
+        // even if the Food is later removed or replaced.
+        if (foodRemaining >
+            PRIMER_INFERENCE_THRESHOLD_MILLISECONDS &&
+            foodRemaining >
+            directRemaining +
+            PRIMER_RECONCILE_TOLERANCE_MILLISECONDS)
+        {
+            g_HasMetabolicPrimer = true;
+
+            g_MetabolicPrimerDurationMilliseconds =
+                foodRemaining;
+
+            g_MetabolicPrimerReceivedTime =
+                std::chrono::steady_clock::now();
+
+            g_Settings.metabolicPrimerExpiresAt =
+                static_cast<int64_t>(
+                    std::time(nullptr)
+                    ) +
+                (foodRemaining + 999) / 1000;
+
+            g_SettingsChanged = true;
+
+            return foodRemaining;
+        }
+
+        return directRemaining;
+    }
+
+    int64_t GetEffectiveUtilityPrimerRemainingMillisecondsLocked()
+    {
+        const int64_t directRemaining =
+            GetRemainingMillisecondsLocked(
+                g_HasUtilityPrimer,
+                g_UtilityPrimerDurationMilliseconds,
+                g_UtilityPrimerReceivedTime
+            );
+
+        const int64_t utilityRemaining =
+            GetRemainingMillisecondsLocked(
+                g_HasUtility,
+                g_UtilityDurationMilliseconds,
+                g_UtilityReceivedTime
+            );
+
+        // Same protection for Utility Primer: an Enhancement lasting
+        // over two hours is primer-extended. Promote that longer
+        // duration into the Primer state so a short partial/stale
+        // direct event cannot become the displayed or saved timer.
+        if (utilityRemaining >
+            PRIMER_INFERENCE_THRESHOLD_MILLISECONDS &&
+            utilityRemaining >
+            directRemaining +
+            PRIMER_RECONCILE_TOLERANCE_MILLISECONDS)
+        {
+            g_HasUtilityPrimer = true;
+
+            g_UtilityPrimerDurationMilliseconds =
+                utilityRemaining;
+
+            g_UtilityPrimerReceivedTime =
+                std::chrono::steady_clock::now();
+
+            g_Settings.utilityPrimerExpiresAt =
+                static_cast<int64_t>(
+                    std::time(nullptr)
+                    ) +
+                (utilityRemaining + 999) / 1000;
+
+            g_SettingsChanged = true;
+
+            return utilityRemaining;
+        }
+
+        return directRemaining;
     }
 
     void SaveCurrentCharacterConsumablesLocked()
@@ -422,7 +557,7 @@ void BuffTracker::ProcessEvent(
             // Freeze remaining Food/Utility time
             // and IDs before clearing identity.
             //
-           
+
             SaveCurrentCharacterConsumablesLocked();
 
             g_HasFood = false;
@@ -709,7 +844,7 @@ void BuffTracker::ProcessEvent(
         if (isCandyCaneEvent &&
             hasDuration)
         {
-            
+
 
             const auto now =
                 std::chrono::steady_clock::now();
@@ -737,7 +872,7 @@ void BuffTracker::ProcessEvent(
                         remaining;
                 }
             }
-           
+
             g_HasCandyCane = true;
 
             if (!g_HasCandyCane)
@@ -1242,32 +1377,26 @@ bool BuffTracker::HasMetabolicPrimer()
         g_BuffMutex
     );
 
-    if (!g_HasMetabolicPrimer)
+    const int64_t remaining =
+        GetEffectiveMetabolicPrimerRemainingMillisecondsLocked();
+
+    if (remaining > 0)
     {
-        return false;
+        return true;
     }
 
-    const auto elapsed =
-        std::chrono::duration_cast<
-        std::chrono::milliseconds
-        >(
-            std::chrono::steady_clock::now() -
-            g_MetabolicPrimerReceivedTime
-        ).count();
-
-    if (elapsed >=
-        g_MetabolicPrimerDurationMilliseconds)
+    if (g_HasMetabolicPrimer ||
+        g_MetabolicPrimerDurationMilliseconds != 0 ||
+        g_Settings.metabolicPrimerExpiresAt != 0)
     {
         g_HasMetabolicPrimer = false;
         g_MetabolicPrimerDurationMilliseconds = 0;
 
         g_Settings.metabolicPrimerExpiresAt = 0;
         g_SettingsChanged = true;
-
-        return false;
     }
 
-    return true;
+    return false;
 }
 
 bool BuffTracker::HasUtilityPrimer()
@@ -1276,32 +1405,26 @@ bool BuffTracker::HasUtilityPrimer()
         g_BuffMutex
     );
 
-    if (!g_HasUtilityPrimer)
+    const int64_t remaining =
+        GetEffectiveUtilityPrimerRemainingMillisecondsLocked();
+
+    if (remaining > 0)
     {
-        return false;
+        return true;
     }
 
-    const auto elapsed =
-        std::chrono::duration_cast<
-        std::chrono::milliseconds
-        >(
-            std::chrono::steady_clock::now() -
-            g_UtilityPrimerReceivedTime
-        ).count();
-
-    if (elapsed >=
-        g_UtilityPrimerDurationMilliseconds)
+    if (g_HasUtilityPrimer ||
+        g_UtilityPrimerDurationMilliseconds != 0 ||
+        g_Settings.utilityPrimerExpiresAt != 0)
     {
         g_HasUtilityPrimer = false;
         g_UtilityPrimerDurationMilliseconds = 0;
 
         g_Settings.utilityPrimerExpiresAt = 0;
         g_SettingsChanged = true;
-
-        return false;
     }
 
-    return true;
+    return false;
 }
 
 bool BuffTracker::IsInCombat()
@@ -1376,26 +1499,8 @@ GetMetabolicPrimerRemainingMilliseconds()
         g_BuffMutex
     );
 
-    if (!g_HasMetabolicPrimer)
-    {
-        return 0;
-    }
-
-    const auto elapsed =
-        std::chrono::duration_cast<
-        std::chrono::milliseconds
-        >(
-            std::chrono::steady_clock::now() -
-            g_MetabolicPrimerReceivedTime
-        ).count();
-
-    const int64_t remaining =
-        g_MetabolicPrimerDurationMilliseconds -
-        elapsed;
-
-    return remaining > 0
-        ? remaining
-        : 0;
+    return
+        GetEffectiveMetabolicPrimerRemainingMillisecondsLocked();
 }
 
 int64_t BuffTracker::
@@ -1405,26 +1510,8 @@ GetUtilityPrimerRemainingMilliseconds()
         g_BuffMutex
     );
 
-    if (!g_HasUtilityPrimer)
-    {
-        return 0;
-    }
-
-    const auto elapsed =
-        std::chrono::duration_cast<
-        std::chrono::milliseconds
-        >(
-            std::chrono::steady_clock::now() -
-            g_UtilityPrimerReceivedTime
-        ).count();
-
-    const int64_t remaining =
-        g_UtilityPrimerDurationMilliseconds -
-        elapsed;
-
-    return remaining > 0
-        ? remaining
-        : 0;
+    return
+        GetEffectiveUtilityPrimerRemainingMillisecondsLocked();
 }
 
 uint32_t BuffTracker::GetFoodSkillID()
