@@ -317,6 +317,8 @@ void AddonLoad(AddonAPI_t* aApi)
     Settings::Load(hSelf);
     BuffTracker::RestorePrimerState();
     SquadTracker::RestoreUnknownConsumables();
+    SquadTracker::SaveUnknownConsumables();
+    Settings::Save(hSelf);
 
     NexusLink =
         (NexusLinkData_t*)
