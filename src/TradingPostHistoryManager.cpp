@@ -2,6 +2,8 @@
 
 #include <Windows.h>
 
+#include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -12,6 +14,35 @@
 
 namespace
 {
+    constexpr uint64_t SECONDS_PER_MINUTE =
+        60;
+
+    constexpr uint64_t SECONDS_PER_HOUR =
+        60 * SECONDS_PER_MINUTE;
+
+    constexpr uint64_t SECONDS_PER_DAY =
+        24 * SECONDS_PER_HOUR;
+
+    constexpr uint64_t FULL_DETAIL_WINDOW_SECONDS =
+        1 * SECONDS_PER_DAY;
+
+    constexpr uint64_t FIVE_MINUTE_WINDOW_END_SECONDS =
+        7 * SECONDS_PER_DAY;
+
+    constexpr uint64_t FIVE_MINUTE_BUCKET_SECONDS =
+        5 * SECONDS_PER_MINUTE;
+
+    constexpr uint64_t THIRTY_MINUTE_BUCKET_SECONDS =
+        30 * SECONDS_PER_MINUTE;
+
+    //
+    // Do not rewrite the TSV after every observation.
+    // Once per hour is frequent enough to keep the file bounded
+    // while avoiding unnecessary disk churn.
+    //
+    constexpr uint64_t COMPACTION_INTERVAL_SECONDS =
+        1 * SECONDS_PER_HOUR;
+
     std::mutex g_HistoryMutex;
 
     std::unordered_map<
@@ -28,6 +59,23 @@ namespace
         g_HistoryPath;
 
     bool g_Started = false;
+
+    uint64_t
+        g_LastCompactionUnixSeconds = 0;
+
+    uint64_t GetCurrentUnixSeconds()
+    {
+        return
+            static_cast<uint64_t>(
+                std::chrono::duration_cast<
+                std::chrono::seconds
+                >(
+                    std::chrono::
+                    system_clock::now().
+                    time_since_epoch()
+                ).count()
+                );
+    }
 
     std::filesystem::path BuildHistoryPath(
         void* moduleHandle
@@ -58,6 +106,34 @@ namespace
             return
                 path.parent_path() /
                 L"FoodReminder_TradingPostHistory.tsv";
+    }
+
+    void SortHistoryLocked()
+    {
+        for (
+            auto& historyEntry :
+            g_History
+            )
+        {
+            std::vector<
+                TradingPostHistoryPoint
+            >& points =
+                historyEntry.second;
+
+            std::sort(
+                points.begin(),
+                points.end(),
+                [](
+                    const TradingPostHistoryPoint& a,
+                    const TradingPostHistoryPoint& b
+                    )
+                {
+                    return
+                        a.timestampUnixSeconds <
+                        b.timestampUnixSeconds;
+                }
+            );
+        }
     }
 
     void LoadHistoryLocked()
@@ -215,6 +291,8 @@ namespace
                 //
             }
         }
+
+        SortHistoryLocked();
     }
 
     bool AppendObservationLocked(
@@ -264,6 +342,417 @@ namespace
         return
             file.good();
     }
+
+    std::vector<
+        TradingPostHistoryPoint
+    > BuildCompactedHistory(
+        const std::vector<
+        TradingPostHistoryPoint
+        >& source,
+        uint64_t nowUnixSeconds
+    )
+    {
+        std::vector<
+            TradingPostHistoryPoint
+        > compacted;
+
+        compacted.reserve(
+            source.size()
+        );
+
+        uint64_t lastFiveMinuteBucket =
+            UINT64_MAX;
+
+        uint64_t lastThirtyMinuteBucket =
+            UINT64_MAX;
+
+        for (
+            const TradingPostHistoryPoint& point :
+            source
+            )
+        {
+            uint64_t ageSeconds = 0;
+
+            if (
+                nowUnixSeconds >
+                point.timestampUnixSeconds
+                )
+            {
+                ageSeconds =
+                    nowUnixSeconds -
+                    point.timestampUnixSeconds;
+            }
+
+            //
+            // Last 24 hours:
+            // preserve every observation exactly as recorded.
+            //
+            if (
+                ageSeconds <=
+                FULL_DETAIL_WINDOW_SECONDS
+                )
+            {
+                compacted.push_back(
+                    point
+                );
+
+                continue;
+            }
+
+            //
+            // Older than 24 hours but no older than 7 days:
+            // retain one representative point per 5-minute bucket.
+            //
+            if (
+                ageSeconds <=
+                FIVE_MINUTE_WINDOW_END_SECONDS
+                )
+            {
+                const uint64_t bucket =
+                    point.timestampUnixSeconds /
+                    FIVE_MINUTE_BUCKET_SECONDS;
+
+                if (
+                    !compacted.empty() &&
+                    bucket ==
+                    lastFiveMinuteBucket
+                    )
+                {
+                    //
+                    // Keep the newest observation in the bucket.
+                    //
+                    compacted.back() =
+                        point;
+                }
+                else
+                {
+                    compacted.push_back(
+                        point
+                    );
+
+                    lastFiveMinuteBucket =
+                        bucket;
+                }
+
+                continue;
+            }
+
+            //
+            // Older than 7 days:
+            // retain one representative point per 30-minute bucket.
+            //
+            const uint64_t bucket =
+                point.timestampUnixSeconds /
+                THIRTY_MINUTE_BUCKET_SECONDS;
+
+            if (
+                !compacted.empty() &&
+                bucket ==
+                lastThirtyMinuteBucket
+                )
+            {
+                //
+                // Keep the newest observation in the bucket.
+                //
+                compacted.back() =
+                    point;
+            }
+            else
+            {
+                compacted.push_back(
+                    point
+                );
+
+                lastThirtyMinuteBucket =
+                    bucket;
+            }
+        }
+
+        return
+            compacted;
+    }
+
+    bool RewriteHistoryFileLocked(
+        const std::unordered_map<
+        uint32_t,
+        std::vector<
+        TradingPostHistoryPoint
+        >
+        >& history
+    )
+    {
+        if (g_HistoryPath.empty())
+        {
+            return false;
+        }
+
+        const std::filesystem::path
+            temporaryPath =
+            g_HistoryPath.string() +
+            ".tmp";
+
+        {
+            std::ofstream file(
+                temporaryPath,
+                std::ios::trunc |
+                std::ios::binary
+            );
+
+            if (!file.is_open())
+            {
+                return false;
+            }
+
+            file
+                << "# timestamp_unix\titem_id\tbuy_unit_price\tsell_unit_price\n";
+
+            struct FileRow
+            {
+                uint32_t itemID = 0;
+                TradingPostHistoryPoint
+                    point;
+            };
+
+            std::vector<FileRow> rows;
+
+            size_t totalRowCount = 0;
+
+            for (
+                const auto& historyEntry :
+                history
+                )
+            {
+                totalRowCount +=
+                    historyEntry.second.size();
+            }
+
+            rows.reserve(
+                totalRowCount
+            );
+
+            for (
+                const auto& historyEntry :
+                history
+                )
+            {
+                for (
+                    const TradingPostHistoryPoint&
+                    point :
+                    historyEntry.second
+                    )
+                {
+                    FileRow row;
+
+                    row.itemID =
+                        historyEntry.first;
+
+                    row.point =
+                        point;
+
+                    rows.push_back(
+                        row
+                    );
+                }
+            }
+
+            //
+            // Keep the TSV globally chronological. This makes the
+            // file easy to inspect manually and keeps future loads
+            // deterministic.
+            //
+            std::sort(
+                rows.begin(),
+                rows.end(),
+                [](
+                    const FileRow& a,
+                    const FileRow& b
+                    )
+                {
+                    if (
+                        a.point.timestampUnixSeconds !=
+                        b.point.timestampUnixSeconds
+                        )
+                    {
+                        return
+                            a.point.timestampUnixSeconds <
+                            b.point.timestampUnixSeconds;
+                    }
+
+                    return
+                        a.itemID <
+                        b.itemID;
+                }
+            );
+
+            for (
+                const FileRow& row :
+                rows
+                )
+            {
+                file
+                    << row.point.timestampUnixSeconds
+                    << '\t'
+                    << row.itemID
+                    << '\t'
+                    << row.point.buyUnitPrice
+                    << '\t'
+                    << row.point.sellUnitPrice
+                    << '\n';
+            }
+
+            file.flush();
+
+            if (!file.good())
+            {
+                file.close();
+
+                std::error_code errorCode;
+
+                std::filesystem::remove(
+                    temporaryPath,
+                    errorCode
+                );
+
+                return false;
+            }
+        }
+
+        //
+        // Replace the original only after the temporary file was
+        // written successfully. MOVEFILE_WRITE_THROUGH asks Windows
+        // to finish the replacement before returning.
+        //
+        if (
+            !MoveFileExW(
+                temporaryPath.c_str(),
+                g_HistoryPath.c_str(),
+                MOVEFILE_REPLACE_EXISTING |
+                MOVEFILE_WRITE_THROUGH
+            )
+            )
+        {
+            std::error_code errorCode;
+
+            std::filesystem::remove(
+                temporaryPath,
+                errorCode
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    void CompactHistoryLocked(
+        uint64_t nowUnixSeconds,
+        bool forceRewrite
+    )
+    {
+        if (
+            g_HistoryPath.empty() ||
+            nowUnixSeconds == 0
+            )
+        {
+            return;
+        }
+
+        std::unordered_map<
+            uint32_t,
+            std::vector<
+            TradingPostHistoryPoint
+            >
+        > compactedHistory;
+
+        compactedHistory.reserve(
+            g_History.size()
+        );
+
+        size_t originalCount = 0;
+        size_t compactedCount = 0;
+
+        for (
+            const auto& historyEntry :
+            g_History
+            )
+        {
+            originalCount +=
+                historyEntry.second.size();
+
+            std::vector<
+                TradingPostHistoryPoint
+            > compacted =
+                BuildCompactedHistory(
+                    historyEntry.second,
+                    nowUnixSeconds
+                );
+
+            compactedCount +=
+                compacted.size();
+
+            compactedHistory.emplace(
+                historyEntry.first,
+                std::move(
+                    compacted
+                )
+            );
+        }
+
+        //
+        // If nothing was removed, avoid rewriting unless the caller
+        // explicitly requested a startup normalization pass.
+        //
+        if (
+            !forceRewrite &&
+            compactedCount ==
+            originalCount
+            )
+        {
+            g_LastCompactionUnixSeconds =
+                nowUnixSeconds;
+
+            return;
+        }
+
+        if (
+            RewriteHistoryFileLocked(
+                compactedHistory
+            )
+            )
+        {
+            g_History =
+                std::move(
+                    compactedHistory
+                );
+
+            g_LastCompactionUnixSeconds =
+                nowUnixSeconds;
+        }
+    }
+
+    void MaybeCompactHistoryLocked(
+        uint64_t nowUnixSeconds
+    )
+    {
+        if (
+            g_LastCompactionUnixSeconds != 0 &&
+            nowUnixSeconds >=
+            g_LastCompactionUnixSeconds &&
+            (
+                nowUnixSeconds -
+                g_LastCompactionUnixSeconds
+                ) <
+            COMPACTION_INTERVAL_SECONDS
+            )
+        {
+            return;
+        }
+
+        CompactHistoryLocked(
+            nowUnixSeconds,
+            false
+        );
+    }
 }
 
 void TradingPostHistoryManager::Start(
@@ -289,6 +778,29 @@ void TradingPostHistoryManager::Start(
     LoadHistoryLocked();
 
     g_Started = true;
+
+    const uint64_t nowUnixSeconds =
+        GetCurrentUnixSeconds();
+
+    //
+    // Normalize/compact old history immediately on startup.
+    //
+    CompactHistoryLocked(
+        nowUnixSeconds,
+        true
+    );
+
+    //
+    // Even if the rewrite failed, do not hammer the disk repeatedly
+    // during this same startup session.
+    //
+    if (
+        g_LastCompactionUnixSeconds == 0
+        )
+    {
+        g_LastCompactionUnixSeconds =
+            nowUnixSeconds;
+    }
 }
 
 void TradingPostHistoryManager::Shutdown()
@@ -301,6 +813,8 @@ void TradingPostHistoryManager::Shutdown()
     g_History.clear();
 
     g_HistoryPath.clear();
+
+    g_LastCompactionUnixSeconds = 0;
 
     g_Started = false;
 }
@@ -435,6 +949,14 @@ RecordObservation(
 
     itemHistory.push_back(
         point
+    );
+
+    //
+    // The newest 24 hours stay at full detail. Once per hour,
+    // compact older data into the longer-term sampling tiers.
+    //
+    MaybeCompactHistoryLocked(
+        timestampUnixSeconds
     );
 }
 

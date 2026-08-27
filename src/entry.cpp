@@ -1358,6 +1358,9 @@ void RenderTradingPostTab()
         PriceTrend trend =
             PriceTrend::Neutral;
 
+        int64_t copperChange =
+            0;
+
         double percentChange =
             0.0;
     };
@@ -1441,25 +1444,31 @@ void RenderTradingPostTab()
                     result;
             }
 
+            const double copperDifference =
+                newerAverage -
+                olderAverage;
+
+            result.copperChange =
+                static_cast<int64_t>(
+                    copperDifference >= 0.0
+                    ? copperDifference + 0.5
+                    : copperDifference - 0.5
+                    );
+
             result.percentChange =
-                (
-                    newerAverage -
-                    olderAverage
-                    ) /
+                copperDifference /
                 olderAverage *
                 100.0;
 
             if (
-                result.percentChange >
-                0.10
+                result.copperChange > 0
                 )
             {
                 result.trend =
                     PriceTrend::Up;
             }
             else if (
-                result.percentChange <
-                -0.10
+                result.copperChange < 0
                 )
             {
                 result.trend =
@@ -1531,13 +1540,31 @@ void RenderTradingPostTab()
                     trendDownColor;
             }
 
-            ImGui::TextColored(
-                stateColor,
-                "%s %s %+.1f%%",
-                arrowText,
-                stateText,
-                trend.percentChange
-            );
+            if (
+                trend.trend ==
+                PriceTrend::Neutral
+                )
+            {
+                ImGui::TextColored(
+                    stateColor,
+                    "%s %s 0c (0.00%%)",
+                    arrowText,
+                    stateText
+                );
+            }
+            else
+            {
+                ImGui::TextColored(
+                    stateColor,
+                    "%s %s %+.0fc (%+.2f%%)",
+                    arrowText,
+                    stateText,
+                    static_cast<double>(
+                        trend.copperChange
+                        ),
+                    trend.percentChange
+                );
+            }
         };
 
     auto DrawSparkline =
@@ -2467,13 +2494,13 @@ void RenderTradingPostTab()
                     ImGui::TableSetupColumn(
                         "Charts",
                         ImGuiTableColumnFlags_WidthStretch,
-                        1.55f
+                        1.00f
                     );
 
                     ImGui::TableSetupColumn(
                         "Stats",
-                        ImGuiTableColumnFlags_WidthStretch,
-                        1.00f
+                        ImGuiTableColumnFlags_WidthFixed,
+                        190.0f
                     );
 
                     ImGui::TableNextRow();
