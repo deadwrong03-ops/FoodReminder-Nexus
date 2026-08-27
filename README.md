@@ -4,7 +4,7 @@
 >
 > FoodReminder-Nexus is under active development and is not yet feature complete.
 
-A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and primer buffs, with reminders, squad consumable tracking, and session usage analysis.
+A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and primer buffs, with reminders, squad consumable tracking, session usage analysis, and Trading Post monitoring.
 
 > **Know when your important consumables are missing or about to expire without constantly watching the buff bar.**
 
@@ -56,11 +56,27 @@ Primer-protected time is tracked separately so extended consumable durations are
 
 ### Trading Post Integration
 
-FoodReminder-Nexus can retrieve Guild Wars 2 Trading Post pricing for recognized consumables.
+FoodReminder-Nexus can retrieve Guild Wars 2 Trading Post pricing for recognized consumables and independently watched Trading Post items.
 
 This allows the Session Report to estimate the cost of Food and Utility consumed during a gameplay session.
 
+The built-in Trading Post Watcher currently supports:
+
+- Multiple watched items
+- Current lowest sell price
+- Current highest buy price
+- Per-item target sell prices
+- Target status
+- Manual price refresh
+- Automatic periodic price checks
+- Persistent watch lists
+- Persistent target prices
+
 Items without available Trading Post pricing remain tracked normally and are reported without a cost rather than using an estimated or guessed value.
+
+Trading Post item selection is currently being redesigned around a name-first search system. The goal is to allow users to begin typing an item name and select from matching Guild Wars 2 Trading Post items without needing to know an item ID beforehand.
+
+Item IDs may still be displayed for reference and internal validation, but they are not intended to be required user input.
 
 ### Unknown Consumable Collector
 
@@ -109,10 +125,16 @@ The addon is written in **C++** and developed using **Visual Studio**.
 
 FoodReminder-Nexus is currently an experimental development build.
 
-Core consumable tracking, reminders, Primer support, squad tracking, session reporting, unknown-consumable collection, and initial Trading Post cost integration are operational and undergoing live in-game testing.
+Core consumable tracking, reminders, Primer support, squad tracking, session reporting, unknown-consumable collection, Trading Post cost integration, and the initial Trading Post Watcher are operational and undergoing live in-game testing.
+
+The Trading Post Watcher has successfully passed persistence and multi-item testing.
 
 Current development is focused on:
 
+- Building name-first Trading Post item search with live autocomplete suggestions
+- Building a local searchable Trading Post item index
+- Adding persistent Trading Post price history
+- Adding historical price charts
 - Improving already-active buff synchronization
 - Expanding the consumable database
 - Refining consumable cost analysis
@@ -126,6 +148,8 @@ Current development is focused on:
 
 Future development may include:
 
+- Trading Post price-history charts and trend analysis
+- Trading Post historical highs, lows, and averages
 - Session cost-per-hour analysis
 - Historical consumable usage statistics
 - Compact optional Food/Utility timer HUD

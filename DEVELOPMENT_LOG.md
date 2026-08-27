@@ -4,6 +4,66 @@ A chronological record of major development changes, testing results, fixes, and
 
 ---
 
+## 2026-08-27 — Trading Post Watcher & Item Search Development
+
+### Added
+- Built-in Trading Post Watcher.
+- Support for watching multiple Trading Post items simultaneously.
+- Current lowest sell price display.
+- Current highest buy price display.
+- Per-item target sell prices.
+- Target status reporting.
+- Manual per-item price refresh.
+- Refresh All control.
+- Automatic periodic Trading Post price checks.
+- Persistent watched-item storage.
+- Persistent target-price storage.
+- Initial asynchronous item lookup and validation infrastructure.
+- Trading Post lookup status and error feedback in the user interface.
+
+### Changed
+- Trading Post monitoring is no longer limited to consumables used by the Session Report.
+- Watched Trading Post items persist across addon/game restarts.
+- Trading Post price requests run asynchronously so network requests do not block the game/render thread.
+- Item addition is being redesigned so manually knowing and entering an item ID is not required.
+- Item IDs will remain available internally and may be displayed for reference, but the intended user-facing workflow is item-name search.
+
+### Tested
+- Trading Post Watcher successfully retrieved live buy and sell prices.
+- Multiple watched items were successfully tracked simultaneously.
+- Watch-list persistence passed a full restart test.
+- Saved target prices restored correctly.
+- Automatic periodic price checks operated across watched items.
+- Invalid item input produced visible lookup feedback.
+- Current automatic item lookup code rebuilt successfully.
+
+### Known Limitations
+- Current item-entry workflow is not considered complete.
+- Requiring users to manually find Guild Wars 2 item IDs was rejected as poor user experience.
+- The initial chat-link/ID lookup approach was also rejected as the primary user-facing workflow.
+- Guild Wars 2 item-name autocomplete is not yet implemented.
+- Persistent historical price observations and charts are not yet implemented.
+
+### Next
+- Build a local searchable Trading Post item index.
+- Add live item-name autocomplete suggestions while the user types.
+- Allow a search result to display its item ID for reference without requiring the user to know the ID.
+- Validate selected items before adding them to the watch list.
+- Persist Trading Post price observations over time.
+- Build historical buy/sell price charts from the locally collected dataset.
+
+### Status
+✅ Trading Post price retrieval working  
+✅ Multi-item watching passed  
+✅ Watch-list persistence passed  
+✅ Target-price persistence passed  
+✅ Asynchronous lookup infrastructure builds successfully  
+⚠️ Name-first item search/autocomplete not yet implemented  
+⚠️ Current item-entry work not yet committed as a completed feature  
+➡️ Next checkpoint: Trading Post item index + live autocomplete
+
+---
+
 ## 2026-08-26 — Primer-Aware Session Tracking
 
 ### Added

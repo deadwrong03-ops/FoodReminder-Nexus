@@ -3,11 +3,14 @@
 #include <string>
 #include <cfloat>
 #include <array>
+#include <chrono>
 #include "ConsumableMetadataManager.h"
 
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
 #include "TradingPostPriceManager.h"
+#include "TradingPostItemIndexManager.h"
+#include "TradingPostWatchManager.h"
 
 #include "Settings.h"
 #include "ReminderManager.h"
@@ -236,6 +239,7 @@ const char* GetSquadConsumableLabel(
 void RenderGeneralTab();
 void RenderSquadTab();
 void RenderSessionTab();
+void RenderTradingPostTab();
 AddonDefinition_t AddonDef = {};
 HMODULE hSelf = nullptr;
 AddonAPI_t* APIDefs = nullptr;
@@ -320,6 +324,8 @@ void AddonLoad(AddonAPI_t* aApi)
     BuffTracker::RestorePrimerState();
     SquadTracker::RestoreUnknownConsumables();
     TradingPostPriceManager::Start();
+    TradingPostItemIndexManager::Start(hSelf);
+    TradingPostWatchManager::Start(hSelf);
     ConsumableMetadataManager::Start();
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
@@ -381,6 +387,9 @@ void AddonUnload()
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
 
+    TradingPostWatchManager::Shutdown();
+    TradingPostItemIndexManager::Shutdown();
+    TradingPostItemIndexManager::Reset();
     TradingPostPriceManager::Shutdown();
     TradingPostPriceManager::Reset();
     ConsumableMetadataManager::Shutdown();
@@ -948,6 +957,8 @@ void RenderCompactTracker(
 
 void AddonRender()
 {
+    TradingPostWatchManager::Update();
+
     const bool hasFood =
         BuffTracker::HasFood();
 
@@ -1217,6 +1228,730 @@ void AddonRender()
     ImGui::End();
 
     ImGui::PopStyleVar();
+}
+
+
+
+namespace
+{
+    std::string FormatGoldWithCommas(
+        uint64_t gold
+    )
+    {
+        std::string value =
+            std::to_string(
+                gold
+            );
+
+        for (
+            int i =
+            static_cast<int>(
+                value.size()
+                ) - 3;
+            i > 0;
+            i -= 3
+            )
+        {
+            value.insert(
+                static_cast<size_t>(
+                    i
+                    ),
+                ","
+            );
+        }
+
+        return value;
+    }
+
+    std::string FormatCoinValue(
+        uint64_t copper
+    )
+    {
+        const uint64_t gold =
+            copper / 10000ULL;
+
+        const uint64_t silver =
+            (copper % 10000ULL) / 100ULL;
+
+        const uint64_t copperOnly =
+            copper % 100ULL;
+
+        return
+            FormatGoldWithCommas(
+                gold
+            ) +
+            "g " +
+            std::to_string(
+                silver
+            ) +
+            "s " +
+            std::to_string(
+                copperOnly
+            ) +
+            "c";
+    }
+}
+
+void RenderTradingPostTab()
+{
+    const ImVec4 goodColor(
+        0.35f,
+        0.90f,
+        0.45f,
+        1.00f
+    );
+
+    const ImVec4 attentionColor(
+        1.00f,
+        0.78f,
+        0.25f,
+        1.00f
+    );
+
+    ImGui::TextUnformatted(
+        "Trading Post Watcher"
+    );
+
+    ImGui::TextDisabled(
+        "Persistent watch list using the Guild Wars 2 commerce API."
+    );
+
+    bool autoWatch =
+        TradingPostWatchManager::
+        IsAutoWatchEnabled();
+
+    if (ImGui::Checkbox(
+        "Auto watch every 60 seconds",
+        &autoWatch
+    ))
+    {
+        TradingPostWatchManager::
+            SetAutoWatchEnabled(
+                autoWatch
+            );
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button(
+        "Refresh All"
+    ))
+    {
+        TradingPostWatchManager::
+            RefreshAll();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    std::vector<
+        TradingPostWatchItem
+    > watchedItems =
+        TradingPostWatchManager::
+        GetItems();
+
+    if (watchedItems.empty())
+    {
+        ImGui::TextDisabled(
+            "No watched items."
+        );
+    }
+
+    for (
+        const TradingPostWatchItem& item :
+        watchedItems
+        )
+    {
+        ImGui::PushID(
+            static_cast<int>(
+                item.itemID
+                )
+        );
+
+        ImGui::TextUnformatted(
+            item.name.c_str()
+        );
+
+        ImGui::SameLine();
+
+        ImGui::TextDisabled(
+            "(Item ID: %u)",
+            item.itemID
+        );
+
+        TradingPostPrice price;
+
+        const bool hasPrice =
+            TradingPostPriceManager::
+            TryGetPrice(
+                item.itemID,
+                price
+            );
+
+        if (hasPrice)
+        {
+            const std::string sellText =
+                FormatCoinValue(
+                    price.sellUnitPrice
+                );
+
+            const std::string buyText =
+                FormatCoinValue(
+                    price.buyUnitPrice
+                );
+
+            ImGui::Text(
+                "Lowest Sell: %s",
+                sellText.c_str()
+            );
+
+            ImGui::Text(
+                "Highest Buy: %s",
+                buyText.c_str()
+            );
+
+            if (
+                price.lastUpdatedUnixSeconds >
+                0
+                )
+            {
+                const uint64_t nowUnixSeconds =
+                    static_cast<uint64_t>(
+                        std::chrono::
+                        duration_cast<
+                        std::chrono::seconds
+                        >(
+                            std::chrono::
+                            system_clock::
+                            now().
+                            time_since_epoch()
+                        ).count()
+                        );
+
+                const uint64_t ageSeconds =
+                    nowUnixSeconds >=
+                    price.lastUpdatedUnixSeconds
+                    ? nowUnixSeconds -
+                    price.lastUpdatedUnixSeconds
+                    : 0;
+
+                ImGui::TextDisabled(
+                    "Last API update: %llu sec ago",
+                    ageSeconds
+                );
+            }
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "Price data loading..."
+            );
+
+            TradingPostPriceManager::
+                RequestPrice(
+                    item.itemID
+                );
+        }
+
+        uint64_t targetCopper =
+            item.targetSellCopper;
+
+        int targetGold =
+            static_cast<int>(
+                targetCopper / 10000ULL
+                );
+
+        int targetSilver =
+            static_cast<int>(
+                (targetCopper % 10000ULL) /
+                100ULL
+                );
+
+        int targetCopperOnly =
+            static_cast<int>(
+                targetCopper % 100ULL
+                );
+
+        bool targetChanged = false;
+
+        ImGui::SetNextItemWidth(
+            110.0f
+        );
+
+        if (ImGui::InputInt(
+            "Gold",
+            &targetGold
+        ))
+        {
+            targetChanged = true;
+        }
+
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(
+            90.0f
+        );
+
+        if (ImGui::InputInt(
+            "Silver",
+            &targetSilver
+        ))
+        {
+            targetChanged = true;
+        }
+
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(
+            90.0f
+        );
+
+        if (ImGui::InputInt(
+            "Copper",
+            &targetCopperOnly
+        ))
+        {
+            targetChanged = true;
+        }
+
+        if (targetGold < 0)
+        {
+            targetGold = 0;
+        }
+
+        if (targetSilver < 0)
+        {
+            targetSilver = 0;
+        }
+
+        if (targetSilver > 99)
+        {
+            targetSilver = 99;
+        }
+
+        if (targetCopperOnly < 0)
+        {
+            targetCopperOnly = 0;
+        }
+
+        if (targetCopperOnly > 99)
+        {
+            targetCopperOnly = 99;
+        }
+
+        if (targetChanged)
+        {
+            const uint64_t newTargetCopper =
+                static_cast<uint64_t>(
+                    targetGold
+                    ) * 10000ULL +
+                static_cast<uint64_t>(
+                    targetSilver
+                    ) * 100ULL +
+                static_cast<uint64_t>(
+                    targetCopperOnly
+                    );
+
+            TradingPostWatchManager::
+                SetTargetSellPrice(
+                    item.itemID,
+                    newTargetCopper
+                );
+        }
+
+        if (item.targetSellCopper == 0)
+        {
+            ImGui::TextDisabled(
+                "Status: Set a target sell price."
+            );
+        }
+        else if (!hasPrice)
+        {
+            ImGui::TextDisabled(
+                "Status: Waiting for price data."
+            );
+        }
+        else if (
+            static_cast<uint64_t>(
+                price.sellUnitPrice
+                ) <=
+            item.targetSellCopper
+            )
+        {
+            ImGui::TextColored(
+                goodColor,
+                "TARGET REACHED"
+            );
+        }
+        else
+        {
+            ImGui::TextColored(
+                attentionColor,
+                "WAIT"
+            );
+
+            const uint64_t difference =
+                static_cast<uint64_t>(
+                    price.sellUnitPrice
+                    ) -
+                item.targetSellCopper;
+
+            const std::string differenceText =
+                FormatCoinValue(
+                    difference
+                );
+
+            ImGui::Text(
+                "Above target by: %s",
+                differenceText.c_str()
+            );
+        }
+
+        if (ImGui::Button(
+            "Refresh Now"
+        ))
+        {
+            TradingPostWatchManager::
+                RefreshItem(
+                    item.itemID
+                );
+        }
+
+        if (!item.isDefault)
+        {
+            ImGui::SameLine();
+
+            if (ImGui::Button(
+                "Remove"
+            ))
+            {
+                TradingPostWatchManager::
+                    RemoveItem(
+                        item.itemID
+                    );
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+
+        ImGui::PopID();
+    }
+
+    ImGui::TextUnformatted(
+        "Add Watched Item"
+    );
+
+    static char itemSearchInput[160] = {};
+    static std::string searchStatus;
+    static bool searchStatusError = false;
+
+    static std::string lastSearchText;
+    static size_t lastSearchIndexCount = 0;
+
+    static std::vector<
+        TradingPostIndexedItem
+    > searchResults;
+
+    const bool indexReady =
+        TradingPostItemIndexManager::
+        IsReady();
+
+    const bool indexBuilding =
+        TradingPostItemIndexManager::
+        IsBuilding();
+
+    const size_t indexItemCount =
+        TradingPostItemIndexManager::
+        GetItemCount();
+
+    const size_t buildProcessed =
+        TradingPostItemIndexManager::
+        GetBuildProcessedCount();
+
+    const size_t buildTotal =
+        TradingPostItemIndexManager::
+        GetBuildTotalCount();
+
+    if (indexBuilding)
+    {
+        if (buildTotal > 0)
+        {
+            ImGui::TextDisabled(
+                "Building item search index: %llu / %llu",
+                static_cast<unsigned long long>(
+                    buildProcessed
+                    ),
+                static_cast<unsigned long long>(
+                    buildTotal
+                    )
+            );
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "Loading Trading Post item list..."
+            );
+        }
+    }
+    else if (indexReady)
+    {
+        ImGui::TextDisabled(
+            "%llu Trading Post items available to search.",
+            static_cast<unsigned long long>(
+                indexItemCount
+                )
+        );
+    }
+    else
+    {
+        ImGui::TextDisabled(
+            "Item search index is not ready yet."
+        );
+    }
+
+    const std::string indexError =
+        TradingPostItemIndexManager::
+        GetLastError();
+
+    if (!indexError.empty())
+    {
+        ImGui::TextColored(
+            ImVec4(
+                1.00f,
+                0.35f,
+                0.35f,
+                1.00f
+            ),
+            "%s",
+            indexError.c_str()
+        );
+    }
+
+    ImGui::SetNextItemWidth(
+        420.0f
+    );
+
+    const bool enterPressed =
+        ImGui::InputText(
+            "Search item name##NewWatch",
+            itemSearchInput,
+            sizeof(
+                itemSearchInput
+                ),
+            ImGuiInputTextFlags_EnterReturnsTrue
+        );
+
+    ImGui::TextDisabled(
+        "Start typing an item name. Matching Trading Post items appear below."
+    );
+
+    const std::string currentSearchText =
+        itemSearchInput;
+
+    if (
+        currentSearchText !=
+        lastSearchText ||
+        indexItemCount !=
+        lastSearchIndexCount
+        )
+    {
+        lastSearchText =
+            currentSearchText;
+
+        lastSearchIndexCount =
+            indexItemCount;
+
+        searchResults.clear();
+
+        if (
+            currentSearchText.size() >= 2 &&
+            indexReady
+            )
+        {
+            searchResults =
+                TradingPostItemIndexManager::
+                Search(
+                    currentSearchText,
+                    8
+                );
+        }
+    }
+
+    bool selectedSearchItem = false;
+
+    TradingPostIndexedItem selectedItem;
+
+    if (
+        currentSearchText.size() >= 2 &&
+        indexReady
+        )
+    {
+        if (searchResults.empty())
+        {
+            ImGui::TextDisabled(
+                "No matching Trading Post items."
+            );
+        }
+        else
+        {
+            const float rowHeight =
+                ImGui::GetTextLineHeightWithSpacing();
+
+            const float suggestionHeight =
+                rowHeight *
+                static_cast<float>(
+                    searchResults.size()
+                    ) +
+                8.0f;
+
+            if (
+                ImGui::BeginChild(
+                    "##TradingPostItemSuggestions",
+                    ImVec2(
+                        520.0f,
+                        suggestionHeight
+                    ),
+                    true
+                )
+                )
+            {
+                for (
+                    const TradingPostIndexedItem&
+                    result :
+                    searchResults
+                    )
+                {
+                    const std::string label =
+                        result.name +
+                        "  (Item ID: " +
+                        std::to_string(
+                            result.itemID
+                        ) +
+                        ")##TPResult" +
+                        std::to_string(
+                            result.itemID
+                        );
+
+                    if (
+                        ImGui::Selectable(
+                            label.c_str()
+                        )
+                        )
+                    {
+                        selectedItem =
+                            result;
+
+                        selectedSearchItem =
+                            true;
+
+                        break;
+                    }
+                }
+            }
+
+            ImGui::EndChild();
+        }
+    }
+
+    if (
+        enterPressed &&
+        !searchResults.empty()
+        )
+    {
+        selectedItem =
+            searchResults.front();
+
+        selectedSearchItem =
+            true;
+    }
+
+    if (selectedSearchItem)
+    {
+        const bool added =
+            TradingPostWatchManager::
+            AddItem(
+                selectedItem.itemID,
+                selectedItem.name
+            );
+
+        if (added)
+        {
+            searchStatus =
+                "Added: " +
+                selectedItem.name +
+                " (Item ID " +
+                std::to_string(
+                    selectedItem.itemID
+                ) +
+                ")";
+
+            searchStatusError =
+                false;
+
+            itemSearchInput[0] =
+                '\0';
+
+            lastSearchText.clear();
+
+            searchResults.clear();
+        }
+        else
+        {
+            searchStatus =
+                selectedItem.name +
+                " is already on the watch list.";
+
+            searchStatusError =
+                true;
+        }
+    }
+
+    if (!searchStatus.empty())
+    {
+        if (searchStatusError)
+        {
+            ImGui::TextColored(
+                ImVec4(
+                    1.00f,
+                    0.35f,
+                    0.35f,
+                    1.00f
+                ),
+                "%s",
+                searchStatus.c_str()
+            );
+        }
+        else
+        {
+            ImGui::TextColored(
+                goodColor,
+                "%s",
+                searchStatus.c_str()
+            );
+        }
+    }
+
+    ImGui::Spacing();
+
+    const int64_t nextCheckSeconds =
+        TradingPostWatchManager::
+        GetSecondsUntilNextCheck();
+
+    if (
+        TradingPostWatchManager::
+        IsAutoWatchEnabled()
+        )
+    {
+        ImGui::TextDisabled(
+            "Next automatic check in: %lld sec",
+            nextCheckSeconds
+        );
+    }
+
+    ImGui::TextDisabled(
+        "Watch list and target prices are saved automatically."
+    );
 }
 
 void RenderGeneralTab()
@@ -3811,10 +4546,6 @@ void RenderSessionTab()
         "Timeline of food and utility changes during this session."
     );
 
-    HelpMarker(
-        "Green = applied, normal text = refreshed, amber = replaced with remaining time lost, red = expired during combat."
-    );
-
     if (stats.consumableHistory.empty())
     {
         ImGui::TextDisabled(
@@ -3849,151 +4580,165 @@ void RenderSessionTab()
                     event.skillID
                 );
 
-            const bool currentUnknown =
-                std::string(
-                    info.label
-                ) == "Unknown";
-
-            const char* typeText =
-                event.isFood
-                ? "Food"
-                : "Utility";
-
-            std::string currentName;
-
-            if (currentUnknown)
-            {
-                currentName =
-                    "Unknown (" +
-                    std::to_string(
-                        event.skillID
-                    ) +
-                    ")";
-            }
-            else
-            {
-                currentName =
-                    info.name;
-            }
+            const char* actionText =
+                event.type ==
+                SessionConsumableEventType::Applied
+                ? "Applied"
+                : event.type ==
+                SessionConsumableEventType::Refreshed
+                ? "Refreshed"
+                : event.type ==
+                SessionConsumableEventType::Replaced
+                ? "Replaced"
+                : "Expired";
+            const ConsumableInfo* previousInfo = nullptr;
 
             if (
                 event.type ==
-                SessionConsumableEventType::Applied
+                SessionConsumableEventType::Replaced &&
+                event.previousSkillID != 0
                 )
             {
-                ImGui::TextColored(
-                    goodColor,
-                    "%02lld:%02lld:%02lld  Applied %s: %s",
-                    hours,
-                    minutes,
-                    seconds,
-                    typeText,
-                    currentName.c_str()
-                );
-            }
-            else if (
-                event.type ==
-                SessionConsumableEventType::Refreshed
-                )
-            {
-                ImGui::Text(
-                    "%02lld:%02lld:%02lld  Refreshed %s: %s",
-                    hours,
-                    minutes,
-                    seconds,
-                    typeText,
-                    currentName.c_str()
-                );
-            }
-            else if (
-                event.type ==
-                SessionConsumableEventType::Replaced
-                )
-            {
-                std::string previousName =
-                    "Unknown";
-
-                if (event.previousSkillID != 0)
-                {
-                    const ConsumableInfo& previousInfo =
-                        event.isFood
-                        ? ConsumableData::GetFoodInfo(
-                            event.previousSkillID
-                        )
-                        : ConsumableData::GetUtilityInfo(
-                            event.previousSkillID
-                        );
-
-                    const bool previousUnknown =
-                        std::string(
-                            previousInfo.label
-                        ) == "Unknown";
-
-                    if (previousUnknown)
-                    {
-                        previousName =
-                            "Unknown (" +
-                            std::to_string(
-                                event.previousSkillID
-                            ) +
-                            ")";
-                    }
-                    else
-                    {
-                        previousName =
-                            previousInfo.name;
-                    }
-                }
-
-                ImGui::TextColored(
-                    attentionColor,
-                    "%02lld:%02lld:%02lld  Replaced %s: %s -> %s",
-                    hours,
-                    minutes,
-                    seconds,
-                    typeText,
-                    previousName.c_str(),
-                    currentName.c_str()
-                );
-
-                if (
-                    event.previousRemainingMilliseconds > 0
+                previousInfo =
+                    event.isFood
+                    ? &ConsumableData::GetFoodInfo(
+                        event.previousSkillID
                     )
-                {
-                    ImGui::SameLine();
-
-                    ImGui::TextColored(
-                        attentionColor,
-                        "| %s lost",
-                        FormatDuration(
-                            event.previousRemainingMilliseconds
-                        ).c_str()
+                    : &ConsumableData::GetUtilityInfo(
+                        event.previousSkillID
                     );
-                }
             }
-            else
+            if (
+                event.type ==
+                SessionConsumableEventType::Replaced &&
+                previousInfo != nullptr
+                )
             {
-                if (event.inCombat)
+                const bool previousUnknown =
+                    std::string(
+                        previousInfo->label
+                    ) == "Unknown";
+
+                const bool currentUnknown =
+                    std::string(
+                        info.label
+                    ) == "Unknown";
+
+                const int64_t previousTotalSeconds =
+                    event.previousRemainingMilliseconds / 1000;
+
+                const int64_t previousMinutes =
+                    previousTotalSeconds / 60;
+
+                const int64_t previousSeconds =
+                    previousTotalSeconds % 60;
+
+                if (!previousUnknown &&
+                    !currentUnknown)
                 {
-                    ImGui::TextColored(
-                        badColor,
-                        "%02lld:%02lld:%02lld  Expired %s: %s (in combat)",
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s -> %s  (%lld:%02lld remaining)",
                         hours,
                         minutes,
                         seconds,
-                        typeText,
-                        currentName.c_str()
+                        previousInfo->name,
+                        info.name,
+                        previousMinutes,
+                        previousSeconds
+                    );
+                }
+                else if (previousUnknown &&
+                    !currentUnknown)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Unknown (%u) -> %s  (%lld:%02lld remaining)",
+                        hours,
+                        minutes,
+                        seconds,
+                        event.previousSkillID,
+                        info.name,
+                        previousMinutes,
+                        previousSeconds
+                    );
+                }
+                else if (!previousUnknown &&
+                    currentUnknown)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s -> Unknown (%u)  (%lld:%02lld remaining)",
+                        hours,
+                        minutes,
+                        seconds,
+                        previousInfo->name,
+                        event.skillID,
+                        previousMinutes,
+                        previousSeconds
                     );
                 }
                 else
                 {
                     ImGui::Text(
-                        "%02lld:%02lld:%02lld  Expired %s: %s",
+                        "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)  (%lld:%02lld remaining)",
                         hours,
                         minutes,
                         seconds,
-                        typeText,
-                        currentName.c_str()
+                        event.previousSkillID,
+                        event.skillID,
+                        previousMinutes,
+                        previousSeconds
+                    );
+                }
+            }
+            else if (std::string(info.label) ==
+                "Unknown")
+            {
+                if (event.type ==
+                    SessionConsumableEventType::Expired &&
+                    event.inCombat)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Expired Unknown (%u) (in combat)",
+                        hours,
+                        minutes,
+                        seconds,
+                        event.skillID
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s Unknown (%u)",
+                        hours,
+                        minutes,
+                        seconds,
+                        actionText,
+                        event.skillID
+                    );
+                }
+            }
+            else
+            {
+                if (event.type ==
+                    SessionConsumableEventType::Expired &&
+                    event.inCombat)
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  Expired %s (in combat)",
+                        hours,
+                        minutes,
+                        seconds,
+                        info.name
+                    );
+                }
+                else
+                {
+                    ImGui::Text(
+                        "%02lld:%02lld:%02lld  %s %s",
+                        hours,
+                        minutes,
+                        seconds,
+                        actionText,
+                        info.name
                     );
                 }
             }
@@ -4048,6 +4793,14 @@ void AddonOptions()
             "Session"))
         {
             RenderSessionTab();
+
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem(
+            "Trading Post"))
+        {
+            RenderTradingPostTab();
 
             ImGui::EndTabItem();
         }
