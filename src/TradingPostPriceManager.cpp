@@ -1,5 +1,7 @@
 #include "TradingPostPriceManager.h"
 
+#include "TradingPostHistoryManager.h"
+
 #include <Windows.h>
 #include <winhttp.h>
 
@@ -686,12 +688,22 @@ void TradingPostPriceManager::StorePrice(
     price.available =
         true;
 
-    std::lock_guard<std::mutex> lock(
-        g_TradingPostPriceMutex
-    );
+    {
+        std::lock_guard<std::mutex> lock(
+            g_TradingPostPriceMutex
+        );
 
-    g_TradingPostPrices[itemID] =
-        price;
+        g_TradingPostPrices[itemID] =
+            price;
+    }
+
+    TradingPostHistoryManager::
+        RecordObservation(
+            itemID,
+            buyUnitPrice,
+            sellUnitPrice,
+            price.lastUpdatedUnixSeconds
+        );
 }
 
 bool TradingPostPriceManager::TryGetPrice(

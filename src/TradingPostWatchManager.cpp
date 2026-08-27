@@ -1,6 +1,7 @@
 #include "TradingPostWatchManager.h"
 
 #include "TradingPostPriceManager.h"
+#include "TradingPostHistoryManager.h"
 
 #include <Windows.h>
 
@@ -324,6 +325,17 @@ void TradingPostWatchManager::Start(
 
     LoadLocked();
 
+    for (
+        const TradingPostWatchItem& item :
+        g_WatchedItems
+        )
+    {
+        TradingPostHistoryManager::
+            RegisterWatchedItem(
+                item.itemID
+            );
+    }
+
     QueueAllLocked(
         false
     );
@@ -472,6 +484,11 @@ bool TradingPostWatchManager::AddItem(
 
     SaveLocked();
 
+    TradingPostHistoryManager::
+        RegisterWatchedItem(
+            itemID
+        );
+
     TradingPostPriceManager::
         RequestPrice(
             itemID,
@@ -515,6 +532,11 @@ void TradingPostWatchManager::RemoveItem(
                     ),
         g_WatchedItems.end()
     );
+
+    TradingPostHistoryManager::
+        UnregisterWatchedItem(
+            itemID
+        );
 
     SaveLocked();
 }

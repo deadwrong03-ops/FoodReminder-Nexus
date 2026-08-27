@@ -62,6 +62,9 @@
     <ClCompile Include="TradingPostItemIndexManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TradingPostHistoryManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Settings.h">
@@ -125,6 +128,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TradingPostItemIndexManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TradingPostHistoryManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
