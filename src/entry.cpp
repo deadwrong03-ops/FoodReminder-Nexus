@@ -1662,36 +1662,86 @@ void RenderTradingPostTab()
                 newestTimestamp -
                 windowSeconds;
 
+            //
+            // Use the same historical anchor concept as the trend:
+            // find the newest observation at or before the requested
+            // window boundary. This lets Deal/Signal remain useful
+            // after the game has been closed for part of the window.
+            //
+            size_t firstSampleIndex =
+                points.size();
+
+            for (
+                size_t i =
+                points.size();
+                i > 0;
+                --i
+                )
+            {
+                const size_t index =
+                    i - 1;
+
+                if (
+                    points[
+                        index
+                    ].timestampUnixSeconds <=
+                    startTimestamp
+                            )
+                {
+                    firstSampleIndex =
+                        index;
+
+                    break;
+                }
+            }
+
+            if (
+                firstSampleIndex ==
+                points.size()
+                )
+            {
+                return
+                    result;
+            }
+
             std::vector<uint32_t>
                 sellSamples;
 
             uint64_t totalSell = 0;
 
             for (
-                const TradingPostHistoryPoint&
-                point :
-                points
+                size_t i =
+                firstSampleIndex;
+                i <
+                points.size();
+                ++i
                 )
             {
-                if (
-                    point.timestampUnixSeconds <
-                    startTimestamp ||
-                    point.sellUnitPrice == 0
-                    )
+                const uint32_t sellPrice =
+                    points[
+                        i
+                    ].sellUnitPrice;
+
+                if (sellPrice == 0)
                 {
                     continue;
                 }
 
                 sellSamples.push_back(
-                    point.sellUnitPrice
+                    sellPrice
                 );
 
                 totalSell +=
-                    point.sellUnitPrice;
+                    sellPrice;
             }
 
+            //
+            // Two observations are enough to make a useful
+            // beginning-to-end assessment. More observations improve
+            // the quartile estimate naturally when available.
+            //
             if (
-                sellSamples.size() < 4
+                sellSamples.size() < 2
                 )
             {
                 return
@@ -1712,32 +1762,46 @@ void RenderTradingPostTab()
                     sellSamples.size()
                     );
 
-            const size_t lowerIndex =
-                (
-                    sellSamples.size() -
-                    1
-                    ) /
-                4;
+            if (
+                sellSamples.size() == 2
+                )
+            {
+                result.lowerQuartileSell =
+                    sellSamples.front();
 
-            const size_t upperIndex =
-                (
+                result.upperQuartileSell =
+                    sellSamples.back();
+            }
+            else
+            {
+                const size_t lowerIndex =
                     (
                         sellSamples.size() -
                         1
-                        ) *
-                    3
-                    ) /
-                4;
+                        ) /
+                    4;
 
-            result.lowerQuartileSell =
-                sellSamples[
-                    lowerIndex
-                ];
+                const size_t upperIndex =
+                    (
+                        (
+                            sellSamples.size() -
+                            1
+                            ) *
+                        3 +
+                        3
+                        ) /
+                    4;
 
-            result.upperQuartileSell =
-                sellSamples[
-                    upperIndex
-                ];
+                result.lowerQuartileSell =
+                    sellSamples[
+                        lowerIndex
+                    ];
+
+                result.upperQuartileSell =
+                    sellSamples[
+                        upperIndex
+                    ];
+            }
 
             result.available =
                 result.averageSell > 0;
@@ -3261,6 +3325,95 @@ void RenderTradingPostTab()
                     dealPercent,
                     trendWindowLabel
                 );
+
+                double spreadPercent = 0.0;
+
+                if (
+                    price.buyUnitPrice > 0 &&
+                    price.sellUnitPrice >=
+                    price.buyUnitPrice
+                    )
+                {
+                    const uint64_t spreadCopper =
+                        static_cast<uint64_t>(
+                            price.sellUnitPrice -
+                            price.buyUnitPrice
+                            );
+
+                    spreadPercent =
+                        static_cast<double>(
+                            spreadCopper
+                            ) /
+                        static_cast<double>(
+                            price.sellUnitPrice
+                            ) *
+                        100.0;
+
+                    const std::string spreadText =
+                        FormatCoinValue(
+                            spreadCopper
+                        );
+
+                    ImGui::TextDisabled(
+                        "Spread %s (%.2f%% of sell)",
+                        spreadText.c_str(),
+                        spreadPercent
+                    );
+                }
+
+                const char* opportunityLabel =
+                    "WATCH";
+
+                ImVec4 opportunityColor =
+                    attentionColor;
+
+                //
+                // Buying signal:
+                // GOOD BUY requires a favorable current sell price
+                // and a sell trend that is not actively moving up.
+                //
+                if (
+                    std::string(
+                        dealLabel
+                    ) ==
+                    "FAVORABLE" &&
+                    sellTrend.available &&
+                    sellTrend.trend !=
+                    PriceTrend::Up
+                    )
+                {
+                    opportunityLabel =
+                        "GOOD BUY";
+
+                    opportunityColor =
+                        goodColor;
+                }
+                else if (
+                    std::string(
+                        dealLabel
+                    ) ==
+                    "EXPENSIVE" ||
+                    (
+                        sellTrend.available &&
+                        sellTrend.trend ==
+                        PriceTrend::Up &&
+                        sellTrend.percentChange >=
+                        1.00
+                        )
+                    )
+                {
+                    opportunityLabel =
+                        "OVERPRICED";
+
+                    opportunityColor =
+                        trendDownColor;
+                }
+
+                ImGui::TextColored(
+                    opportunityColor,
+                    "Signal %s",
+                    opportunityLabel
+                );
             }
             else
             {
@@ -3268,38 +3421,9 @@ void RenderTradingPostTab()
                     "Deal - collecting %s history",
                     trendWindowLabel
                 );
-            }
-
-            if (
-                price.buyUnitPrice > 0 &&
-                price.sellUnitPrice >=
-                price.buyUnitPrice
-                )
-            {
-                const uint64_t spreadCopper =
-                    static_cast<uint64_t>(
-                        price.sellUnitPrice -
-                        price.buyUnitPrice
-                        );
-
-                const double spreadPercent =
-                    static_cast<double>(
-                        spreadCopper
-                        ) /
-                    static_cast<double>(
-                        price.sellUnitPrice
-                        ) *
-                    100.0;
-
-                const std::string spreadText =
-                    FormatCoinValue(
-                        spreadCopper
-                    );
 
                 ImGui::TextDisabled(
-                    "Spread %s (%.2f%% of sell)",
-                    spreadText.c_str(),
-                    spreadPercent
+                    "Signal - collecting history"
                 );
             }
         }
