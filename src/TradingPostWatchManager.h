@@ -14,6 +14,18 @@ struct TradingPostWatchItem
     bool isDefault = false;
 };
 
+struct TradingPostTargetAlert
+{
+    uint32_t itemID = 0;
+
+    std::string name;
+
+    uint64_t sellUnitPrice = 0;
+    uint64_t targetSellCopper = 0;
+
+    uint64_t triggeredUnixSeconds = 0;
+};
+
 namespace TradingPostWatchManager
 {
     void Start(
@@ -55,4 +67,19 @@ namespace TradingPostWatchManager
     void RefreshAll();
 
     int64_t GetSecondsUntilNextCheck();
+
+    //
+    // Returns the current session alert, if one is waiting
+    // for the user to dismiss it.
+    //
+    bool TryGetActiveTargetAlert(
+        TradingPostTargetAlert& outAlert
+    );
+
+    //
+    // Dismisses the currently visible alert. This does NOT
+    // re-arm the target. The target automatically re-arms only
+    // after a later observed sell price rises above the target.
+    //
+    void DismissActiveTargetAlert();
 }

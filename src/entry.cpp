@@ -1744,8 +1744,93 @@ void RenderTradingPostTab()
     );
 
     ImGui::TextDisabled(
-        "Persistent watch list using the Guild Wars 2 commerce API."
+        "Watch lowest sell listings and alert when an item reaches your Sell Target."
     );
+
+    TradingPostTargetAlert activeTargetAlert;
+
+    if (
+        TradingPostWatchManager::
+        TryGetActiveTargetAlert(
+            activeTargetAlert
+        )
+        )
+    {
+        ImGui::Spacing();
+
+        ImGui::PushStyleColor(
+            ImGuiCol_ChildBg,
+            ImVec4(
+                0.18f,
+                0.24f,
+                0.08f,
+                0.92f
+            )
+        );
+
+        ImGui::PushStyleColor(
+            ImGuiCol_Border,
+            goodColor
+        );
+
+        ImGui::BeginChild(
+            "##TradingPostTargetAlert",
+            ImVec2(
+                0.0f,
+                76.0f
+            ),
+            true,
+            ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoScrollWithMouse
+        );
+
+        ImGui::TextColored(
+            goodColor,
+            "TARGET PRICE REACHED!"
+        );
+
+        ImGui::Text(
+            "%s",
+            activeTargetAlert.name.c_str()
+        );
+
+        ImGui::SameLine();
+
+        ImGui::TextColored(
+            sellColor,
+            "Sell: %s",
+            FormatCoinValue(
+                activeTargetAlert.sellUnitPrice
+            ).c_str()
+        );
+
+        ImGui::SameLine();
+
+        ImGui::TextDisabled(
+            "Target: %s",
+            FormatCoinValue(
+                activeTargetAlert.targetSellCopper
+            ).c_str()
+        );
+
+        if (
+            ImGui::Button(
+                "Dismiss##TradingPostTargetAlert"
+            )
+            )
+        {
+            TradingPostWatchManager::
+                DismissActiveTargetAlert();
+        }
+
+        ImGui::EndChild();
+
+        ImGui::PopStyleColor(
+            2
+        );
+
+        ImGui::Spacing();
+    }
 
     ImGui::Spacing();
 
@@ -1993,7 +2078,7 @@ void RenderTradingPostTab()
             );
 
             ImGui::TableSetupColumn(
-                "Target",
+                "Sell Target",
                 ImGuiTableColumnFlags_WidthFixed,
                 190.0f
             );
@@ -2071,7 +2156,7 @@ void RenderTradingPostTab()
             );
 
             ImGui::TextDisabled(
-                "Target"
+                "Sell Target"
             );
 
             ImGui::SetNextItemWidth(

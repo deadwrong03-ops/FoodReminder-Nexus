@@ -11,6 +11,7 @@
 #include <fstream>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace
@@ -23,11 +24,37 @@ namespace
         WATCH_INTERVAL_SECONDS =
         60;
 
+    struct TargetAlertState
+    {
+        //
+        // True once this target has been reached. It stays true
+        // until a later observed sell price rises back ABOVE the
+        // target, which re-arms the alert.
+        //
+        bool reachedLatch = false;
+
+        //
+        // Prevents evaluating the same successful price response
+        // repeatedly on every render frame.
+        //
+        uint64_t lastProcessedPriceTimestamp = 0;
+    };
+
     std::mutex g_WatchMutex;
 
     std::vector<
         TradingPostWatchItem
     > g_WatchedItems;
+
+    std::unordered_map<
+        uint32_t,
+        TargetAlertState
+    > g_TargetAlertStates;
+
+    TradingPostTargetAlert
+        g_ActiveTargetAlert;
+
+    bool g_HasActiveTargetAlert = false;
 
     bool g_AutoWatchEnabled = true;
 
@@ -38,6 +65,20 @@ namespace
 
     std::filesystem::path
         g_SettingsPath;
+
+    uint64_t GetCurrentUnixSeconds()
+    {
+        return
+            static_cast<uint64_t>(
+                std::chrono::duration_cast<
+                std::chrono::seconds
+                >(
+                    std::chrono::
+                    system_clock::now().
+                    time_since_epoch()
+                ).count()
+                );
+    }
 
     std::filesystem::path
         BuildSettingsPath(
@@ -120,6 +161,10 @@ namespace
                     "Aurene's Bite";
             }
         }
+
+        g_TargetAlertStates[
+            AURENES_BITE_ITEM_ID
+        ];
     }
 
     void SaveLocked()
@@ -162,12 +207,36 @@ namespace
                 << '|'
                 << item.name
                 << '\n';
+
+            const auto alertStateIt =
+                g_TargetAlertStates.find(
+                    item.itemID
+                );
+
+            const bool reachedLatch =
+                alertStateIt !=
+                g_TargetAlertStates.end()
+                ? alertStateIt->
+                second.reachedLatch
+                : false;
+
+            file
+                << "alertLatch="
+                << item.itemID
+                << '|'
+                << (
+                    reachedLatch
+                    ? 1
+                    : 0
+                    )
+                << '\n';
         }
     }
 
     void LoadLocked()
     {
         g_WatchedItems.clear();
+        g_TargetAlertStates.clear();
 
         if (!g_SettingsPath.empty())
         {
@@ -200,6 +269,65 @@ namespace
                     g_AutoWatchEnabled =
                         value == "1" ||
                         value == "true";
+
+                    continue;
+                }
+
+                if (
+                    line.rfind(
+                        "alertLatch=",
+                        0
+                    ) == 0
+                    )
+                {
+                    const std::string payload =
+                        line.substr(
+                            11
+                        );
+
+                    const size_t separator =
+                        payload.find(
+                            '|'
+                        );
+
+                    if (
+                        separator ==
+                        std::string::npos
+                        )
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        const uint32_t itemID =
+                            static_cast<uint32_t>(
+                                std::stoul(
+                                    payload.substr(
+                                        0,
+                                        separator
+                                    )
+                                )
+                                );
+
+                        const std::string value =
+                            payload.substr(
+                                separator + 1
+                            );
+
+                        if (itemID != 0)
+                        {
+                            g_TargetAlertStates[
+                                itemID
+                            ].reachedLatch =
+                                value == "1" ||
+                                    value == "true";
+                        }
+                    }
+                    catch (...)
+                    {
+                        // Ignore malformed saved rows.
+                    }
 
                     continue;
                 }
@@ -279,6 +407,10 @@ namespace
                         g_WatchedItems.push_back(
                             item
                         );
+
+                        g_TargetAlertStates[
+                            item.itemID
+                        ];
                     }
                 }
                 catch (...)
@@ -308,6 +440,136 @@ namespace
                 );
         }
     }
+
+    void EvaluateTargetAlertsLocked()
+    {
+        bool settingsChanged = false;
+
+        for (
+            const TradingPostWatchItem&
+            item :
+            g_WatchedItems
+            )
+        {
+            TradingPostPrice price;
+
+            if (
+                !TradingPostPriceManager::
+                TryGetPrice(
+                    item.itemID,
+                    price
+                ) ||
+                !price.available ||
+                price.lastUpdatedUnixSeconds == 0
+                )
+            {
+                continue;
+            }
+
+            TargetAlertState& alertState =
+                g_TargetAlertStates[
+                    item.itemID
+                ];
+
+            if (
+                price.lastUpdatedUnixSeconds <=
+                alertState.
+                lastProcessedPriceTimestamp
+                )
+            {
+                continue;
+            }
+
+            alertState.
+                lastProcessedPriceTimestamp =
+                price.lastUpdatedUnixSeconds;
+
+            //
+            // A zero target means target alerting is disabled.
+            //
+            if (
+                item.targetSellCopper == 0 ||
+                price.sellUnitPrice == 0
+                )
+            {
+                if (alertState.reachedLatch)
+                {
+                    alertState.reachedLatch =
+                        false;
+
+                    settingsChanged = true;
+                }
+
+                continue;
+            }
+
+            const bool targetReached =
+                static_cast<uint64_t>(
+                    price.sellUnitPrice
+                    ) <=
+                item.targetSellCopper;
+
+            if (targetReached)
+            {
+                //
+                // Only fire on the transition into the target range.
+                // Once latched, repeated 60-second refreshes are quiet.
+                //
+                if (!alertState.reachedLatch)
+                {
+                    alertState.reachedLatch =
+                        true;
+
+                    settingsChanged = true;
+
+                    //
+                    // Keep only one visible alert at a time.
+                    // If the user dismisses it, another newly-triggered
+                    // item can become visible on a future price update.
+                    //
+                    if (!g_HasActiveTargetAlert)
+                    {
+                        g_ActiveTargetAlert.itemID =
+                            item.itemID;
+
+                        g_ActiveTargetAlert.name =
+                            item.name;
+
+                        g_ActiveTargetAlert.sellUnitPrice =
+                            price.sellUnitPrice;
+
+                        g_ActiveTargetAlert.targetSellCopper =
+                            item.targetSellCopper;
+
+                        g_ActiveTargetAlert.triggeredUnixSeconds =
+                            GetCurrentUnixSeconds();
+
+                        g_HasActiveTargetAlert =
+                            true;
+                    }
+                }
+            }
+            else
+            {
+                //
+                // Price moved back above target. Re-arm so a later
+                // drop back into range can create a new alert.
+                //
+                if (alertState.reachedLatch)
+                {
+                    alertState.reachedLatch =
+                        false;
+
+                    settingsChanged = true;
+                }
+            }
+        }
+
+        if (settingsChanged)
+        {
+            SaveLocked();
+        }
+    }
 }
 
 void TradingPostWatchManager::Start(
@@ -322,6 +584,12 @@ void TradingPostWatchManager::Start(
         BuildSettingsPath(
             moduleHandle
         );
+
+    g_HasActiveTargetAlert =
+        false;
+
+    g_ActiveTargetAlert =
+        TradingPostTargetAlert{};
 
     LoadLocked();
 
@@ -356,6 +624,14 @@ void TradingPostWatchManager::Shutdown()
 
     SaveLocked();
 
+    g_HasActiveTargetAlert =
+        false;
+
+    g_ActiveTargetAlert =
+        TradingPostTargetAlert{};
+
+    g_TargetAlertStates.clear();
+
     g_WatchedItems.clear();
 
     g_SettingsPath.clear();
@@ -369,6 +645,12 @@ void TradingPostWatchManager::Update()
     std::lock_guard<std::mutex> lock(
         g_WatchMutex
     );
+
+    //
+    // This runs every render update so completed asynchronous price
+    // requests are evaluated as soon as their new timestamp appears.
+    //
+    EvaluateTargetAlertsLocked();
 
     if (!g_AutoWatchEnabled)
     {
@@ -482,20 +764,24 @@ bool TradingPostWatchManager::AddItem(
         item
     );
 
-    SaveLocked();
+    g_TargetAlertStates[
+        itemID
+    ] = TargetAlertState{};
 
-    TradingPostHistoryManager::
-        RegisterWatchedItem(
-            itemID
-        );
+        SaveLocked();
 
-    TradingPostPriceManager::
-        RequestPrice(
-            itemID,
-            true
-        );
+        TradingPostHistoryManager::
+            RegisterWatchedItem(
+                itemID
+            );
 
-    return true;
+        TradingPostPriceManager::
+            RequestPrice(
+                itemID,
+                true
+            );
+
+        return true;
 }
 
 void TradingPostWatchManager::RemoveItem(
@@ -533,6 +819,23 @@ void TradingPostWatchManager::RemoveItem(
         g_WatchedItems.end()
     );
 
+    g_TargetAlertStates.erase(
+        itemID
+    );
+
+    if (
+        g_HasActiveTargetAlert &&
+        g_ActiveTargetAlert.itemID ==
+        itemID
+        )
+    {
+        g_HasActiveTargetAlert =
+            false;
+
+        g_ActiveTargetAlert =
+            TradingPostTargetAlert{};
+    }
+
     TradingPostHistoryManager::
         UnregisterWatchedItem(
             itemID
@@ -558,10 +861,67 @@ SetTargetSellPrice(
     {
         if (item.itemID == itemID)
         {
-            item.targetSellCopper =
-                targetCopper;
+            if (
+                item.targetSellCopper !=
+                targetCopper
+                )
+            {
+                item.targetSellCopper =
+                    targetCopper;
 
-            SaveLocked();
+                //
+                // A changed target is a new alert condition, but the
+                // target edit itself must NOT fire an alert from an
+                // already-cached price. Mark the current cached price
+                // timestamp as processed so only a NEW API observation
+                // can evaluate the new target.
+                //
+                TargetAlertState& alertState =
+                    g_TargetAlertStates[
+                        itemID
+                    ];
+
+                alertState.reachedLatch =
+                    false;
+
+                TradingPostPrice currentPrice;
+
+                if (
+                    TradingPostPriceManager::
+                    TryGetPrice(
+                        itemID,
+                        currentPrice
+                    ) &&
+                    currentPrice.available
+                    )
+                {
+                    alertState.
+                        lastProcessedPriceTimestamp =
+                        currentPrice.
+                        lastUpdatedUnixSeconds;
+                }
+                else
+                {
+                    alertState.
+                        lastProcessedPriceTimestamp =
+                        0;
+                }
+
+                if (
+                    g_HasActiveTargetAlert &&
+                    g_ActiveTargetAlert.itemID ==
+                    itemID
+                    )
+                {
+                    g_HasActiveTargetAlert =
+                        false;
+
+                    g_ActiveTargetAlert =
+                        TradingPostTargetAlert{};
+                }
+
+                SaveLocked();
+            }
 
             return;
         }
@@ -671,4 +1031,38 @@ GetSecondsUntilNextCheck()
     return
         WATCH_INTERVAL_SECONDS -
         elapsedSeconds;
+}
+
+bool TradingPostWatchManager::
+TryGetActiveTargetAlert(
+    TradingPostTargetAlert& outAlert
+)
+{
+    std::lock_guard<std::mutex> lock(
+        g_WatchMutex
+    );
+
+    if (!g_HasActiveTargetAlert)
+    {
+        return false;
+    }
+
+    outAlert =
+        g_ActiveTargetAlert;
+
+    return true;
+}
+
+void TradingPostWatchManager::
+DismissActiveTargetAlert()
+{
+    std::lock_guard<std::mutex> lock(
+        g_WatchMutex
+    );
+
+    g_HasActiveTargetAlert =
+        false;
+
+    g_ActiveTargetAlert =
+        TradingPostTargetAlert{};
 }
