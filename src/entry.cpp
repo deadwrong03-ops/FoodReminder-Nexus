@@ -1325,6 +1325,393 @@ void RenderTradingPostTab()
         1.00f
     );
 
+    const ImVec4 trendDownColor(
+        1.00f,
+        0.40f,
+        0.40f,
+        1.00f
+    );
+
+    const ImVec4 mutedColor(
+        0.65f,
+        0.65f,
+        0.65f,
+        1.00f
+    );
+
+    const ImVec4 itemNameColor(
+        0.92f,
+        0.78f,
+        1.00f,
+        1.00f
+    );
+
+    enum class PriceTrend
+    {
+        Neutral,
+        Up,
+        Down
+    };
+
+    struct TrendInfo
+    {
+        PriceTrend trend =
+            PriceTrend::Neutral;
+
+        double percentChange =
+            0.0;
+    };
+
+    auto CalculateTrend =
+        [](
+            const std::vector<
+            TradingPostHistoryPoint
+            >& points,
+            bool useSellPrice
+            )
+        {
+            TrendInfo result;
+
+            if (points.size() < 2)
+            {
+                return
+                    result;
+            }
+
+            const size_t sampleCount =
+                points.size() >= 6
+                ? 3
+                : 1;
+
+            uint64_t olderTotal = 0;
+            uint64_t newerTotal = 0;
+
+            for (
+                size_t i = 0;
+                i < sampleCount;
+                ++i
+                )
+            {
+                const TradingPostHistoryPoint&
+                    olderPoint =
+                    points[
+                        points.size() -
+                            (sampleCount * 2) +
+                            i
+                    ];
+
+                const TradingPostHistoryPoint&
+                    newerPoint =
+                    points[
+                        points.size() -
+                            sampleCount +
+                            i
+                    ];
+
+                olderTotal +=
+                    useSellPrice
+                    ? olderPoint.sellUnitPrice
+                    : olderPoint.buyUnitPrice;
+
+                newerTotal +=
+                    useSellPrice
+                    ? newerPoint.sellUnitPrice
+                    : newerPoint.buyUnitPrice;
+            }
+
+            const double olderAverage =
+                static_cast<double>(
+                    olderTotal
+                    ) /
+                static_cast<double>(
+                    sampleCount
+                    );
+
+            const double newerAverage =
+                static_cast<double>(
+                    newerTotal
+                    ) /
+                static_cast<double>(
+                    sampleCount
+                    );
+
+            if (olderAverage <= 0.0)
+            {
+                return
+                    result;
+            }
+
+            result.percentChange =
+                (
+                    newerAverage -
+                    olderAverage
+                    ) /
+                olderAverage *
+                100.0;
+
+            if (
+                result.percentChange >
+                0.10
+                )
+            {
+                result.trend =
+                    PriceTrend::Up;
+            }
+            else if (
+                result.percentChange <
+                -0.10
+                )
+            {
+                result.trend =
+                    PriceTrend::Down;
+            }
+            else
+            {
+                result.trend =
+                    PriceTrend::Neutral;
+            }
+
+            return
+                result;
+        };
+
+    auto DrawTrendText =
+        [&](
+            const char* label,
+            const TrendInfo& trend,
+            const ImVec4& labelColor
+            )
+        {
+            ImGui::TextColored(
+                labelColor,
+                "%s",
+                label
+            );
+
+            ImGui::SameLine(
+                0.0f,
+                5.0f
+            );
+
+            const char* arrowText =
+                "-";
+
+            const char* stateText =
+                "FLAT";
+
+            ImVec4 stateColor =
+                attentionColor;
+
+            if (
+                trend.trend ==
+                PriceTrend::Up
+                )
+            {
+                arrowText =
+                    "^";
+
+                stateText =
+                    "UP";
+
+                stateColor =
+                    goodColor;
+            }
+            else if (
+                trend.trend ==
+                PriceTrend::Down
+                )
+            {
+                arrowText =
+                    "v";
+
+                stateText =
+                    "DOWN";
+
+                stateColor =
+                    trendDownColor;
+            }
+
+            ImGui::TextColored(
+                stateColor,
+                "%s %s %+.1f%%",
+                arrowText,
+                stateText,
+                trend.percentChange
+            );
+        };
+
+    auto DrawSparkline =
+        [](
+            const char* id,
+            const std::vector<float>& values,
+            const ImVec4& lineColor,
+            float width,
+            float height
+            )
+        {
+            if (values.size() < 2)
+            {
+                return;
+            }
+
+            float minValue =
+                values.front();
+
+            float maxValue =
+                values.front();
+
+            for (
+                const float value :
+            values
+                )
+            {
+                if (value < minValue)
+                {
+                    minValue =
+                        value;
+                }
+
+                if (value > maxValue)
+                {
+                    maxValue =
+                        value;
+                }
+            }
+
+            const float range =
+                maxValue -
+                minValue;
+
+            const float padding =
+                range > 0.0f
+                ? range * 0.10f
+                : (
+                    maxValue > 0.0f
+                    ? maxValue * 0.005f
+                    : 1.0f
+                    );
+
+            const float scaleMin =
+                minValue -
+                padding;
+
+            const float scaleMax =
+                maxValue +
+                padding;
+
+            const ImVec2 start =
+                ImGui::
+                GetCursorScreenPos();
+
+            ImGui::InvisibleButton(
+                id,
+                ImVec2(
+                    width,
+                    height
+                )
+            );
+
+            ImDrawList* drawList =
+                ImGui::
+                GetWindowDrawList();
+
+            const ImU32 faintLineColor =
+                ImGui::
+                ColorConvertFloat4ToU32(
+                    ImVec4(
+                        1.0f,
+                        1.0f,
+                        1.0f,
+                        0.08f
+                    )
+                );
+
+            drawList->AddLine(
+                ImVec2(
+                    start.x,
+                    start.y +
+                    height * 0.5f
+                ),
+                ImVec2(
+                    start.x +
+                    width,
+                    start.y +
+                    height * 0.5f
+                ),
+                faintLineColor,
+                1.0f
+            );
+
+            std::vector<ImVec2>
+                points;
+
+            points.reserve(
+                values.size()
+            );
+
+            const float denominator =
+                scaleMax -
+                scaleMin;
+
+            for (
+                size_t i = 0;
+                i < values.size();
+                ++i
+                )
+            {
+                const float x =
+                    start.x +
+                    (
+                        static_cast<float>(
+                            i
+                            ) /
+                        static_cast<float>(
+                            values.size() - 1
+                            )
+                        ) *
+                    width;
+
+                float normalized =
+                    0.5f;
+
+                if (denominator > 0.0f)
+                {
+                    normalized =
+                        (
+                            values[i] -
+                            scaleMin
+                            ) /
+                        denominator;
+                }
+
+                const float y =
+                    start.y +
+                    height -
+                    (
+                        normalized *
+                        height
+                        );
+
+                points.emplace_back(
+                    x,
+                    y
+                );
+            }
+
+            drawList->AddPolyline(
+                points.data(),
+                static_cast<int>(
+                    points.size()
+                    ),
+                ImGui::
+                ColorConvertFloat4ToU32(
+                    lineColor
+                ),
+                false,
+                2.0f
+            );
+        };
+
     ImGui::TextUnformatted(
         "Trading Post Watcher"
     );
@@ -1333,14 +1720,18 @@ void RenderTradingPostTab()
         "Persistent watch list using the Guild Wars 2 commerce API."
     );
 
+    ImGui::Spacing();
+
     bool autoWatch =
         TradingPostWatchManager::
         IsAutoWatchEnabled();
 
-    if (ImGui::Checkbox(
-        "Auto watch every 60 seconds",
-        &autoWatch
-    ))
+    if (
+        ImGui::Checkbox(
+            "Auto watch every 60 seconds",
+            &autoWatch
+        )
+        )
     {
         TradingPostWatchManager::
             SetAutoWatchEnabled(
@@ -1350,16 +1741,60 @@ void RenderTradingPostTab()
 
     ImGui::SameLine();
 
-    if (ImGui::Button(
-        "Refresh All"
-    ))
+    if (
+        ImGui::Button(
+            "Refresh All"
+        )
+        )
     {
         TradingPostWatchManager::
             RefreshAll();
     }
 
+    ImGui::SameLine();
+
+    const size_t indexItemCount =
+        TradingPostItemIndexManager::
+        GetItemCount();
+
+    if (indexItemCount > 0)
+    {
+        ImGui::TextDisabled(
+            "%llu items searchable",
+            static_cast<
+            unsigned long long
+            >(
+                indexItemCount
+                )
+        );
+    }
+
+    const int64_t topNextCheckSeconds =
+        TradingPostWatchManager::
+        GetSecondsUntilNextCheck();
+
+    if (
+        TradingPostWatchManager::
+        IsAutoWatchEnabled()
+        )
+    {
+        ImGui::Spacing();
+
+        ImGui::TextColored(
+            ImVec4(
+                1.00f,
+                0.72f,
+                0.18f,
+                1.00f
+            ),
+            "NEXT API REFRESH: %lld SEC",
+            topNextCheckSeconds
+        );
+    }
+
     ImGui::Spacing();
     ImGui::Separator();
+    ImGui::Spacing();
 
     std::vector<
         TradingPostWatchItem
@@ -1385,17 +1820,6 @@ void RenderTradingPostTab()
                 )
         );
 
-        ImGui::TextUnformatted(
-            item.name.c_str()
-        );
-
-        ImGui::SameLine();
-
-        ImGui::TextDisabled(
-            "(Item ID: %u)",
-            item.itemID
-        );
-
         TradingPostPrice price;
 
         const bool hasPrice =
@@ -1405,29 +1829,45 @@ void RenderTradingPostTab()
                 price
             );
 
+        const std::vector<
+            TradingPostHistoryPoint
+        > history =
+            TradingPostHistoryManager::
+            GetHistory(
+                item.itemID
+            );
+
+        const TrendInfo sellTrend =
+            CalculateTrend(
+                history,
+                true
+            );
+
+        const TrendInfo buyTrend =
+            CalculateTrend(
+                history,
+                false
+            );
+
+        std::string sellText =
+            "Loading...";
+
+        std::string buyText =
+            "Loading...";
+
+        uint64_t ageSeconds = 0;
+
         if (hasPrice)
         {
-            const std::string sellText =
+            sellText =
                 FormatCoinValue(
                     price.sellUnitPrice
                 );
 
-            const std::string buyText =
+            buyText =
                 FormatCoinValue(
                     price.buyUnitPrice
                 );
-
-            ImGui::TextColored(
-                sellColor,
-                "Sell: %s",
-                sellText.c_str()
-            );
-
-            ImGui::TextColored(
-                buyColor,
-                "Buy:  %s",
-                buyText.c_str()
-            );
 
             if (
                 price.lastUpdatedUnixSeconds >
@@ -1447,354 +1887,377 @@ void RenderTradingPostTab()
                         ).count()
                         );
 
-                const uint64_t ageSeconds =
+                ageSeconds =
                     nowUnixSeconds >=
                     price.lastUpdatedUnixSeconds
                     ? nowUnixSeconds -
                     price.lastUpdatedUnixSeconds
                     : 0;
-
-                ImGui::TextDisabled(
-                    "Updated %llu sec ago",
-                    ageSeconds
-                );
             }
         }
         else
         {
-            ImGui::TextDisabled(
-                "Price data loading..."
-            );
-
             TradingPostPriceManager::
                 RequestPrice(
                     item.itemID
                 );
         }
 
-        const std::vector<
-            TradingPostHistoryPoint
-        > history =
-            TradingPostHistoryManager::
-            GetHistory(
-                item.itemID
-            );
+        uint64_t targetCopper =
+            item.targetSellCopper;
 
-        enum class PriceTrend
+        int targetGold =
+            static_cast<int>(
+                targetCopper /
+                10000ULL
+                );
+
+        int targetSilver =
+            static_cast<int>(
+                (
+                    targetCopper %
+                    10000ULL
+                    ) /
+                100ULL
+                );
+
+        int targetCopperOnly =
+            static_cast<int>(
+                targetCopper %
+                100ULL
+                );
+
+        bool targetChanged =
+            false;
+
+        ImGui::PushStyleVar(
+            ImGuiStyleVar_CellPadding,
+            ImVec2(
+                7.0f,
+                5.0f
+            )
+        );
+
+        if (
+            ImGui::BeginTable(
+                "##WatchItemSummary",
+                5,
+                ImGuiTableFlags_SizingStretchProp |
+                ImGuiTableFlags_NoSavedSettings
+            )
+            )
         {
-            Neutral,
-            Up,
-            Down
-        };
-
-        auto CalculateTrend =
-            [](
-                const std::vector<
-                TradingPostHistoryPoint
-                >& points,
-                bool useSellPrice
-                )
-            {
-                if (points.size() < 2)
-                {
-                    return
-                        PriceTrend::Neutral;
-                }
-
-                const size_t sampleCount =
-                    points.size() >= 6
-                    ? 3
-                    : 1;
-
-                uint64_t olderTotal = 0;
-                uint64_t newerTotal = 0;
-
-                for (
-                    size_t i = 0;
-                    i < sampleCount;
-                    ++i
-                    )
-                {
-                    const TradingPostHistoryPoint&
-                        olderPoint =
-                        points[
-                            points.size() -
-                                (sampleCount * 2) +
-                                i
-                        ];
-
-                    const TradingPostHistoryPoint&
-                        newerPoint =
-                        points[
-                            points.size() -
-                                sampleCount +
-                                i
-                        ];
-
-                    olderTotal +=
-                        useSellPrice
-                        ? olderPoint.sellUnitPrice
-                        : olderPoint.buyUnitPrice;
-
-                    newerTotal +=
-                        useSellPrice
-                        ? newerPoint.sellUnitPrice
-                        : newerPoint.buyUnitPrice;
-                }
-
-                const double olderAverage =
-                    static_cast<double>(
-                        olderTotal
-                        ) /
-                    static_cast<double>(
-                        sampleCount
-                        );
-
-                const double newerAverage =
-                    static_cast<double>(
-                        newerTotal
-                        ) /
-                    static_cast<double>(
-                        sampleCount
-                        );
-
-                //
-                // Ignore tiny moves under 0.10%. They are treated
-                // as neutral so the indicator does not flicker
-                // constantly on insignificant price changes.
-                //
-                const double neutralThreshold =
-                    olderAverage *
-                    0.001;
-
-                const double difference =
-                    newerAverage -
-                    olderAverage;
-
-                if (
-                    difference >
-                    neutralThreshold
-                    )
-                {
-                    return
-                        PriceTrend::Up;
-                }
-
-                if (
-                    difference <
-                    -neutralThreshold
-                    )
-                {
-                    return
-                        PriceTrend::Down;
-                }
-
-                return
-                    PriceTrend::Neutral;
-            };
-
-        const PriceTrend sellTrend =
-            CalculateTrend(
-                history,
-                true
+            ImGui::TableSetupColumn(
+                "Item",
+                ImGuiTableColumnFlags_WidthStretch,
+                1.65f
             );
 
-        const PriceTrend buyTrend =
-            CalculateTrend(
-                history,
-                false
+            ImGui::TableSetupColumn(
+                "Sell",
+                ImGuiTableColumnFlags_WidthStretch,
+                1.15f
             );
 
-        const ImVec4 trendUpColor(
-            0.35f,
-            0.90f,
-            0.45f,
-            1.00f
-        );
+            ImGui::TableSetupColumn(
+                "Buy",
+                ImGuiTableColumnFlags_WidthStretch,
+                1.15f
+            );
 
-        const ImVec4 trendDownColor(
-            1.00f,
-            0.40f,
-            0.40f,
-            1.00f
-        );
+            ImGui::TableSetupColumn(
+                "Target",
+                ImGuiTableColumnFlags_WidthFixed,
+                190.0f
+            );
 
-        const ImVec4 trendNeutralColor(
-            1.00f,
-            0.82f,
-            0.25f,
-            1.00f
-        );
+            ImGui::TableSetupColumn(
+                "Status",
+                ImGuiTableColumnFlags_WidthFixed,
+                128.0f
+            );
 
-        auto DrawTrendIndicator =
-            [](
-                const char* label,
-                PriceTrend trend,
-                const ImVec4& labelColor,
-                const ImVec4& upColor,
-                const ImVec4& downColor,
-                const ImVec4& neutralColor
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(
+                0
+            );
+
+            ImGui::PushStyleColor(
+                ImGuiCol_Text,
+                itemNameColor
+            );
+
+            ImGui::TextWrapped(
+                "%s",
+                item.name.c_str()
+            );
+
+            ImGui::PopStyleColor();
+
+            if (hasPrice)
+            {
+                ImGui::TextDisabled(
+                    "Item ID: %u  |  Updated %llu sec ago",
+                    item.itemID,
+                    ageSeconds
+                );
+            }
+            else
+            {
+                ImGui::TextDisabled(
+                    "Item ID: %u  |  Price data loading...",
+                    item.itemID
+                );
+            }
+
+            ImGui::TableSetColumnIndex(
+                1
+            );
+
+            ImGui::TextDisabled(
+                "Sell"
+            );
+
+            ImGui::TextColored(
+                sellColor,
+                "%s",
+                sellText.c_str()
+            );
+
+            ImGui::TableSetColumnIndex(
+                2
+            );
+
+            ImGui::TextDisabled(
+                "Buy"
+            );
+
+            ImGui::TextColored(
+                buyColor,
+                "%s",
+                buyText.c_str()
+            );
+
+            ImGui::TableSetColumnIndex(
+                3
+            );
+
+            ImGui::TextDisabled(
+                "Target"
+            );
+
+            ImGui::SetNextItemWidth(
+                52.0f
+            );
+
+            if (
+                ImGui::InputInt(
+                    "##TargetGold",
+                    &targetGold,
+                    0,
+                    0
+                )
                 )
             {
-                const char* trendText =
-                    "FLAT";
+                targetChanged =
+                    true;
+            }
 
-                ImVec4 trendColor =
-                    neutralColor;
+            ImGui::SameLine(
+                0.0f,
+                3.0f
+            );
+
+            ImGui::TextDisabled(
+                "g"
+            );
+
+            ImGui::SameLine(
+                0.0f,
+                6.0f
+            );
+
+            ImGui::SetNextItemWidth(
+                42.0f
+            );
+
+            if (
+                ImGui::InputInt(
+                    "##TargetSilver",
+                    &targetSilver,
+                    0,
+                    0
+                )
+                )
+            {
+                targetChanged =
+                    true;
+            }
+
+            ImGui::SameLine(
+                0.0f,
+                3.0f
+            );
+
+            ImGui::TextDisabled(
+                "s"
+            );
+
+            ImGui::SameLine(
+                0.0f,
+                6.0f
+            );
+
+            ImGui::SetNextItemWidth(
+                42.0f
+            );
+
+            if (
+                ImGui::InputInt(
+                    "##TargetCopper",
+                    &targetCopperOnly,
+                    0,
+                    0
+                )
+                )
+            {
+                targetChanged =
+                    true;
+            }
+
+            ImGui::SameLine(
+                0.0f,
+                3.0f
+            );
+
+            ImGui::TextDisabled(
+                "c"
+            );
+
+            ImGui::TableSetColumnIndex(
+                4
+            );
+
+            ImGui::TextDisabled(
+                "Status"
+            );
+
+            if (
+                item.targetSellCopper ==
+                0
+                )
+            {
+                ImGui::TextDisabled(
+                    "NO TARGET"
+                );
+            }
+            else if (!hasPrice)
+            {
+                ImGui::TextDisabled(
+                    "WAITING"
+                );
+            }
+            else if (
+                static_cast<uint64_t>(
+                    price.sellUnitPrice
+                    ) <=
+                item.targetSellCopper
+                )
+            {
+                ImGui::TextColored(
+                    goodColor,
+                    "TARGET REACHED"
+                );
+            }
+            else
+            {
+                ImGui::TextColored(
+                    attentionColor,
+                    "WAIT"
+                );
+            }
+
+            if (
+                ImGui::SmallButton(
+                    "Refresh"
+                )
+                )
+            {
+                TradingPostWatchManager::
+                    RefreshItem(
+                        item.itemID
+                    );
+            }
+
+            if (!item.isDefault)
+            {
+                ImGui::SameLine();
 
                 if (
-                    trend ==
-                    PriceTrend::Up
+                    ImGui::SmallButton(
+                        "Remove"
+                    )
                     )
                 {
-                    trendText =
-                        "UP";
-
-                    trendColor =
-                        upColor;
+                    TradingPostWatchManager::
+                        RemoveItem(
+                            item.itemID
+                        );
                 }
-                else if (
-                    trend ==
-                    PriceTrend::Down
-                    )
-                {
-                    trendText =
-                        "DOWN";
+            }
 
-                    trendColor =
-                        downColor;
-                }
+            ImGui::EndTable();
+        }
 
-                ImGui::TextColored(
-                    labelColor,
-                    "%s",
-                    label
-                );
+        ImGui::PopStyleVar();
 
-                ImGui::SameLine(
-                    0.0f,
-                    6.0f
-                );
+        if (targetGold < 0)
+        {
+            targetGold = 0;
+        }
 
-                const ImVec2 arrowStart =
-                    ImGui::
-                    GetCursorScreenPos();
+        if (targetSilver < 0)
+        {
+            targetSilver = 0;
+        }
 
-                const float arrowSize =
-                    ImGui::
-                    GetTextLineHeight() *
-                    0.75f;
+        if (targetSilver > 99)
+        {
+            targetSilver = 99;
+        }
 
-                ImDrawList* drawList =
-                    ImGui::
-                    GetWindowDrawList();
+        if (targetCopperOnly < 0)
+        {
+            targetCopperOnly = 0;
+        }
 
-                const ImU32 arrowColor =
-                    ImGui::
-                    ColorConvertFloat4ToU32(
-                        trendColor
+        if (targetCopperOnly > 99)
+        {
+            targetCopperOnly = 99;
+        }
+
+        if (targetChanged)
+        {
+            const uint64_t newTargetCopper =
+                static_cast<uint64_t>(
+                    targetGold
+                    ) *
+                10000ULL +
+                static_cast<uint64_t>(
+                    targetSilver
+                    ) *
+                100ULL +
+                static_cast<uint64_t>(
+                    targetCopperOnly
                     );
 
-                if (
-                    trend ==
-                    PriceTrend::Up
-                    )
-                {
-                    drawList->AddTriangleFilled(
-                        ImVec2(
-                            arrowStart.x +
-                            arrowSize * 0.5f,
-                            arrowStart.y
-                        ),
-                        ImVec2(
-                            arrowStart.x,
-                            arrowStart.y +
-                            arrowSize
-                        ),
-                        ImVec2(
-                            arrowStart.x +
-                            arrowSize,
-                            arrowStart.y +
-                            arrowSize
-                        ),
-                        arrowColor
-                    );
-                }
-                else if (
-                    trend ==
-                    PriceTrend::Down
-                    )
-                {
-                    drawList->AddTriangleFilled(
-                        ImVec2(
-                            arrowStart.x,
-                            arrowStart.y
-                        ),
-                        ImVec2(
-                            arrowStart.x +
-                            arrowSize,
-                            arrowStart.y
-                        ),
-                        ImVec2(
-                            arrowStart.x +
-                            arrowSize * 0.5f,
-                            arrowStart.y +
-                            arrowSize
-                        ),
-                        arrowColor
-                    );
-                }
-                else
-                {
-                    drawList->AddLine(
-                        ImVec2(
-                            arrowStart.x,
-                            arrowStart.y +
-                            arrowSize * 0.5f
-                        ),
-                        ImVec2(
-                            arrowStart.x +
-                            arrowSize,
-                            arrowStart.y +
-                            arrowSize * 0.5f
-                        ),
-                        arrowColor,
-                        2.5f
-                    );
-                }
-
-                ImGui::Dummy(
-                    ImVec2(
-                        arrowSize,
-                        arrowSize
-                    )
+            TradingPostWatchManager::
+                SetTargetSellPrice(
+                    item.itemID,
+                    newTargetCopper
                 );
-
-                ImGui::SameLine(
-                    0.0f,
-                    6.0f
-                );
-
-                ImGui::TextColored(
-                    trendColor,
-                    "%s",
-                    trendText
-                );
-            };
-
-        const char* sellTrendText =
-            sellTrend == PriceTrend::Up
-            ? "UP"
-            : sellTrend == PriceTrend::Down
-            ? "DOWN"
-            : "FLAT";
-
-        const char* buyTrendText =
-            buyTrend == PriceTrend::Up
-            ? "UP"
-            : buyTrend == PriceTrend::Down
-            ? "DOWN"
-            : "FLAT";
+        }
 
         const std::string historyHeader =
             "History (" +
@@ -1816,55 +2279,21 @@ void RenderTradingPostTab()
             12.0f
         );
 
-        ImGui::TextColored(
-            sellColor,
-            "Sell"
+        DrawTrendText(
+            "Sell",
+            sellTrend,
+            sellColor
         );
 
         ImGui::SameLine(
             0.0f,
-            4.0f
+            14.0f
         );
 
-        const ImVec4 sellTrendColor =
-            sellTrend == PriceTrend::Up
-            ? trendUpColor
-            : sellTrend == PriceTrend::Down
-            ? trendDownColor
-            : trendNeutralColor;
-
-        ImGui::TextColored(
-            sellTrendColor,
-            "%s",
-            sellTrendText
-        );
-
-        ImGui::SameLine(
-            0.0f,
-            10.0f
-        );
-
-        ImGui::TextColored(
-            buyColor,
-            "Buy"
-        );
-
-        ImGui::SameLine(
-            0.0f,
-            4.0f
-        );
-
-        const ImVec4 buyTrendColor =
-            buyTrend == PriceTrend::Up
-            ? trendUpColor
-            : buyTrend == PriceTrend::Down
-            ? trendDownColor
-            : trendNeutralColor;
-
-        ImGui::TextColored(
-            buyTrendColor,
-            "%s",
-            buyTrendText
+        DrawTrendText(
+            "Buy",
+            buyTrend,
+            buyColor
         );
 
         if (historyOpen)
@@ -1987,472 +2416,158 @@ void RenderTradingPostTab()
                         averageSell
                     );
 
-                ImGui::TextColored(
-                    sellColor,
-                    "SELL"
+                std::vector<float>
+                    buyHistoryGold;
+
+                std::vector<float>
+                    sellHistoryGold;
+
+                buyHistoryGold.reserve(
+                    history.size()
                 );
 
-                ImGui::SameLine();
-
-                ImGui::TextDisabled(
-                    "Min %s | Avg %s | Max %s",
-                    minSellText.c_str(),
-                    averageSellText.c_str(),
-                    maxSellText.c_str()
+                sellHistoryGold.reserve(
+                    history.size()
                 );
 
-                ImGui::TextColored(
-                    buyColor,
-                    "BUY"
-                );
-
-                ImGui::SameLine();
-
-                ImGui::TextDisabled(
-                    "Min %s | Avg %s | Max %s",
-                    minBuyText.c_str(),
-                    averageBuyText.c_str(),
-                    maxBuyText.c_str()
-                );
-
-                if (history.size() >= 2)
+                for (
+                    const TradingPostHistoryPoint&
+                    point :
+                    history
+                    )
                 {
-                    std::vector<float>
-                        buyHistoryGold;
-
-                    std::vector<float>
-                        sellHistoryGold;
-
-                    buyHistoryGold.reserve(
-                        history.size()
+                    buyHistoryGold.push_back(
+                        static_cast<float>(
+                            point.buyUnitPrice
+                            ) /
+                        10000.0f
                     );
 
-                    sellHistoryGold.reserve(
-                        history.size()
+                    sellHistoryGold.push_back(
+                        static_cast<float>(
+                            point.sellUnitPrice
+                            ) /
+                        10000.0f
+                    );
+                }
+
+                ImGui::Indent(
+                    10.0f
+                );
+
+                if (
+                    ImGui::BeginTable(
+                        "##HistoryDetails",
+                        2,
+                        ImGuiTableFlags_SizingStretchProp |
+                        ImGuiTableFlags_NoSavedSettings
+                    )
+                    )
+                {
+                    ImGui::TableSetupColumn(
+                        "Charts",
+                        ImGuiTableColumnFlags_WidthStretch,
+                        1.55f
                     );
 
-                    for (
-                        const TradingPostHistoryPoint&
-                        point :
-                        history
-                        )
-                    {
-                        buyHistoryGold.push_back(
-                            static_cast<float>(
-                                point.buyUnitPrice
-                                ) /
-                            10000.0f
-                        );
+                    ImGui::TableSetupColumn(
+                        "Stats",
+                        ImGuiTableColumnFlags_WidthStretch,
+                        1.00f
+                    );
 
-                        sellHistoryGold.push_back(
-                            static_cast<float>(
-                                point.sellUnitPrice
-                                ) /
-                            10000.0f
-                        );
-                    }
+                    ImGui::TableNextRow();
 
-                    const float chartWidth =
-                        300.0f;
+                    ImGui::TableSetColumnIndex(
+                        0
+                    );
 
-                    const float chartHeight =
-                        34.0f;
+                    ImGui::TextColored(
+                        sellColor,
+                        "Sell history"
+                    );
 
-                    auto DrawSparkline =
-                        [](
-                            const char* id,
-                            const std::vector<float>& values,
-                            const ImVec4& lineColor,
-                            float width,
-                            float height
-                            )
-                        {
-                            if (values.size() < 2)
-                            {
-                                return;
-                            }
+                    DrawSparkline(
+                        "##SellHistorySparkline",
+                        sellHistoryGold,
+                        sellColor,
+                        ImGui::GetContentRegionAvail().x,
+                        38.0f
+                    );
 
-                            float minValue =
-                                values.front();
+                    ImGui::Spacing();
 
-                            float maxValue =
-                                values.front();
+                    ImGui::TextColored(
+                        buyColor,
+                        "Buy history"
+                    );
 
-                            for (
-                                const float value :
-                            values
-                                )
-                            {
-                                if (value < minValue)
-                                {
-                                    minValue = value;
-                                }
+                    DrawSparkline(
+                        "##BuyHistorySparkline",
+                        buyHistoryGold,
+                        buyColor,
+                        ImGui::GetContentRegionAvail().x,
+                        38.0f
+                    );
 
-                                if (value > maxValue)
-                                {
-                                    maxValue = value;
-                                }
-                            }
-
-                            const float range =
-                                maxValue -
-                                minValue;
-
-                            const float padding =
-                                range > 0.0f
-                                ? range * 0.10f
-                                : (
-                                    maxValue > 0.0f
-                                    ? maxValue * 0.005f
-                                    : 1.0f
-                                    );
-
-                            const float scaleMin =
-                                minValue -
-                                padding;
-
-                            const float scaleMax =
-                                maxValue +
-                                padding;
-
-                            const ImVec2 start =
-                                ImGui::
-                                GetCursorScreenPos();
-
-                            ImGui::InvisibleButton(
-                                id,
-                                ImVec2(
-                                    width,
-                                    height
-                                )
-                            );
-
-                            ImDrawList* drawList =
-                                ImGui::
-                                GetWindowDrawList();
-
-                            drawList->AddLine(
-                                ImVec2(
-                                    start.x,
-                                    start.y +
-                                    height - 1.0f
-                                ),
-                                ImVec2(
-                                    start.x +
-                                    width,
-                                    start.y +
-                                    height - 1.0f
-                                ),
-                                IM_COL32(
-                                    255,
-                                    255,
-                                    255,
-                                    32
-                                ),
-                                1.0f
-                            );
-
-                            std::vector<ImVec2>
-                                points;
-
-                            points.reserve(
-                                values.size()
-                            );
-
-                            const float denominator =
-                                scaleMax -
-                                scaleMin;
-
-                            for (
-                                size_t i = 0;
-                                i < values.size();
-                                ++i
-                                )
-                            {
-                                const float x =
-                                    start.x +
-                                    (
-                                        static_cast<float>(
-                                            i
-                                            ) /
-                                        static_cast<float>(
-                                            values.size() - 1
-                                            )
-                                        ) *
-                                    width;
-
-                                float normalized = 0.5f;
-
-                                if (denominator > 0.0f)
-                                {
-                                    normalized =
-                                        (
-                                            values[i] -
-                                            scaleMin
-                                            ) /
-                                        denominator;
-                                }
-
-                                const float y =
-                                    start.y +
-                                    height -
-                                    (
-                                        normalized *
-                                        height
-                                        );
-
-                                points.emplace_back(
-                                    x,
-                                    y
-                                );
-                            }
-
-                            drawList->AddPolyline(
-                                points.data(),
-                                static_cast<int>(
-                                    points.size()
-                                    ),
-                                ImGui::
-                                ColorConvertFloat4ToU32(
-                                    lineColor
-                                ),
-                                false,
-                                2.0f
-                            );
-                        };
+                    ImGui::TableSetColumnIndex(
+                        1
+                    );
 
                     ImGui::TextColored(
                         sellColor,
                         "Sell"
                     );
 
-                    ImGui::SameLine();
+                    ImGui::Text(
+                        "Min  %s",
+                        minSellText.c_str()
+                    );
 
-                    ImGui::TextDisabled(
-                        "%s - %s",
-                        minSellText.c_str(),
+                    ImGui::Text(
+                        "Avg  %s",
+                        averageSellText.c_str()
+                    );
+
+                    ImGui::Text(
+                        "Max  %s",
                         maxSellText.c_str()
                     );
 
-                    DrawSparkline(
-                        "##SellPriceSparkline",
-                        sellHistoryGold,
-                        sellColor,
-                        chartWidth,
-                        chartHeight
-                    );
+                    ImGui::Spacing();
 
                     ImGui::TextColored(
                         buyColor,
                         "Buy"
                     );
 
-                    ImGui::SameLine();
+                    ImGui::Text(
+                        "Min  %s",
+                        minBuyText.c_str()
+                    );
 
-                    ImGui::TextDisabled(
-                        "%s - %s",
-                        minBuyText.c_str(),
+                    ImGui::Text(
+                        "Avg  %s",
+                        averageBuyText.c_str()
+                    );
+
+                    ImGui::Text(
+                        "Max  %s",
                         maxBuyText.c_str()
                     );
 
-                    DrawSparkline(
-                        "##BuyPriceSparkline",
-                        buyHistoryGold,
-                        buyColor,
-                        chartWidth,
-                        chartHeight
-                    );
+                    ImGui::EndTable();
                 }
-                else
-                {
-                    ImGui::TextDisabled(
-                        "Charts need at least 2 observations."
-                    );
-                }
-            }
-        }
 
-        uint64_t targetCopper =
-            item.targetSellCopper;
-
-        int targetGold =
-            static_cast<int>(
-                targetCopper / 10000ULL
+                ImGui::Unindent(
+                    10.0f
                 );
-
-        int targetSilver =
-            static_cast<int>(
-                (targetCopper % 10000ULL) /
-                100ULL
-                );
-
-        int targetCopperOnly =
-            static_cast<int>(
-                targetCopper % 100ULL
-                );
-
-        bool targetChanged = false;
-
-        ImGui::SetNextItemWidth(
-            110.0f
-        );
-
-        if (ImGui::InputInt(
-            "Gold",
-            &targetGold
-        ))
-        {
-            targetChanged = true;
-        }
-
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth(
-            90.0f
-        );
-
-        if (ImGui::InputInt(
-            "Silver",
-            &targetSilver
-        ))
-        {
-            targetChanged = true;
-        }
-
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth(
-            90.0f
-        );
-
-        if (ImGui::InputInt(
-            "Copper",
-            &targetCopperOnly
-        ))
-        {
-            targetChanged = true;
-        }
-
-        if (targetGold < 0)
-        {
-            targetGold = 0;
-        }
-
-        if (targetSilver < 0)
-        {
-            targetSilver = 0;
-        }
-
-        if (targetSilver > 99)
-        {
-            targetSilver = 99;
-        }
-
-        if (targetCopperOnly < 0)
-        {
-            targetCopperOnly = 0;
-        }
-
-        if (targetCopperOnly > 99)
-        {
-            targetCopperOnly = 99;
-        }
-
-        if (targetChanged)
-        {
-            const uint64_t newTargetCopper =
-                static_cast<uint64_t>(
-                    targetGold
-                    ) * 10000ULL +
-                static_cast<uint64_t>(
-                    targetSilver
-                    ) * 100ULL +
-                static_cast<uint64_t>(
-                    targetCopperOnly
-                    );
-
-            TradingPostWatchManager::
-                SetTargetSellPrice(
-                    item.itemID,
-                    newTargetCopper
-                );
-        }
-
-        if (item.targetSellCopper == 0)
-        {
-            ImGui::TextDisabled(
-                "Status: Set a target sell price."
-            );
-        }
-        else if (!hasPrice)
-        {
-            ImGui::TextDisabled(
-                "Status: Waiting for price data."
-            );
-        }
-        else if (
-            static_cast<uint64_t>(
-                price.sellUnitPrice
-                ) <=
-            item.targetSellCopper
-            )
-        {
-            ImGui::TextColored(
-                goodColor,
-                "TARGET REACHED"
-            );
-        }
-        else
-        {
-            ImGui::TextColored(
-                attentionColor,
-                "WAIT"
-            );
-
-            const uint64_t difference =
-                static_cast<uint64_t>(
-                    price.sellUnitPrice
-                    ) -
-                item.targetSellCopper;
-
-            const std::string differenceText =
-                FormatCoinValue(
-                    difference
-                );
-
-            ImGui::Text(
-                "Above target by: %s",
-                differenceText.c_str()
-            );
-        }
-
-        if (ImGui::Button(
-            "Refresh Now"
-        ))
-        {
-            TradingPostWatchManager::
-                RefreshItem(
-                    item.itemID
-                );
-        }
-
-        if (!item.isDefault)
-        {
-            ImGui::SameLine();
-
-            if (ImGui::Button(
-                "Remove"
-            ))
-            {
-                TradingPostWatchManager::
-                    RemoveItem(
-                        item.itemID
-                    );
             }
         }
 
         ImGui::Spacing();
         ImGui::Separator();
+        ImGui::Spacing();
 
         ImGui::PopID();
     }
@@ -2480,10 +2595,6 @@ void RenderTradingPostTab()
         TradingPostItemIndexManager::
         IsBuilding();
 
-    const size_t indexItemCount =
-        TradingPostItemIndexManager::
-        GetItemCount();
-
     const size_t buildProcessed =
         TradingPostItemIndexManager::
         GetBuildProcessedCount();
@@ -2498,10 +2609,14 @@ void RenderTradingPostTab()
         {
             ImGui::TextDisabled(
                 "Building item search index: %llu / %llu",
-                static_cast<unsigned long long>(
+                static_cast<
+                unsigned long long
+                >(
                     buildProcessed
                     ),
-                static_cast<unsigned long long>(
+                static_cast<
+                unsigned long long
+                >(
                     buildTotal
                     )
             );
@@ -2517,7 +2632,9 @@ void RenderTradingPostTab()
     {
         ImGui::TextDisabled(
             "%llu Trading Post items available to search.",
-            static_cast<unsigned long long>(
+            static_cast<
+            unsigned long long
+            >(
                 indexItemCount
                 )
         );
@@ -2536,12 +2653,7 @@ void RenderTradingPostTab()
     if (!indexError.empty())
     {
         ImGui::TextColored(
-            ImVec4(
-                1.00f,
-                0.35f,
-                0.35f,
-                1.00f
-            ),
+            trendDownColor,
             "%s",
             indexError.c_str()
         );
@@ -2588,7 +2700,8 @@ void RenderTradingPostTab()
         if (searchTextChanged)
         {
             searchStatus.clear();
-            searchStatusError = false;
+            searchStatusError =
+                false;
         }
 
         searchResults.clear();
@@ -2607,9 +2720,11 @@ void RenderTradingPostTab()
         }
     }
 
-    bool selectedSearchItem = false;
+    bool selectedSearchItem =
+        false;
 
-    TradingPostIndexedItem selectedItem;
+    TradingPostIndexedItem
+        selectedItem;
 
     if (
         currentSearchText.size() >= 2 &&
@@ -2625,7 +2740,8 @@ void RenderTradingPostTab()
         else
         {
             const float rowHeight =
-                ImGui::GetTextLineHeightWithSpacing();
+                ImGui::
+                GetTextLineHeightWithSpacing();
 
             const float suggestionHeight =
                 rowHeight *
@@ -2741,12 +2857,7 @@ void RenderTradingPostTab()
         if (searchStatusError)
         {
             ImGui::TextColored(
-                ImVec4(
-                    1.00f,
-                    0.35f,
-                    0.35f,
-                    1.00f
-                ),
+                trendDownColor,
                 "%s",
                 searchStatus.c_str()
             );
@@ -2762,21 +2873,6 @@ void RenderTradingPostTab()
     }
 
     ImGui::Spacing();
-
-    const int64_t nextCheckSeconds =
-        TradingPostWatchManager::
-        GetSecondsUntilNextCheck();
-
-    if (
-        TradingPostWatchManager::
-        IsAutoWatchEnabled()
-        )
-    {
-        ImGui::TextDisabled(
-            "Next automatic check in: %lld sec",
-            nextCheckSeconds
-        );
-    }
 
     ImGui::TextDisabled(
         "Watch list and target prices are saved automatically."
