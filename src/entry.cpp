@@ -3,6 +3,7 @@
 #include <string>
 #include <cfloat>
 #include <array>
+#include "ConsumableMetadataManager.h"
 
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
@@ -319,6 +320,7 @@ void AddonLoad(AddonAPI_t* aApi)
     BuffTracker::RestorePrimerState();
     SquadTracker::RestoreUnknownConsumables();
     TradingPostPriceManager::Start();
+    ConsumableMetadataManager::Start();
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
 
@@ -381,6 +383,8 @@ void AddonUnload()
 
     TradingPostPriceManager::Shutdown();
     TradingPostPriceManager::Reset();
+    ConsumableMetadataManager::Shutdown();
+    ConsumableMetadataManager::Reset();
 
     ExtrasIntegration::Reset();
     SquadTracker::Reset();
@@ -1005,7 +1009,9 @@ void AddonRender()
     {
         SessionTracker::Update(
             hasFood,
+            BuffTracker::GetFoodSkillID(),
             hasUtility,
+            BuffTracker::GetUtilitySkillID(),
             hasMetabolicPrimer,
             hasUtilityPrimer,
             inCombat
@@ -2547,15 +2553,153 @@ void RenderSessionTab()
             stats.combatMilliseconds
         );
 
-    const double metabolicPrimerUsesSaved =
-        static_cast<double>(
-            stats.metabolicPrimerActiveMilliseconds
-            ) / (30.0 * 60.0 * 1000.0);
+    double metabolicPrimerUsesSaved = 0.0;
+    double metabolicPrimerCopperSaved = 0.0;
 
-    const double utilityPrimerUsesSaved =
-        static_cast<double>(
-            stats.utilityPrimerActiveMilliseconds
-            ) / (30.0 * 60.0 * 1000.0);
+    for (
+        const SessionPrimerProtectedUsage& usage :
+        stats.foodPrimerProtection
+        )
+    {
+        const ConsumableInfo& info =
+            ConsumableData::GetFoodInfo(
+                usage.skillID
+            );
+
+        if (info.itemID == 0)
+        {
+            continue;
+        }
+
+        ConsumableMetadataManager::RequestMetadata(
+            info.itemID
+        );
+
+        ConsumableMetadata metadata;
+
+        if (
+            !ConsumableMetadataManager::TryGetMetadata(
+                info.itemID,
+                metadata
+            ) ||
+            metadata.durationMilliseconds == 0
+            )
+        {
+            continue;
+        }
+
+        const double usesSaved =
+            static_cast<double>(
+                usage.protectedMilliseconds
+                ) /
+            static_cast<double>(
+                metadata.durationMilliseconds
+                );
+
+        metabolicPrimerUsesSaved +=
+            usesSaved;
+
+        TradingPostPriceManager::RequestPrice(
+            info.itemID
+        );
+
+        TradingPostPrice price;
+
+        if (
+            TradingPostPriceManager::TryGetPrice(
+                info.itemID,
+                price
+            )
+            )
+        {
+            metabolicPrimerCopperSaved +=
+                usesSaved *
+                static_cast<double>(
+                    price.sellUnitPrice
+                    );
+        }
+    }
+
+    double utilityPrimerUsesSaved = 0.0;
+    double utilityPrimerCopperSaved = 0.0;
+
+    for (
+        const SessionPrimerProtectedUsage& usage :
+        stats.utilityPrimerProtection
+        )
+    {
+        const ConsumableInfo& info =
+            ConsumableData::GetUtilityInfo(
+                usage.skillID
+            );
+
+        if (info.itemID == 0)
+        {
+            continue;
+        }
+
+        ConsumableMetadataManager::RequestMetadata(
+            info.itemID
+        );
+
+        ConsumableMetadata metadata;
+
+        if (
+            !ConsumableMetadataManager::TryGetMetadata(
+                info.itemID,
+                metadata
+            ) ||
+            metadata.durationMilliseconds == 0
+            )
+        {
+            continue;
+        }
+
+        const double usesSaved =
+            static_cast<double>(
+                usage.protectedMilliseconds
+                ) /
+            static_cast<double>(
+                metadata.durationMilliseconds
+                );
+
+        utilityPrimerUsesSaved +=
+            usesSaved;
+
+        TradingPostPriceManager::RequestPrice(
+            info.itemID
+        );
+
+        TradingPostPrice price;
+
+        if (
+            TradingPostPriceManager::TryGetPrice(
+                info.itemID,
+                price
+            )
+            )
+        {
+            utilityPrimerCopperSaved +=
+                usesSaved *
+                static_cast<double>(
+                    price.sellUnitPrice
+                    );
+        }
+    }
+
+    const uint64_t metabolicPrimerCopperSavedRounded =
+        static_cast<uint64_t>(
+            metabolicPrimerCopperSaved + 0.5
+            );
+
+    const uint64_t utilityPrimerCopperSavedRounded =
+        static_cast<uint64_t>(
+            utilityPrimerCopperSaved + 0.5
+            );
+
+    const uint64_t totalPrimerCopperSaved =
+        metabolicPrimerCopperSavedRounded +
+        utilityPrimerCopperSavedRounded;
 
     ImGui::TextUnformatted(
         "Session Report"
@@ -2625,6 +2769,13 @@ void RenderSessionTab()
     ImGui::Text(
         "Primer Uses Saved: %.2f",
         metabolicPrimerUsesSaved
+    );
+
+    ImGui::Text(
+        "Primer Gold Saved: %llug %llus %lluc",
+        metabolicPrimerCopperSavedRounded / 10000,
+        (metabolicPrimerCopperSavedRounded % 10000) / 100,
+        metabolicPrimerCopperSavedRounded % 100
     );
 
     ImGui::Text(
@@ -2870,6 +3021,13 @@ void RenderSessionTab()
         "Primer Uses Saved: %.2f",
         utilityPrimerUsesSaved
     );
+
+    ImGui::Text(
+        "Primer Gold Saved: %llug %llus %lluc",
+        utilityPrimerCopperSavedRounded / 10000,
+        (utilityPrimerCopperSavedRounded % 10000) / 100,
+        utilityPrimerCopperSavedRounded % 100
+    );
     ImGui::Text(
         "Applications: %u",
         stats.utilityApplications
@@ -3045,6 +3203,14 @@ void RenderSessionTab()
     ImGui::TextUnformatted(
         "Efficiency"
     );
+
+    ImGui::Text(
+        "Total Primer Gold Saved: %llug %llus %lluc",
+        totalPrimerCopperSaved / 10000,
+        (totalPrimerCopperSaved % 10000) / 100,
+        totalPrimerCopperSaved % 100
+    );
+
 
     const int64_t totalWastedMilliseconds =
         stats.foodWastedMilliseconds +

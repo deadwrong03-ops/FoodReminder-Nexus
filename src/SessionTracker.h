@@ -8,6 +8,13 @@ struct SessionConsumableUsage
     uint32_t skillID = 0;
     uint32_t uses = 0;
 };
+
+struct SessionPrimerProtectedUsage
+{
+    uint32_t skillID = 0;
+    int64_t protectedMilliseconds = 0;
+};
+
 enum class SessionConsumableEventType
 {
     Applied,
@@ -49,6 +56,7 @@ struct SessionStats
     int64_t foodWastedMilliseconds = 0;
     int64_t worstFoodWasteMilliseconds = 0;
     uint32_t worstFoodWasteSkillID = 0;
+
     uint32_t utilityApplications = 0;
     uint32_t utilityRefreshes = 0;
     uint32_t utilityReplacements = 0;
@@ -56,27 +64,37 @@ struct SessionStats
     int64_t utilityWastedMilliseconds = 0;
     int64_t worstUtilityWasteMilliseconds = 0;
     uint32_t worstUtilityWasteSkillID = 0;
+
     // Primer savings tracking.
     int64_t metabolicPrimerActiveMilliseconds = 0;
     int64_t utilityPrimerActiveMilliseconds = 0;
 
     uint32_t estimatedFoodUsesSaved = 0;
     uint32_t estimatedUtilityUsesSaved = 0;
+
+    std::vector<SessionPrimerProtectedUsage>
+        foodPrimerProtection;
+
+    std::vector<SessionPrimerProtectedUsage>
+        utilityPrimerProtection;
+
     std::vector<SessionConsumableUsage>
         foodUsage;
 
     std::vector<SessionConsumableUsage>
         utilityUsage;
+
     std::vector<SessionConsumableEvent>
         consumableHistory;
-
 };
 
 namespace SessionTracker
 {
     void Update(
         bool hasFood,
+        uint32_t foodSkillID,
         bool hasUtility,
+        uint32_t utilitySkillID,
         bool hasMetabolicPrimer,
         bool hasUtilityPrimer,
         bool inCombat

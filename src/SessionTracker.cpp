@@ -11,6 +11,7 @@ namespace
 
     uint32_t g_LastFoodSkillID = 0;
     uint32_t g_LastUtilitySkillID = 0;
+
     void IncrementUsage(
         std::vector<SessionConsumableUsage>& usageList,
         uint32_t skillID
@@ -40,6 +41,48 @@ namespace
             newEntry
         );
     }
+
+    void AddPrimerProtectedTime(
+        std::vector<SessionPrimerProtectedUsage>& usageList,
+        uint32_t skillID,
+        int64_t elapsedMilliseconds
+    )
+    {
+        if (
+            skillID == 0 ||
+            elapsedMilliseconds <= 0
+            )
+        {
+            return;
+        }
+
+        for (
+            SessionPrimerProtectedUsage& usage :
+            usageList
+            )
+        {
+            if (usage.skillID == skillID)
+            {
+                usage.protectedMilliseconds +=
+                    elapsedMilliseconds;
+
+                return;
+            }
+        }
+
+        SessionPrimerProtectedUsage newUsage;
+
+        newUsage.skillID =
+            skillID;
+
+        newUsage.protectedMilliseconds =
+            elapsedMilliseconds;
+
+        usageList.push_back(
+            newUsage
+        );
+    }
+
     void AddHistoryEvent(
         uint32_t skillID,
         uint32_t previousSkillID,
@@ -59,13 +102,16 @@ namespace
 
         event.previousSkillID =
             previousSkillID;
+
         event.previousRemainingMilliseconds =
             previousRemainingMilliseconds;
 
         event.isFood =
             isFood;
+
         event.inCombat =
             inCombat;
+
         event.type =
             type;
 
@@ -73,6 +119,7 @@ namespace
             event
         );
     }
+
     bool g_HasLastUpdate = false;
 
     std::chrono::steady_clock::time_point
@@ -81,7 +128,9 @@ namespace
 
 void SessionTracker::Update(
     bool hasFood,
+    uint32_t foodSkillID,
     bool hasUtility,
+    uint32_t utilitySkillID,
     bool hasMetabolicPrimer,
     bool hasUtilityPrimer,
     bool inCombat
@@ -98,6 +147,7 @@ void SessionTracker::Update(
     {
         g_LastUpdateTime = now;
         g_HasLastUpdate = true;
+
         return;
     }
 
@@ -130,6 +180,7 @@ void SessionTracker::Update(
         g_Stats.utilityActiveMilliseconds +=
             elapsedMilliseconds;
     }
+
     if (
         hasFood &&
         hasMetabolicPrimer
@@ -137,6 +188,12 @@ void SessionTracker::Update(
     {
         g_Stats.metabolicPrimerActiveMilliseconds +=
             elapsedMilliseconds;
+
+        AddPrimerProtectedTime(
+            g_Stats.foodPrimerProtection,
+            foodSkillID,
+            elapsedMilliseconds
+        );
     }
 
     if (
@@ -146,6 +203,12 @@ void SessionTracker::Update(
     {
         g_Stats.utilityPrimerActiveMilliseconds +=
             elapsedMilliseconds;
+
+        AddPrimerProtectedTime(
+            g_Stats.utilityPrimerProtection,
+            utilitySkillID,
+            elapsedMilliseconds
+        );
     }
 
     if (inCombat)
@@ -177,10 +240,12 @@ void SessionTracker::RecordFoodApplication(
     );
 
     ++g_Stats.foodApplications;
+
     IncrementUsage(
         g_Stats.foodUsage,
         skillID
     );
+
     if (g_LastFoodSkillID == 0)
     {
         AddHistoryEvent(
@@ -214,6 +279,7 @@ void SessionTracker::RecordFoodApplication(
             SessionConsumableEventType::Replaced
         );
     }
+
     if (g_LastFoodSkillID != 0)
     {
         if (g_LastFoodSkillID == skillID)
@@ -223,8 +289,10 @@ void SessionTracker::RecordFoodApplication(
         else
         {
             ++g_Stats.foodReplacements;
+
             g_Stats.foodWastedMilliseconds +=
                 previousRemainingMilliseconds;
+
             if (
                 previousRemainingMilliseconds >
                 g_Stats.worstFoodWasteMilliseconds
@@ -253,10 +321,12 @@ void SessionTracker::RecordUtilityApplication(
     );
 
     ++g_Stats.utilityApplications;
+
     IncrementUsage(
         g_Stats.utilityUsage,
         skillID
     );
+
     if (g_LastUtilitySkillID == 0)
     {
         AddHistoryEvent(
@@ -300,8 +370,10 @@ void SessionTracker::RecordUtilityApplication(
         else
         {
             ++g_Stats.utilityReplacements;
+
             g_Stats.utilityWastedMilliseconds +=
                 previousRemainingMilliseconds;
+
             if (
                 previousRemainingMilliseconds >
                 g_Stats.worstUtilityWasteMilliseconds
@@ -334,6 +406,7 @@ void SessionTracker::RecordFoodExpired(
     );
 
     ++g_Stats.foodExpiredInCombat;
+
     AddHistoryEvent(
         g_LastFoodSkillID,
         g_LastFoodSkillID,

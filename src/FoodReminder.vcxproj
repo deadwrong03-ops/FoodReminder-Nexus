@@ -98,6 +98,7 @@
     <ClInclude Include="ArcDPS.h" />
     <ClInclude Include="BuffTracker.h" />
     <ClInclude Include="ConsumableData.h" />
+    <ClInclude Include="ConsumableMetadataManager.h" />
     <ClInclude Include="Definitions.h" />
     <ClInclude Include="ExtrasIntegration.h" />
     <ClInclude Include="imgui\imconfig.h" />
@@ -117,6 +118,7 @@
   <ItemGroup>
     <ClCompile Include="BuffTracker.cpp" />
     <ClCompile Include="ConsumableData.cpp" />
+    <ClCompile Include="ConsumableMetadataManager.cpp" />
     <ClCompile Include="entry.cpp" />
     <ClCompile Include="ExtrasIntegration.cpp" />
     <ClCompile Include="SessionTracker.cpp" />
