@@ -1620,6 +1620,207 @@ void RenderTradingPostTab()
                 value;
         };
 
+    struct DealWindowStats
+    {
+        uint64_t averageSell = 0;
+        uint64_t lowerQuartileSell = 0;
+        uint64_t upperQuartileSell = 0;
+        size_t sampleCount = 0;
+        bool available = false;
+    };
+
+    auto CalculateDealWindowStats =
+        [](
+            const std::vector<
+            TradingPostHistoryPoint
+            >& points,
+            uint64_t windowSeconds
+            )
+        {
+            DealWindowStats result;
+
+            if (points.size() < 2)
+            {
+                return
+                    result;
+            }
+
+            const uint64_t newestTimestamp =
+                points.back().
+                timestampUnixSeconds;
+
+            if (
+                newestTimestamp <
+                windowSeconds
+                )
+            {
+                return
+                    result;
+            }
+
+            const uint64_t startTimestamp =
+                newestTimestamp -
+                windowSeconds;
+
+            std::vector<uint32_t>
+                sellSamples;
+
+            uint64_t totalSell = 0;
+
+            for (
+                const TradingPostHistoryPoint&
+                point :
+                points
+                )
+            {
+                if (
+                    point.timestampUnixSeconds <
+                    startTimestamp ||
+                    point.sellUnitPrice == 0
+                    )
+                {
+                    continue;
+                }
+
+                sellSamples.push_back(
+                    point.sellUnitPrice
+                );
+
+                totalSell +=
+                    point.sellUnitPrice;
+            }
+
+            if (
+                sellSamples.size() < 4
+                )
+            {
+                return
+                    result;
+            }
+
+            std::sort(
+                sellSamples.begin(),
+                sellSamples.end()
+            );
+
+            result.sampleCount =
+                sellSamples.size();
+
+            result.averageSell =
+                totalSell /
+                static_cast<uint64_t>(
+                    sellSamples.size()
+                    );
+
+            const size_t lowerIndex =
+                (
+                    sellSamples.size() -
+                    1
+                    ) /
+                4;
+
+            const size_t upperIndex =
+                (
+                    (
+                        sellSamples.size() -
+                        1
+                        ) *
+                    3
+                    ) /
+                4;
+
+            result.lowerQuartileSell =
+                sellSamples[
+                    lowerIndex
+                ];
+
+            result.upperQuartileSell =
+                sellSamples[
+                    upperIndex
+                ];
+
+            result.available =
+                result.averageSell > 0;
+
+            return
+                result;
+        };
+
+    auto CalculateWindowAverageSell =
+        [](
+            const std::vector<
+            TradingPostHistoryPoint
+            >& points,
+            uint64_t windowSeconds,
+            uint64_t& outAverageSell
+            )
+        {
+            outAverageSell = 0;
+
+            if (points.size() < 2)
+            {
+                return false;
+            }
+
+            const uint64_t newestTimestamp =
+                points.back().
+                timestampUnixSeconds;
+
+            if (
+                newestTimestamp <
+                windowSeconds
+                )
+            {
+                return false;
+            }
+
+            const uint64_t startTimestamp =
+                newestTimestamp -
+                windowSeconds;
+
+            uint64_t totalSell = 0;
+            uint64_t sampleCount = 0;
+
+            for (
+                const TradingPostHistoryPoint&
+                point :
+                points
+                )
+            {
+                if (
+                    point.timestampUnixSeconds <
+                    startTimestamp
+                    )
+                {
+                    continue;
+                }
+
+                if (
+                    point.sellUnitPrice == 0
+                    )
+                {
+                    continue;
+                }
+
+                totalSell +=
+                    point.sellUnitPrice;
+
+                ++sampleCount;
+            }
+
+            if (sampleCount == 0)
+            {
+                return false;
+            }
+
+            outAverageSell =
+                totalSell /
+                sampleCount;
+
+            return
+                outAverageSell > 0;
+        };
+
     auto DrawTrendText =
         [&](
             const char* label,
@@ -2983,6 +3184,126 @@ void RenderTradingPostTab()
             trendWindowLabel
         );
 
+        if (
+            hasPrice &&
+            price.available &&
+            price.sellUnitPrice > 0
+            )
+        {
+            const DealWindowStats dealStats =
+                CalculateDealWindowStats(
+                    history,
+                    trendWindowSeconds
+                );
+
+            if (
+                sellTrend.available &&
+                dealStats.available
+                )
+            {
+                const int64_t dealCopperDelta =
+                    static_cast<int64_t>(
+                        price.sellUnitPrice
+                        ) -
+                    static_cast<int64_t>(
+                        dealStats.averageSell
+                        );
+
+                const double dealPercent =
+                    static_cast<double>(
+                        dealCopperDelta
+                        ) /
+                    static_cast<double>(
+                        dealStats.averageSell
+                        ) *
+                    100.0;
+
+                const char* dealLabel =
+                    "TYPICAL";
+
+                ImVec4 dealColor =
+                    attentionColor;
+
+                //
+                // Price-scale independent classification:
+                // FAVORABLE = current sell is in the cheapest
+                // quarter of prices seen in this selected window.
+                // EXPENSIVE = current sell is in the highest
+                // quarter. Everything between is TYPICAL.
+                //
+                if (
+                    price.sellUnitPrice <=
+                    dealStats.lowerQuartileSell
+                    )
+                {
+                    dealLabel =
+                        "FAVORABLE";
+
+                    dealColor =
+                        goodColor;
+                }
+                else if (
+                    price.sellUnitPrice >=
+                    dealStats.upperQuartileSell
+                    )
+                {
+                    dealLabel =
+                        "EXPENSIVE";
+
+                    dealColor =
+                        trendDownColor;
+                }
+
+                ImGui::TextColored(
+                    dealColor,
+                    "Deal %s  %+.2f%% vs %s avg",
+                    dealLabel,
+                    dealPercent,
+                    trendWindowLabel
+                );
+            }
+            else
+            {
+                ImGui::TextDisabled(
+                    "Deal - collecting %s history",
+                    trendWindowLabel
+                );
+            }
+
+            if (
+                price.buyUnitPrice > 0 &&
+                price.sellUnitPrice >=
+                price.buyUnitPrice
+                )
+            {
+                const uint64_t spreadCopper =
+                    static_cast<uint64_t>(
+                        price.sellUnitPrice -
+                        price.buyUnitPrice
+                        );
+
+                const double spreadPercent =
+                    static_cast<double>(
+                        spreadCopper
+                        ) /
+                    static_cast<double>(
+                        price.sellUnitPrice
+                        ) *
+                    100.0;
+
+                const std::string spreadText =
+                    FormatCoinValue(
+                        spreadCopper
+                    );
+
+                ImGui::TextDisabled(
+                    "Spread %s (%.2f%% of sell)",
+                    spreadText.c_str(),
+                    spreadPercent
+                );
+            }
+        }
+
         ImGui::Unindent(
             18.0f
         );
@@ -3256,9 +3577,23 @@ void RenderTradingPostTab()
             }
         }
 
-        ImGui::Spacing();
+        // Add a little breathing room between watched items
+        // so each item reads as its own block.
+        ImGui::Dummy(
+            ImVec2(
+                0.0f,
+                4.0f
+            )
+        );
+
         ImGui::Separator();
-        ImGui::Spacing();
+
+        ImGui::Dummy(
+            ImVec2(
+                0.0f,
+                8.0f
+            )
+        );
 
         ImGui::PopID();
     }
