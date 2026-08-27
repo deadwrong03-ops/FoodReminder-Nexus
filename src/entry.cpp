@@ -4,6 +4,7 @@
 #include <cfloat>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include "ConsumableMetadataManager.h"
 
 #include "nexus/Nexus.h"
@@ -1749,73 +1750,456 @@ void RenderTradingPostTab()
 
     TradingPostTargetAlert activeTargetAlert;
 
-    if (
+    const bool hasActiveTargetAlert =
         TradingPostWatchManager::
         TryGetActiveTargetAlert(
             activeTargetAlert
-        )
-        )
+        );
+
+    if (hasActiveTargetAlert)
     {
         ImGui::Spacing();
+
+        const float celebrationTime =
+            static_cast<float>(
+                ImGui::GetTime()
+                );
+
+        const float pulse =
+            0.5f +
+            0.5f *
+            std::sin(
+                celebrationTime *
+                5.0f
+            );
 
         ImGui::PushStyleColor(
             ImGuiCol_ChildBg,
             ImVec4(
-                0.18f,
-                0.24f,
-                0.08f,
-                0.92f
+                0.10f,
+                0.16f,
+                0.05f,
+                0.96f
             )
         );
 
         ImGui::PushStyleColor(
             ImGuiCol_Border,
-            goodColor
+            ImVec4(
+                0.65f +
+                0.30f * pulse,
+                0.80f +
+                0.18f * pulse,
+                0.16f,
+                1.00f
+            )
         );
 
         ImGui::BeginChild(
-            "##TradingPostTargetAlert",
+            "##TradingPostTargetCelebration",
             ImVec2(
                 0.0f,
-                76.0f
+                142.0f
             ),
             true,
             ImGuiWindowFlags_NoScrollbar |
             ImGuiWindowFlags_NoScrollWithMouse
         );
 
+        ImDrawList* celebrationDrawList =
+            ImGui::GetWindowDrawList();
+
+        const ImVec2 celebrationMin =
+            ImGui::GetWindowPos();
+
+        const ImVec2 celebrationSize =
+            ImGui::GetWindowSize();
+
+        const ImVec2 celebrationMax(
+            celebrationMin.x +
+            celebrationSize.x,
+            celebrationMin.y +
+            celebrationSize.y
+        );
+
+        celebrationDrawList->
+            PushClipRect(
+                celebrationMin,
+                celebrationMax,
+                true
+            );
+
+        //
+        // Animated confetti.
+        //
+        const ImU32 confettiColors[] =
+        {
+            IM_COL32(
+                255, 196, 40, 255
+            ),
+            IM_COL32(
+                80, 220, 110, 255
+            ),
+            IM_COL32(
+                90, 170, 255, 255
+            ),
+            IM_COL32(
+                220, 90, 255, 255
+            ),
+            IM_COL32(
+                255, 90, 90, 255
+            ),
+            IM_COL32(
+                255, 145, 35, 255
+            )
+        };
+
+        constexpr int
+            CONFETTI_COUNT =
+            44;
+
+        for (
+            int i = 0;
+            i < CONFETTI_COUNT;
+            ++i
+            )
+        {
+            const float seed =
+                static_cast<float>(
+                    i
+                    );
+
+            const float xFraction =
+                std::fmod(
+                    seed *
+                    0.6180339f,
+                    1.0f
+                );
+
+            const float fallSpeed =
+                24.0f +
+                std::fmod(
+                    seed *
+                    11.0f,
+                    34.0f
+                );
+
+            const float y =
+                celebrationMin.y +
+                std::fmod(
+                    celebrationTime *
+                    fallSpeed +
+                    seed *
+                    19.0f,
+                    celebrationSize.y +
+                    18.0f
+                ) -
+                9.0f;
+
+            const float sway =
+                std::sin(
+                    celebrationTime *
+                    2.0f +
+                    seed
+                ) *
+                8.0f;
+
+            const float x =
+                celebrationMin.x +
+                xFraction *
+                celebrationSize.x +
+                sway;
+
+            const float pieceSize =
+                2.5f +
+                std::fmod(
+                    seed,
+                    3.0f
+                );
+
+            celebrationDrawList->
+                AddRectFilled(
+                    ImVec2(
+                        x -
+                        pieceSize,
+                        y -
+                        1.5f
+                    ),
+                    ImVec2(
+                        x +
+                        pieceSize,
+                        y +
+                        1.5f
+                    ),
+                    confettiColors[
+                        i %
+                            (
+                                sizeof(
+                                    confettiColors
+                                    ) /
+                                sizeof(
+                                    confettiColors[
+                                        0
+                                    ]
+                                    )
+                                )
+                    ],
+                    1.0f
+                );
+        }
+
+        //
+        // Firework-style sparkle bursts.
+        //
+        for (
+            int burstIndex = 0;
+            burstIndex < 3;
+            ++burstIndex
+            )
+        {
+            const float centerX =
+                celebrationMin.x +
+                celebrationSize.x *
+                (
+                    0.18f +
+                    0.32f *
+                    static_cast<float>(
+                        burstIndex
+                        )
+                    );
+
+            const float centerY =
+                celebrationMin.y +
+                34.0f +
+                6.0f *
+                std::sin(
+                    celebrationTime *
+                    2.4f +
+                    static_cast<float>(
+                        burstIndex
+                        )
+                );
+
+            const float radius =
+                9.0f +
+                5.0f * pulse;
+
+            for (
+                int ray = 0;
+                ray < 8;
+                ++ray
+                )
+            {
+                const float angle =
+                    static_cast<float>(
+                        ray
+                        ) *
+                    0.78539816f +
+                    celebrationTime *
+                    0.20f;
+
+                const ImVec2 rayEnd(
+                    centerX +
+                    std::cos(
+                        angle
+                    ) *
+                    radius,
+                    centerY +
+                    std::sin(
+                        angle
+                    ) *
+                    radius
+                );
+
+                celebrationDrawList->
+                    AddLine(
+                        ImVec2(
+                            centerX,
+                            centerY
+                        ),
+                        rayEnd,
+                        IM_COL32(
+                            255,
+                            215,
+                            70,
+                            190
+                        ),
+                        1.3f
+                    );
+            }
+
+            celebrationDrawList->
+                AddCircleFilled(
+                    ImVec2(
+                        centerX,
+                        centerY
+                    ),
+                    2.3f +
+                    1.5f *
+                    pulse,
+                    IM_COL32(
+                        255,
+                        245,
+                        170,
+                        255
+                    )
+                );
+        }
+
+        //
+        // Pulsing festival frame.
+        //
+        celebrationDrawList->
+            AddRect(
+                ImVec2(
+                    celebrationMin.x +
+                    2.0f,
+                    celebrationMin.y +
+                    2.0f
+                ),
+                ImVec2(
+                    celebrationMax.x -
+                    2.0f,
+                    celebrationMax.y -
+                    2.0f
+                ),
+                ImGui::GetColorU32(
+                    ImVec4(
+                        0.60f +
+                        0.35f * pulse,
+                        0.82f +
+                        0.15f * pulse,
+                        0.10f,
+                        0.95f
+                    )
+                ),
+                5.0f,
+                0,
+                2.0f +
+                1.5f * pulse
+            );
+
+        celebrationDrawList->
+            PopClipRect();
+
+        ImGui::SetWindowFontScale(
+            1.55f
+        );
+
+        const char*
+            celebrationTitle =
+            "TARGET REACHED!";
+
+        const float titleWidth =
+            ImGui::CalcTextSize(
+                celebrationTitle
+            ).x;
+
+        ImGui::SetCursorPosX(
+            (
+                ImGui::GetWindowSize().x -
+                titleWidth
+                ) *
+            0.5f
+        );
+
         ImGui::TextColored(
-            goodColor,
-            "TARGET PRICE REACHED!"
-        );
-
-        ImGui::Text(
+            ImVec4(
+                1.00f,
+                0.82f +
+                0.12f * pulse,
+                0.18f,
+                1.00f
+            ),
             "%s",
-            activeTargetAlert.name.c_str()
+            celebrationTitle
         );
 
-        ImGui::SameLine();
+        ImGui::SetWindowFontScale(
+            1.00f
+        );
+
+        const std::string
+            celebrationItemLine =
+            activeTargetAlert.name;
+
+        const float itemLineWidth =
+            ImGui::CalcTextSize(
+                celebrationItemLine.c_str()
+            ).x;
+
+        ImGui::SetCursorPosX(
+            (
+                ImGui::GetWindowSize().x -
+                itemLineWidth
+                ) *
+            0.5f
+        );
+
+        ImGui::TextColored(
+            itemNameColor,
+            "%s",
+            celebrationItemLine.c_str()
+        );
+
+        const std::string
+            sellText =
+            FormatCoinValue(
+                activeTargetAlert.sellUnitPrice
+            );
+
+        const std::string
+            targetText =
+            FormatCoinValue(
+                activeTargetAlert.targetSellCopper
+            );
+
+        const std::string
+            celebrationPriceLine =
+            "SELL " +
+            sellText +
+            "   <=   SELL TARGET " +
+            targetText;
+
+        const float priceLineWidth =
+            ImGui::CalcTextSize(
+                celebrationPriceLine.c_str()
+            ).x;
+
+        ImGui::SetCursorPosX(
+            (
+                ImGui::GetWindowSize().x -
+                priceLineWidth
+                ) *
+            0.5f
+        );
 
         ImGui::TextColored(
             sellColor,
-            "Sell: %s",
-            FormatCoinValue(
-                activeTargetAlert.sellUnitPrice
-            ).c_str()
+            "%s",
+            celebrationPriceLine.c_str()
         );
 
-        ImGui::SameLine();
+        ImGui::Spacing();
 
-        ImGui::TextDisabled(
-            "Target: %s",
-            FormatCoinValue(
-                activeTargetAlert.targetSellCopper
-            ).c_str()
+        const float dismissWidth =
+            118.0f;
+
+        ImGui::SetCursorPosX(
+            (
+                ImGui::GetWindowSize().x -
+                dismissWidth
+                ) *
+            0.5f
         );
 
         if (
             ImGui::Button(
-                "Dismiss##TradingPostTargetAlert"
+                "Dismiss Party",
+                ImVec2(
+                    dismissWidth,
+                    0.0f
+                )
             )
             )
         {
@@ -2090,6 +2474,37 @@ void RenderTradingPostTab()
             );
 
             ImGui::TableNextRow();
+
+            if (
+                hasActiveTargetAlert &&
+                activeTargetAlert.itemID ==
+                item.itemID
+                )
+            {
+                const float rowPulse =
+                    0.5f +
+                    0.5f *
+                    std::sin(
+                        static_cast<float>(
+                            ImGui::GetTime()
+                            ) *
+                        5.0f
+                    );
+
+                ImGui::TableSetBgColor(
+                    ImGuiTableBgTarget_RowBg0,
+                    ImGui::GetColorU32(
+                        ImVec4(
+                            0.12f,
+                            0.30f +
+                            0.08f * rowPulse,
+                            0.08f,
+                            0.52f +
+                            0.18f * rowPulse
+                        )
+                    )
+                );
+            }
 
             ImGui::TableSetColumnIndex(
                 0
