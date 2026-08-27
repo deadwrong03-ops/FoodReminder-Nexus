@@ -2529,6 +2529,47 @@ void RenderSessionTab()
                 100.0;
         };
 
+    const auto HelpMarker =
+        [](const char* explanation)
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(
+                    ImGui::GetFontSize() * 28.0f
+                );
+                ImGui::TextUnformatted(
+                    explanation
+                );
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+        };
+
+    const ImVec4 goodColor(
+        0.35f,
+        0.90f,
+        0.45f,
+        1.00f
+    );
+
+    const ImVec4 attentionColor(
+        1.00f,
+        0.78f,
+        0.25f,
+        1.00f
+    );
+
+    const ImVec4 badColor(
+        1.00f,
+        0.35f,
+        0.35f,
+        1.00f
+    );
+
     const double foodSessionCoverage =
         CalculateCoverage(
             stats.foodActiveMilliseconds,
@@ -2702,7 +2743,11 @@ void RenderSessionTab()
         utilityPrimerCopperSavedRounded;
 
     ImGui::TextUnformatted(
-        "Session Report"
+        "Session Summary"
+    );
+
+    ImGui::TextDisabled(
+        "Current-session food, utility, primer, cost, and efficiency tracking."
     );
 
     ImGui::Separator();
@@ -2714,6 +2759,10 @@ void RenderSessionTab()
         ).c_str()
     );
 
+    HelpMarker(
+        "Total time tracked since this Session report was started or reset."
+    );
+
     ImGui::Text(
         "Combat Time:  %s",
         FormatDuration(
@@ -2721,21 +2770,59 @@ void RenderSessionTab()
         ).c_str()
     );
 
+    HelpMarker(
+        "Total time ArcDPS reported this character as being in combat during the current session."
+    );
+
     ImGui::Spacing();
     ImGui::Separator();
 
     ImGui::TextUnformatted(
-        "Food Coverage"
+        "Food"
     );
 
-    ImGui::Text(
-        "Session: %.1f%%",
-        foodSessionCoverage
+    ImGui::TextDisabled(
+        "Coverage, primer savings, and food usage."
     );
 
-    ImGui::Text(
-        "In Combat: %.1f%%",
-        foodCombatCoverage
+    if (foodSessionCoverage >= 99.95)
+    {
+        ImGui::TextColored(
+            goodColor,
+            "Session: %.1f%%",
+            foodSessionCoverage
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Session: %.1f%%",
+            foodSessionCoverage
+        );
+    }
+
+    HelpMarker(
+        "Percent of the full session during which Food was active."
+    );
+
+    if (foodCombatCoverage >= 99.95)
+    {
+        ImGui::TextColored(
+            goodColor,
+            "In Combat: %.1f%%",
+            foodCombatCoverage
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "In Combat: %.1f%%",
+            foodCombatCoverage
+        );
+    }
+
+    HelpMarker(
+        "Percent of combat time during which Food was active."
     );
 
     const int64_t foodUnbuffedCombatMilliseconds =
@@ -2745,11 +2832,28 @@ void RenderSessionTab()
         stats.foodCombatMilliseconds
         : 0;
 
-    ImGui::Text(
-        "Unbuffed in Combat: %s",
-        FormatDuration(
-            foodUnbuffedCombatMilliseconds
-        ).c_str()
+    if (foodUnbuffedCombatMilliseconds > 0)
+    {
+        ImGui::TextColored(
+            badColor,
+            "Unbuffed in Combat: %s",
+            FormatDuration(
+                foodUnbuffedCombatMilliseconds
+            ).c_str()
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Unbuffed in Combat: %s",
+            FormatDuration(
+                foodUnbuffedCombatMilliseconds
+            ).c_str()
+        );
+    }
+
+    HelpMarker(
+        "Total combat time spent without Food active."
     );
 
     ImGui::Text(
@@ -2759,6 +2863,10 @@ void RenderSessionTab()
         ).c_str()
     );
 
+    HelpMarker(
+        "Total session time Food has been active."
+    );
+
     ImGui::Text(
         "Metabolic Primer Active: %s",
         FormatDuration(
@@ -2766,16 +2874,30 @@ void RenderSessionTab()
         ).c_str()
     );
 
-    ImGui::Text(
+    HelpMarker(
+        "Session time during which active Food was protected by a Metabolic Primer."
+    );
+
+    ImGui::TextColored(
+        goodColor,
         "Primer Uses Saved: %.2f",
         metabolicPrimerUsesSaved
     );
 
-    ImGui::Text(
+    HelpMarker(
+        "Estimated Food applications avoided because of primer protection. Uses each Food item's normal duration from the Guild Wars 2 item API."
+    );
+
+    ImGui::TextColored(
+        goodColor,
         "Primer Gold Saved: %llug %llus %lluc",
         metabolicPrimerCopperSavedRounded / 10000,
         (metabolicPrimerCopperSavedRounded % 10000) / 100,
         metabolicPrimerCopperSavedRounded % 100
+    );
+
+    HelpMarker(
+        "Estimated Trading Post value of the Food applications the primer has saved, using the current lowest sell listing."
     );
 
     ImGui::Text(
@@ -2783,30 +2905,85 @@ void RenderSessionTab()
         stats.foodApplications
     );
 
+    HelpMarker(
+        "Number of Food applications detected during this session."
+    );
+
     ImGui::Text(
         "Refreshes: %u",
         stats.foodRefreshes
     );
 
-    ImGui::Text(
-        "Replacements: %u",
-        stats.foodReplacements
+    HelpMarker(
+        "Times the same Food was reapplied while it was already active."
     );
 
-    ImGui::Text(
-        "Expired In Combat: %u",
-        stats.foodExpiredInCombat
+    if (stats.foodReplacements > 0)
+    {
+        ImGui::TextColored(
+            attentionColor,
+            "Replacements: %u",
+            stats.foodReplacements
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Replacements: %u",
+            stats.foodReplacements
+        );
+    }
+
+    HelpMarker(
+        "Times a different Food replaced an already-active Food."
     );
-    ImGui::Text(
-        "Wasted Duration: %s",
-        FormatDuration(
-            stats.foodWastedMilliseconds
-        ).c_str()
+
+    if (stats.foodExpiredInCombat > 0)
+    {
+        ImGui::TextColored(
+            badColor,
+            "Expired In Combat: %u",
+            stats.foodExpiredInCombat
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Expired In Combat: %u",
+            stats.foodExpiredInCombat
+        );
+    }
+
+    HelpMarker(
+        "Number of times Food expired while ArcDPS reported you were in combat."
+    );
+    if (stats.foodWastedMilliseconds > 0)
+    {
+        ImGui::TextColored(
+            attentionColor,
+            "Wasted Duration: %s",
+            FormatDuration(
+                stats.foodWastedMilliseconds
+            ).c_str()
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Wasted Duration: %s",
+            FormatDuration(
+                stats.foodWastedMilliseconds
+            ).c_str()
+        );
+    }
+
+    HelpMarker(
+        "Remaining Food duration lost when an active Food was replaced."
     );
     ImGui::Spacing();
 
     ImGui::TextUnformatted(
-        "Food Used"
+        "Food Used / Cost"
     );
     uint64_t foodCostCopper = 0;
     if (stats.foodUsage.empty())
@@ -2961,7 +3138,7 @@ void RenderSessionTab()
                 foodCostCopper % 100;
 
             ImGui::Text(
-                "Food Cost: %llug %llus %lluc",
+                "Food Used Cost: %llug %llus %lluc",
                 foodGold,
                 foodSilver,
                 foodCopper
@@ -2973,17 +3150,51 @@ void RenderSessionTab()
     ImGui::Separator();
 
     ImGui::TextUnformatted(
-        "Utility Coverage"
+        "Utility"
     );
 
-    ImGui::Text(
-        "Session: %.1f%%",
-        utilitySessionCoverage
+    ImGui::TextDisabled(
+        "Coverage, primer savings, and utility usage."
     );
 
-    ImGui::Text(
-        "In Combat: %.1f%%",
-        utilityCombatCoverage
+    if (utilitySessionCoverage >= 99.95)
+    {
+        ImGui::TextColored(
+            goodColor,
+            "Session: %.1f%%",
+            utilitySessionCoverage
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Session: %.1f%%",
+            utilitySessionCoverage
+        );
+    }
+
+    HelpMarker(
+        "Percent of the full session during which Utility was active."
+    );
+
+    if (utilityCombatCoverage >= 99.95)
+    {
+        ImGui::TextColored(
+            goodColor,
+            "In Combat: %.1f%%",
+            utilityCombatCoverage
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "In Combat: %.1f%%",
+            utilityCombatCoverage
+        );
+    }
+
+    HelpMarker(
+        "Percent of combat time during which Utility was active."
     );
 
     const int64_t utilityUnbuffedCombatMilliseconds =
@@ -2993,11 +3204,28 @@ void RenderSessionTab()
         stats.utilityCombatMilliseconds
         : 0;
 
-    ImGui::Text(
-        "Unbuffed in Combat: %s",
-        FormatDuration(
-            utilityUnbuffedCombatMilliseconds
-        ).c_str()
+    if (utilityUnbuffedCombatMilliseconds > 0)
+    {
+        ImGui::TextColored(
+            badColor,
+            "Unbuffed in Combat: %s",
+            FormatDuration(
+                utilityUnbuffedCombatMilliseconds
+            ).c_str()
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Unbuffed in Combat: %s",
+            FormatDuration(
+                utilityUnbuffedCombatMilliseconds
+            ).c_str()
+        );
+    }
+
+    HelpMarker(
+        "Total combat time spent without Utility active."
     );
 
 
@@ -3008,6 +3236,10 @@ void RenderSessionTab()
         ).c_str()
     );
 
+    HelpMarker(
+        "Total session time Utility has been active."
+    );
+
 
     ImGui::Text(
         "Utility Primer Active: %s",
@@ -3016,21 +3248,39 @@ void RenderSessionTab()
         ).c_str()
     );
 
+    HelpMarker(
+        "Session time during which active Utility was protected by a Utility Primer."
+    );
 
-    ImGui::Text(
+
+    ImGui::TextColored(
+        goodColor,
         "Primer Uses Saved: %.2f",
         utilityPrimerUsesSaved
     );
 
-    ImGui::Text(
+    HelpMarker(
+        "Estimated Utility applications avoided because of primer protection. Uses each Utility item's normal duration from the Guild Wars 2 item API."
+    );
+
+    ImGui::TextColored(
+        goodColor,
         "Primer Gold Saved: %llug %llus %lluc",
         utilityPrimerCopperSavedRounded / 10000,
         (utilityPrimerCopperSavedRounded % 10000) / 100,
         utilityPrimerCopperSavedRounded % 100
     );
+
+    HelpMarker(
+        "Estimated Trading Post value of the Utility applications the primer has saved, using the current lowest sell listing."
+    );
     ImGui::Text(
         "Applications: %u",
         stats.utilityApplications
+    );
+
+    HelpMarker(
+        "Number of Utility applications detected during this session."
     );
 
     ImGui::Text(
@@ -3038,25 +3288,76 @@ void RenderSessionTab()
         stats.utilityRefreshes
     );
 
-    ImGui::Text(
-        "Replacements: %u",
-        stats.utilityReplacements
+    HelpMarker(
+        "Times the same Utility was reapplied while it was already active."
     );
 
-    ImGui::Text(
-        "Expired In Combat: %u",
-        stats.utilityExpiredInCombat
+    if (stats.utilityReplacements > 0)
+    {
+        ImGui::TextColored(
+            attentionColor,
+            "Replacements: %u",
+            stats.utilityReplacements
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Replacements: %u",
+            stats.utilityReplacements
+        );
+    }
+
+    HelpMarker(
+        "Times a different Utility replaced an already-active Utility."
     );
-    ImGui::Text(
-        "Wasted Duration: %s",
-        FormatDuration(
-            stats.utilityWastedMilliseconds
-        ).c_str()
+
+    if (stats.utilityExpiredInCombat > 0)
+    {
+        ImGui::TextColored(
+            badColor,
+            "Expired In Combat: %u",
+            stats.utilityExpiredInCombat
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Expired In Combat: %u",
+            stats.utilityExpiredInCombat
+        );
+    }
+
+    HelpMarker(
+        "Number of times Utility expired while ArcDPS reported you were in combat."
+    );
+    if (stats.utilityWastedMilliseconds > 0)
+    {
+        ImGui::TextColored(
+            attentionColor,
+            "Wasted Duration: %s",
+            FormatDuration(
+                stats.utilityWastedMilliseconds
+            ).c_str()
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Wasted Duration: %s",
+            FormatDuration(
+                stats.utilityWastedMilliseconds
+            ).c_str()
+        );
+    }
+
+    HelpMarker(
+        "Remaining Utility duration lost when an active Utility was replaced."
     );
     ImGui::Spacing();
 
     ImGui::TextUnformatted(
-        "Utility Used"
+        "Utility Used / Cost"
     );
     uint64_t utilityCostCopper = 0;
 
@@ -3173,7 +3474,7 @@ void RenderSessionTab()
                 if (utilityCostCopper > 0)
                 {
                     ImGui::Text(
-                        "Utility Cost: %llug %llus %lluc",
+                        "Utility Used Cost: %llug %llus %lluc",
                         utilityCostCopper / 10000,
                         (utilityCostCopper % 10000) / 100,
                         utilityCostCopper % 100
@@ -3188,7 +3489,7 @@ void RenderSessionTab()
                     ImGui::Spacing();
 
                     ImGui::Text(
-                        "Total Consumable Cost: %llug %llus %lluc",
+                        "Total Used Cost: %llug %llus %lluc",
                         totalConsumableCostCopper / 10000,
                         (totalConsumableCostCopper % 10000) / 100,
                         totalConsumableCostCopper % 100
@@ -3201,14 +3502,23 @@ void RenderSessionTab()
     ImGui::Separator();
 
     ImGui::TextUnformatted(
-        "Efficiency"
+        "Session Totals & Efficiency"
     );
 
-    ImGui::Text(
+    ImGui::TextDisabled(
+        "What you spent, what primers saved, and time lost to replacements."
+    );
+
+    ImGui::TextColored(
+        goodColor,
         "Total Primer Gold Saved: %llug %llus %lluc",
         totalPrimerCopperSaved / 10000,
         (totalPrimerCopperSaved % 10000) / 100,
         totalPrimerCopperSaved % 100
+    );
+
+    HelpMarker(
+        "Combined estimated value saved by Metabolic and Utility Primer protection during this session."
     );
 
 
@@ -3347,6 +3657,10 @@ void RenderSessionTab()
 
     ImGui::TextUnformatted(
         "Consumable History"
+    );
+
+    ImGui::TextDisabled(
+        "Timeline of food and utility changes during this session."
     );
 
     if (stats.consumableHistory.empty())
@@ -3560,7 +3874,7 @@ void RenderSessionTab()
     ImGui::SameLine();
 
     ImGui::TextDisabled(
-        "Resets the current report only."
+        "Resets session statistics only; active Food, Utility, and Primer timers continue."
     );
 }
 
