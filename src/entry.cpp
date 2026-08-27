@@ -242,6 +242,14 @@ void RenderGeneralTab();
 void RenderSquadTab();
 void RenderSessionTab();
 void RenderTradingPostTab();
+
+namespace
+{
+    std::string FormatCoinValue(
+        uint64_t copper
+    );
+}
+
 AddonDefinition_t AddonDef = {};
 HMODULE hSelf = nullptr;
 AddonAPI_t* APIDefs = nullptr;
@@ -959,6 +967,285 @@ void RenderCompactTracker(
     ImGui::End();
 }
 
+void RenderTradingPostTargetOverlay()
+{
+    TradingPostTargetAlert alert;
+
+    if (
+        !TradingPostWatchManager::
+        TryGetActiveTargetAlert(
+            alert
+        )
+        )
+    {
+        return;
+    }
+
+    const ImVec2 displaySize =
+        ImGui::GetIO().
+        DisplaySize;
+
+    const ImVec2 overlayPosition(
+        displaySize.x *
+        0.5f,
+        displaySize.y *
+        0.12f
+    );
+
+    ImGui::SetNextWindowPos(
+        overlayPosition,
+        ImGuiCond_Always,
+        ImVec2(
+            0.5f,
+            0.0f
+        )
+    );
+
+    ImGui::SetNextWindowBgAlpha(
+        0.96f
+    );
+
+    const float pulse =
+        0.5f +
+        0.5f *
+        std::sin(
+            static_cast<float>(
+                ImGui::GetTime()
+                ) *
+            5.0f
+        );
+
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_WindowPadding,
+        ImVec2(
+            22.0f,
+            14.0f
+        )
+    );
+
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_WindowRounding,
+        6.0f
+    );
+
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_WindowBorderSize,
+        2.0f +
+        pulse
+    );
+
+    ImGui::PushStyleColor(
+        ImGuiCol_WindowBg,
+        ImVec4(
+            0.07f,
+            0.10f,
+            0.04f,
+            0.96f
+        )
+    );
+
+    ImGui::PushStyleColor(
+        ImGuiCol_Border,
+        ImVec4(
+            0.68f +
+            0.26f * pulse,
+            0.80f +
+            0.16f * pulse,
+            0.14f,
+            1.00f
+        )
+    );
+
+    const ImGuiWindowFlags flags =
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_AlwaysAutoResize |
+        ImGuiWindowFlags_NoFocusOnAppearing |
+        ImGuiWindowFlags_NoNav |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings;
+
+    if (
+        ImGui::Begin(
+            "##TradingPostTargetOverlay",
+            nullptr,
+            flags
+        )
+        )
+    {
+        ImDrawList* drawList =
+            ImGui::GetWindowDrawList();
+
+        const ImVec2 windowPosition =
+            ImGui::GetWindowPos();
+
+        const ImVec2 windowSize =
+            ImGui::GetWindowSize();
+
+        //
+        // A few lightweight festival sparkles around the overlay.
+        //
+        for (
+            int i = 0;
+            i < 10;
+            ++i
+            )
+        {
+            const float seed =
+                static_cast<float>(
+                    i
+                    );
+
+            const float sparkleX =
+                windowPosition.x +
+                12.0f +
+                std::fmod(
+                    seed *
+                    67.0f +
+                    static_cast<float>(
+                        ImGui::GetTime()
+                        ) *
+                    (
+                        8.0f +
+                        seed
+                        ),
+                    (
+                        windowSize.x >
+                        25.0f
+                        ? windowSize.x -
+                        24.0f
+                        : 1.0f
+                        )
+                );
+
+            const float sparkleY =
+                windowPosition.y +
+                8.0f +
+                std::fmod(
+                    seed *
+                    29.0f,
+                    (
+                        windowSize.y >
+                        17.0f
+                        ? windowSize.y -
+                        16.0f
+                        : 1.0f
+                        )
+                );
+
+            const float sparkleSize =
+                1.5f +
+                1.5f *
+                (
+                    0.5f +
+                    0.5f *
+                    std::sin(
+                        static_cast<float>(
+                            ImGui::GetTime()
+                            ) *
+                        4.0f +
+                        seed
+                    )
+                    );
+
+            drawList->AddCircleFilled(
+                ImVec2(
+                    sparkleX,
+                    sparkleY
+                ),
+                sparkleSize,
+                IM_COL32(
+                    255,
+                    220,
+                    70,
+                    190
+                )
+            );
+        }
+
+        ImGui::SetWindowFontScale(
+            1.35f
+        );
+
+        ImGui::TextColored(
+            ImVec4(
+                1.00f,
+                0.82f,
+                0.18f,
+                1.00f
+            ),
+            "TARGET PRICE HIT!"
+        );
+
+        ImGui::SetWindowFontScale(
+            1.00f
+        );
+
+        ImGui::TextColored(
+            ImVec4(
+                0.92f,
+                0.78f,
+                1.00f,
+                1.00f
+            ),
+            "%s",
+            alert.name.c_str()
+        );
+
+        const std::string sellText =
+            FormatCoinValue(
+                alert.sellUnitPrice
+            );
+
+        const std::string targetText =
+            FormatCoinValue(
+                alert.targetSellCopper
+            );
+
+        ImGui::TextColored(
+            ImVec4(
+                0.45f,
+                0.90f,
+                0.55f,
+                1.00f
+            ),
+            "Sell: %s",
+            sellText.c_str()
+        );
+
+        ImGui::SameLine(
+            0.0f,
+            14.0f
+        );
+
+        ImGui::TextDisabled(
+            "Sell Target: %s",
+            targetText.c_str()
+        );
+
+        ImGui::Spacing();
+
+        if (
+            ImGui::Button(
+                "Dismiss Price Alert"
+            )
+            )
+        {
+            TradingPostWatchManager::
+                DismissActiveTargetAlert();
+        }
+    }
+
+    ImGui::End();
+
+    ImGui::PopStyleColor(
+        2
+    );
+
+    ImGui::PopStyleVar(
+        3
+    );
+}
+
 void AddonRender()
 {
     TradingPostWatchManager::Update();
@@ -1019,6 +1306,11 @@ void AddonRender()
     const bool isGameplay =
         NexusLink != nullptr &&
         NexusLink->IsGameplay;
+
+    if (isGameplay)
+    {
+        RenderTradingPostTargetOverlay();
+    }
 
     if (isGameplay)
     {
