@@ -3506,9 +3506,97 @@ void RenderSessionTab()
     );
 
     ImGui::TextDisabled(
-        "What you spent, what primers saved, and time lost to replacements."
+        "Quick read on coverage, spending, primer savings, and avoidable waste."
     );
 
+    const uint64_t totalUsedCostCopper =
+        foodCostCopper +
+        utilityCostCopper;
+
+    const uint32_t totalReplacements =
+        stats.foodReplacements +
+        stats.utilityReplacements;
+
+    const uint32_t totalExpiredInCombat =
+        stats.foodExpiredInCombat +
+        stats.utilityExpiredInCombat;
+
+    const int64_t totalWastedMilliseconds =
+        stats.foodWastedMilliseconds +
+        stats.utilityWastedMilliseconds;
+
+    //
+    // Coverage summary.
+    //
+    if (stats.combatMilliseconds > 0)
+    {
+        const double lowestCombatCoverage =
+            foodCombatCoverage <
+            utilityCombatCoverage
+            ? foodCombatCoverage
+            : utilityCombatCoverage;
+
+        if (lowestCombatCoverage >= 99.95)
+        {
+            ImGui::TextColored(
+                goodColor,
+                "Combat Coverage: Excellent - both buffs stayed active."
+            );
+        }
+        else if (lowestCombatCoverage >= 95.0)
+        {
+            ImGui::TextColored(
+                attentionColor,
+                "Combat Coverage: Strong - %.1f%% minimum coverage.",
+                lowestCombatCoverage
+            );
+        }
+        else
+        {
+            ImGui::TextColored(
+                badColor,
+                "Combat Coverage: Needs attention - %.1f%% minimum coverage.",
+                lowestCombatCoverage
+            );
+        }
+
+        HelpMarker(
+            "Uses the lower of Food and Utility combat coverage so the summary reflects whichever buff had more downtime."
+        );
+    }
+    else
+    {
+        ImGui::TextDisabled(
+            "Combat Coverage: No combat recorded yet."
+        );
+    }
+
+    //
+    // Consumable spend.
+    //
+    if (totalUsedCostCopper > 0)
+    {
+        ImGui::Text(
+            "Total Used Cost: %llug %llus %lluc",
+            totalUsedCostCopper / 10000,
+            (totalUsedCostCopper % 10000) / 100,
+            totalUsedCostCopper % 100
+        );
+
+        HelpMarker(
+            "Current Trading Post sell-price value of Food and Utility applications recorded during this session."
+        );
+    }
+    else
+    {
+        ImGui::TextDisabled(
+            "Total Used Cost: No priced applications yet."
+        );
+    }
+
+    //
+    // Primer value.
+    //
     ImGui::TextColored(
         goodColor,
         "Total Primer Gold Saved: %llug %llus %lluc",
@@ -3518,14 +3606,82 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Combined estimated value saved by Metabolic and Utility Primer protection during this session."
+        "Estimated Trading Post value of consumable applications avoided because your primers extended active Food and Utility."
     );
 
+    const double totalPrimerUsesSaved =
+        metabolicPrimerUsesSaved +
+        utilityPrimerUsesSaved;
 
-    const int64_t totalWastedMilliseconds =
-        stats.foodWastedMilliseconds +
-        stats.utilityWastedMilliseconds;
+    ImGui::TextColored(
+        goodColor,
+        "Total Primer Uses Saved: %.2f",
+        totalPrimerUsesSaved
+    );
 
+    HelpMarker(
+        "Combined fractional Food and Utility applications avoided through primer protection."
+    );
+
+    //
+    // Waste summary.
+    //
+    if (
+        totalReplacements == 0 &&
+        totalWastedMilliseconds == 0
+        )
+    {
+        ImGui::TextColored(
+            goodColor,
+            "Replacement Waste: None."
+        );
+    }
+    else
+    {
+        ImGui::TextColored(
+            attentionColor,
+            "Replacement Waste: %u replacement%s | %s lost",
+            totalReplacements,
+            totalReplacements == 1
+            ? ""
+            : "s",
+            FormatDuration(
+                totalWastedMilliseconds
+            ).c_str()
+        );
+
+        HelpMarker(
+            "Time remaining on an active consumable when it was replaced by a different one."
+        );
+    }
+
+    //
+    // Expiration summary.
+    //
+    if (totalExpiredInCombat == 0)
+    {
+        ImGui::TextColored(
+            goodColor,
+            "In-Combat Expirations: None."
+        );
+    }
+    else
+    {
+        ImGui::TextColored(
+            badColor,
+            "In-Combat Expirations: %u",
+            totalExpiredInCombat
+        );
+
+        HelpMarker(
+            "Food or Utility expirations detected while ArcDPS reported you were still in combat."
+        );
+    }
+
+    //
+    // Detailed waste information appears only when something
+    // actually happened, keeping healthy sessions compact.
+    //
     const bool hasFoodWaste =
         stats.foodReplacements > 0 ||
         stats.foodWastedMilliseconds > 0;
@@ -3534,24 +3690,23 @@ void RenderSessionTab()
         stats.utilityReplacements > 0 ||
         stats.utilityWastedMilliseconds > 0;
 
-    if (!hasFoodWaste &&
-        !hasUtilityWaste)
+    if (hasFoodWaste ||
+        hasUtilityWaste)
     {
+        ImGui::Spacing();
         ImGui::TextDisabled(
-            "No consumable time wasted."
+            "Waste Details"
         );
-    }
-    else
-    {
+
         if (hasFoodWaste)
         {
-            ImGui::Text(
-                "Food Replacements: %u",
-                stats.foodReplacements
-            );
-
-            ImGui::Text(
-                "Food Wasted: %s",
+            ImGui::TextColored(
+                attentionColor,
+                "Food: %u replacement%s | %s wasted",
+                stats.foodReplacements,
+                stats.foodReplacements == 1
+                ? ""
+                : "s",
                 FormatDuration(
                     stats.foodWastedMilliseconds
                 ).c_str()
@@ -3573,7 +3728,7 @@ void RenderSessionTab()
                     ) == "Unknown"
                     )
                 {
-                    ImGui::Text(
+                    ImGui::TextDisabled(
                         "Worst Food Waste: %s - Unknown (%u)",
                         FormatDuration(
                             stats.worstFoodWasteMilliseconds
@@ -3583,7 +3738,7 @@ void RenderSessionTab()
                 }
                 else
                 {
-                    ImGui::Text(
+                    ImGui::TextDisabled(
                         "Worst Food Waste: %s - %s",
                         FormatDuration(
                             stats.worstFoodWasteMilliseconds
@@ -3596,13 +3751,13 @@ void RenderSessionTab()
 
         if (hasUtilityWaste)
         {
-            ImGui::Text(
-                "Utility Replacements: %u",
-                stats.utilityReplacements
-            );
-
-            ImGui::Text(
-                "Utility Wasted: %s",
+            ImGui::TextColored(
+                attentionColor,
+                "Utility: %u replacement%s | %s wasted",
+                stats.utilityReplacements,
+                stats.utilityReplacements == 1
+                ? ""
+                : "s",
                 FormatDuration(
                     stats.utilityWastedMilliseconds
                 ).c_str()
@@ -3624,7 +3779,7 @@ void RenderSessionTab()
                     ) == "Unknown"
                     )
                 {
-                    ImGui::Text(
+                    ImGui::TextDisabled(
                         "Worst Utility Waste: %s - Unknown (%u)",
                         FormatDuration(
                             stats.worstUtilityWasteMilliseconds
@@ -3634,7 +3789,7 @@ void RenderSessionTab()
                 }
                 else
                 {
-                    ImGui::Text(
+                    ImGui::TextDisabled(
                         "Worst Utility Waste: %s - %s",
                         FormatDuration(
                             stats.worstUtilityWasteMilliseconds
@@ -3644,13 +3799,6 @@ void RenderSessionTab()
                 }
             }
         }
-
-        ImGui::Text(
-            "Total Wasted: %s",
-            FormatDuration(
-                totalWastedMilliseconds
-            ).c_str()
-        );
     }
     ImGui::Spacing();
     ImGui::Separator();
@@ -3661,6 +3809,10 @@ void RenderSessionTab()
 
     ImGui::TextDisabled(
         "Timeline of food and utility changes during this session."
+    );
+
+    HelpMarker(
+        "Green = applied, normal text = refreshed, amber = replaced with remaining time lost, red = expired during combat."
     );
 
     if (stats.consumableHistory.empty())
@@ -3697,165 +3849,151 @@ void RenderSessionTab()
                     event.skillID
                 );
 
-            const char* actionText =
+            const bool currentUnknown =
+                std::string(
+                    info.label
+                ) == "Unknown";
+
+            const char* typeText =
+                event.isFood
+                ? "Food"
+                : "Utility";
+
+            std::string currentName;
+
+            if (currentUnknown)
+            {
+                currentName =
+                    "Unknown (" +
+                    std::to_string(
+                        event.skillID
+                    ) +
+                    ")";
+            }
+            else
+            {
+                currentName =
+                    info.name;
+            }
+
+            if (
                 event.type ==
                 SessionConsumableEventType::Applied
-                ? "Applied"
-                : event.type ==
+                )
+            {
+                ImGui::TextColored(
+                    goodColor,
+                    "%02lld:%02lld:%02lld  Applied %s: %s",
+                    hours,
+                    minutes,
+                    seconds,
+                    typeText,
+                    currentName.c_str()
+                );
+            }
+            else if (
+                event.type ==
                 SessionConsumableEventType::Refreshed
-                ? "Refreshed"
-                : event.type ==
+                )
+            {
+                ImGui::Text(
+                    "%02lld:%02lld:%02lld  Refreshed %s: %s",
+                    hours,
+                    minutes,
+                    seconds,
+                    typeText,
+                    currentName.c_str()
+                );
+            }
+            else if (
+                event.type ==
                 SessionConsumableEventType::Replaced
-                ? "Replaced"
-                : "Expired";
-            const ConsumableInfo* previousInfo = nullptr;
-
-            if (
-                event.type ==
-                SessionConsumableEventType::Replaced &&
-                event.previousSkillID != 0
                 )
             {
-                previousInfo =
-                    event.isFood
-                    ? &ConsumableData::GetFoodInfo(
-                        event.previousSkillID
+                std::string previousName =
+                    "Unknown";
+
+                if (event.previousSkillID != 0)
+                {
+                    const ConsumableInfo& previousInfo =
+                        event.isFood
+                        ? ConsumableData::GetFoodInfo(
+                            event.previousSkillID
+                        )
+                        : ConsumableData::GetUtilityInfo(
+                            event.previousSkillID
+                        );
+
+                    const bool previousUnknown =
+                        std::string(
+                            previousInfo.label
+                        ) == "Unknown";
+
+                    if (previousUnknown)
+                    {
+                        previousName =
+                            "Unknown (" +
+                            std::to_string(
+                                event.previousSkillID
+                            ) +
+                            ")";
+                    }
+                    else
+                    {
+                        previousName =
+                            previousInfo.name;
+                    }
+                }
+
+                ImGui::TextColored(
+                    attentionColor,
+                    "%02lld:%02lld:%02lld  Replaced %s: %s -> %s",
+                    hours,
+                    minutes,
+                    seconds,
+                    typeText,
+                    previousName.c_str(),
+                    currentName.c_str()
+                );
+
+                if (
+                    event.previousRemainingMilliseconds > 0
                     )
-                    : &ConsumableData::GetUtilityInfo(
-                        event.previousSkillID
-                    );
-            }
-            if (
-                event.type ==
-                SessionConsumableEventType::Replaced &&
-                previousInfo != nullptr
-                )
-            {
-                const bool previousUnknown =
-                    std::string(
-                        previousInfo->label
-                    ) == "Unknown";
+                {
+                    ImGui::SameLine();
 
-                const bool currentUnknown =
-                    std::string(
-                        info.label
-                    ) == "Unknown";
-
-                const int64_t previousTotalSeconds =
-                    event.previousRemainingMilliseconds / 1000;
-
-                const int64_t previousMinutes =
-                    previousTotalSeconds / 60;
-
-                const int64_t previousSeconds =
-                    previousTotalSeconds % 60;
-
-                if (!previousUnknown &&
-                    !currentUnknown)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s -> %s  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        previousInfo->name,
-                        info.name,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-                else if (previousUnknown &&
-                    !currentUnknown)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Unknown (%u) -> %s  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        event.previousSkillID,
-                        info.name,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-                else if (!previousUnknown &&
-                    currentUnknown)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s -> Unknown (%u)  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        previousInfo->name,
-                        event.skillID,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-                else
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        event.previousSkillID,
-                        event.skillID,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-            }
-            else if (std::string(info.label) ==
-                "Unknown")
-            {
-                if (event.type ==
-                    SessionConsumableEventType::Expired &&
-                    event.inCombat)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Expired Unknown (%u) (in combat)",
-                        hours,
-                        minutes,
-                        seconds,
-                        event.skillID
-                    );
-                }
-                else
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s Unknown (%u)",
-                        hours,
-                        minutes,
-                        seconds,
-                        actionText,
-                        event.skillID
+                    ImGui::TextColored(
+                        attentionColor,
+                        "| %s lost",
+                        FormatDuration(
+                            event.previousRemainingMilliseconds
+                        ).c_str()
                     );
                 }
             }
             else
             {
-                if (event.type ==
-                    SessionConsumableEventType::Expired &&
-                    event.inCombat)
+                if (event.inCombat)
                 {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Expired %s (in combat)",
+                    ImGui::TextColored(
+                        badColor,
+                        "%02lld:%02lld:%02lld  Expired %s: %s (in combat)",
                         hours,
                         minutes,
                         seconds,
-                        info.name
+                        typeText,
+                        currentName.c_str()
                     );
                 }
                 else
                 {
                     ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s %s",
+                        "%02lld:%02lld:%02lld  Expired %s: %s",
                         hours,
                         minutes,
                         seconds,
-                        actionText,
-                        info.name
+                        typeText,
+                        currentName.c_str()
                     );
                 }
             }
