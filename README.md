@@ -63,20 +63,55 @@ This allows the Session Report to estimate the cost of Food and Utility consumed
 The built-in Trading Post Watcher currently supports:
 
 - Multiple watched items
+- Name-first Trading Post item search with live autocomplete suggestions
+- Local searchable Trading Post item index
 - Current lowest sell price
 - Current highest buy price
-- Per-item target sell prices
+- Per-item Sell Targets
 - Target status
-- Manual price refresh
+- Fresh-API-only target alerts
+- Anti-spam target alert latching
+- Dismissible target-reached notifications
+- Dragon Bash-style target celebration effects
+- Manual per-item price refresh
+- Refresh All control
 - Automatic periodic price checks
 - Persistent watch lists
-- Persistent target prices
+- Persistent Sell Targets
+- Persistent local Trading Post price history
+- History persistence across addon/game restarts
+- Tiered history retention and sampling
+- Compact buy/sell history sparklines
+- Historical minimum, average, and maximum prices
+- Selectable trend windows:
+  - 15 minutes
+  - 30 minutes
+  - 1 hour
+  - 6 hours
+  - 24 hours
+- Time-based buy and sell trend analysis
+- Actual coin and percentage movement over the selected trend window
+- Trading Post buy/sell spread analysis
+- Deal-quality analysis based on the item’s own recent sell-price history:
+  - `FAVORABLE`
+  - `TYPICAL`
+  - `EXPENSIVE`
+- Combined buying-opportunity signals:
+  - `GOOD BUY`
+  - `WATCH`
+  - `OVERPRICED`
+
+The Sell Target represents the **maximum price the user is willing to pay**.
+
+A target is considered reached when the current lowest sell listing is equal to or below the configured Sell Target.
+
+Deal-quality and opportunity signals are based on locally collected Trading Post observations and are intended as informational market context rather than guaranteed buying advice.
 
 Items without available Trading Post pricing remain tracked normally and are reported without a cost rather than using an estimated or guessed value.
 
-Trading Post item selection is currently being redesigned around a name-first search system. The goal is to allow users to begin typing an item name and select from matching Guild Wars 2 Trading Post items without needing to know an item ID beforehand.
+Trading Post item search is name-first. Users can begin typing an item name and select from matching Guild Wars 2 Trading Post items without needing to know an item ID beforehand.
 
-Item IDs may still be displayed for reference and internal validation, but they are not intended to be required user input.
+Item IDs remain available for reference and internal validation but are not required user input.
 
 ### Unknown Consumable Collector
 
@@ -107,6 +142,10 @@ Squad consumable states may appear as:
 - Recognized label — known active consumable
 - `Unknown (ID)` — active effect not yet mapped
 
+Trading Post history is collected locally while FoodReminder-Nexus observes watched items.
+
+The ArenaNet Trading Post API provides current market information but does not provide historical price data. Historical charts, trends, averages, deal ratings, and opportunity signals are therefore generated from the addon’s own locally collected observations.
+
 ---
 
 ## Requirements
@@ -125,16 +164,28 @@ The addon is written in **C++** and developed using **Visual Studio**.
 
 FoodReminder-Nexus is currently an experimental development build.
 
-Core consumable tracking, reminders, Primer support, squad tracking, session reporting, unknown-consumable collection, Trading Post cost integration, and the initial Trading Post Watcher are operational and undergoing live in-game testing.
+Core consumable tracking, reminders, Primer support, squad tracking, session reporting, unknown-consumable collection, Trading Post cost integration, and the Trading Post Watcher are operational and undergoing live in-game testing.
 
-The Trading Post Watcher has successfully passed persistence and multi-item testing.
+The Trading Post Watcher has successfully passed:
+
+- Live buy/sell price retrieval
+- Multi-item watch-list testing
+- Watch-list persistence
+- Sell Target persistence
+- Name-first item search and autocomplete
+- Local Trading Post index construction
+- Persistent price-history collection
+- History persistence across restarts
+- Time-based trend analysis
+- Tiered history retention
+- Target alert testing
+- Anti-spam target alert testing
+- Deal-quality analysis
+- Opportunity-signal testing
 
 Current development is focused on:
 
-- Building name-first Trading Post item search with live autocomplete suggestions
-- Building a local searchable Trading Post item index
-- Adding persistent Trading Post price history
-- Adding historical price charts
+- Adding a standalone Trading Post target-hit notification that can appear outside the Trading Post tab
 - Improving already-active buff synchronization
 - Expanding the consumable database
 - Refining consumable cost analysis
@@ -148,8 +199,10 @@ Current development is focused on:
 
 Future development may include:
 
-- Trading Post price-history charts and trend analysis
-- Trading Post historical highs, lows, and averages
+- Standalone Trading Post target-hit overlay
+- Additional Trading Post market-analysis tools
+- Additional Trading Post notification customization
+- Longer-term Trading Post history analysis
 - Session cost-per-hour analysis
 - Historical consumable usage statistics
 - Compact optional Food/Utility timer HUD
