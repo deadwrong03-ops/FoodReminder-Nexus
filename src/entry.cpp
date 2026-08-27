@@ -1354,6 +1354,36 @@ void RenderTradingPostTab()
         Down
     };
 
+    static int trendWindowIndex = 1;
+
+    const uint64_t trendWindowSecondsOptions[] =
+    {
+        15ULL * 60ULL,
+        30ULL * 60ULL,
+        60ULL * 60ULL,
+        6ULL * 60ULL * 60ULL,
+        24ULL * 60ULL * 60ULL
+    };
+
+    const char* trendWindowLabels[] =
+    {
+        "15m",
+        "30m",
+        "1h",
+        "6h",
+        "24h"
+    };
+
+    const uint64_t trendWindowSeconds =
+        trendWindowSecondsOptions[
+            trendWindowIndex
+        ];
+
+    const char* trendWindowLabel =
+        trendWindowLabels[
+            trendWindowIndex
+        ];
+
     struct TrendInfo
     {
         PriceTrend trend =
@@ -1364,6 +1394,9 @@ void RenderTradingPostTab()
 
         double percentChange =
             0.0;
+
+        bool available =
+            false;
     };
 
     auto CalculateTrend =
@@ -1371,7 +1404,8 @@ void RenderTradingPostTab()
             const std::vector<
             TradingPostHistoryPoint
             >& points,
-            bool useSellPrice
+            bool useSellPrice,
+            uint64_t windowSeconds
             )
         {
             TrendInfo result;
@@ -1382,83 +1416,95 @@ void RenderTradingPostTab()
                     result;
             }
 
-            const size_t sampleCount =
-                points.size() >= 6
-                ? 3
-                : 1;
+            const TradingPostHistoryPoint&
+                newestPoint =
+                points.back();
 
-            uint64_t olderTotal = 0;
-            uint64_t newerTotal = 0;
-
-            for (
-                size_t i = 0;
-                i < sampleCount;
-                ++i
+            if (
+                newestPoint.timestampUnixSeconds <
+                windowSeconds
                 )
-            {
-                const TradingPostHistoryPoint&
-                    olderPoint =
-                    points[
-                        points.size() -
-                            (sampleCount * 2) +
-                            i
-                    ];
-
-                const TradingPostHistoryPoint&
-                    newerPoint =
-                    points[
-                        points.size() -
-                            sampleCount +
-                            i
-                    ];
-
-                olderTotal +=
-                    useSellPrice
-                    ? olderPoint.sellUnitPrice
-                    : olderPoint.buyUnitPrice;
-
-                newerTotal +=
-                    useSellPrice
-                    ? newerPoint.sellUnitPrice
-                    : newerPoint.buyUnitPrice;
-            }
-
-            const double olderAverage =
-                static_cast<double>(
-                    olderTotal
-                    ) /
-                static_cast<double>(
-                    sampleCount
-                    );
-
-            const double newerAverage =
-                static_cast<double>(
-                    newerTotal
-                    ) /
-                static_cast<double>(
-                    sampleCount
-                    );
-
-            if (olderAverage <= 0.0)
             {
                 return
                     result;
             }
 
-            const double copperDifference =
-                newerAverage -
-                olderAverage;
+            const uint64_t targetTimestamp =
+                newestPoint.timestampUnixSeconds -
+                windowSeconds;
+
+            const TradingPostHistoryPoint*
+                olderPoint =
+                nullptr;
+
+            //
+            // Find the newest observation that is at least
+            // 30 minutes older than the latest observation.
+            //
+            for (
+                auto it =
+                points.rbegin();
+                it !=
+                points.rend();
+                ++it
+                )
+            {
+                if (
+                    it->timestampUnixSeconds <=
+                    targetTimestamp
+                    )
+                {
+                    olderPoint =
+                        &(*it);
+
+                    break;
+                }
+            }
+
+            if (olderPoint == nullptr)
+            {
+                return
+                    result;
+            }
+
+            const uint32_t olderPrice =
+                useSellPrice
+                ? olderPoint->
+                sellUnitPrice
+                : olderPoint->
+                buyUnitPrice;
+
+            const uint32_t newerPrice =
+                useSellPrice
+                ? newestPoint.
+                sellUnitPrice
+                : newestPoint.
+                buyUnitPrice;
+
+            if (olderPrice == 0)
+            {
+                return
+                    result;
+            }
+
+            result.available =
+                true;
 
             result.copperChange =
                 static_cast<int64_t>(
-                    copperDifference >= 0.0
-                    ? copperDifference + 0.5
-                    : copperDifference - 0.5
+                    newerPrice
+                    ) -
+                static_cast<int64_t>(
+                    olderPrice
                     );
 
             result.percentChange =
-                copperDifference /
-                olderAverage *
+                static_cast<double>(
+                    result.copperChange
+                    ) /
+                static_cast<double>(
+                    olderPrice
+                    ) *
                 100.0;
 
             if (
@@ -1485,11 +1531,101 @@ void RenderTradingPostTab()
                 result;
         };
 
+    auto FormatTrendCoinDelta =
+        [](
+            int64_t copperChange
+            )
+        {
+            const bool negative =
+                copperChange < 0;
+
+            uint64_t magnitude =
+                negative
+                ? static_cast<uint64_t>(
+                    -copperChange
+                    )
+                : static_cast<uint64_t>(
+                    copperChange
+                    );
+
+            const uint64_t gold =
+                magnitude /
+                10000ULL;
+
+            const uint64_t silver =
+                (
+                    magnitude %
+                    10000ULL
+                    ) /
+                100ULL;
+
+            const uint64_t copper =
+                magnitude %
+                100ULL;
+
+            std::string value =
+                negative
+                ? "-"
+                : "+";
+
+            if (gold > 0)
+            {
+                value +=
+                    FormatGoldWithCommas(
+                        gold
+                    ) +
+                    "g ";
+
+                value +=
+                    std::to_string(
+                        silver
+                    ) +
+                    "s ";
+
+                value +=
+                    std::to_string(
+                        copper
+                    ) +
+                    "c";
+
+                return
+                    value;
+            }
+
+            if (silver > 0)
+            {
+                value +=
+                    std::to_string(
+                        silver
+                    ) +
+                    "s ";
+
+                value +=
+                    std::to_string(
+                        copper
+                    ) +
+                    "c";
+
+                return
+                    value;
+            }
+
+            value +=
+                std::to_string(
+                    copper
+                ) +
+                "c";
+
+            return
+                value;
+        };
+
     auto DrawTrendText =
         [&](
             const char* label,
             const TrendInfo& trend,
-            const ImVec4& labelColor
+            const ImVec4& labelColor,
+            const char* windowLabel
             )
         {
             ImGui::TextColored(
@@ -1503,11 +1639,18 @@ void RenderTradingPostTab()
                 5.0f
             );
 
+            if (!trend.available)
+            {
+                ImGui::TextDisabled(
+                    "- collecting %s history",
+                    windowLabel
+                );
+
+                return;
+            }
+
             const char* arrowText =
                 "-";
-
-            const char* stateText =
-                "FLAT";
 
             ImVec4 stateColor =
                 attentionColor;
@@ -1520,9 +1663,6 @@ void RenderTradingPostTab()
                 arrowText =
                     "^";
 
-                stateText =
-                    "UP";
-
                 stateColor =
                     goodColor;
             }
@@ -1533,9 +1673,6 @@ void RenderTradingPostTab()
             {
                 arrowText =
                     "v";
-
-                stateText =
-                    "DOWN";
 
                 stateColor =
                     trendDownColor;
@@ -1548,24 +1685,27 @@ void RenderTradingPostTab()
             {
                 ImGui::TextColored(
                     stateColor,
-                    "%s %s 0c (0.00%%)",
+                    "%s 0c (0.00%%) over %s",
                     arrowText,
-                    stateText
+                    windowLabel
                 );
+
+                return;
             }
-            else
-            {
-                ImGui::TextColored(
-                    stateColor,
-                    "%s %s %+.0fc (%+.2f%%)",
-                    arrowText,
-                    stateText,
-                    static_cast<double>(
-                        trend.copperChange
-                        ),
-                    trend.percentChange
+
+            const std::string deltaText =
+                FormatTrendCoinDelta(
+                    trend.copperChange
                 );
-            }
+
+            ImGui::TextColored(
+                stateColor,
+                "%s %s (%+.2f%%) over %s",
+                arrowText,
+                deltaText.c_str(),
+                trend.percentChange,
+                windowLabel
+            );
         };
 
     auto DrawSparkline =
@@ -2289,6 +2429,28 @@ void RenderTradingPostTab()
     }
 
     ImGui::Spacing();
+
+    ImGui::SetNextItemWidth(
+        90.0f
+    );
+
+    ImGui::Combo(
+        "Trend Window",
+        &trendWindowIndex,
+        trendWindowLabels,
+        static_cast<int>(
+            sizeof(
+                trendWindowLabels
+                ) /
+            sizeof(
+                trendWindowLabels[
+                    0
+                ]
+                )
+            )
+    );
+
+    ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -2336,13 +2498,15 @@ void RenderTradingPostTab()
         const TrendInfo sellTrend =
             CalculateTrend(
                 history,
-                true
+                true,
+                trendWindowSeconds
             );
 
         const TrendInfo buyTrend =
             CalculateTrend(
                 history,
-                false
+                false,
+                trendWindowSeconds
             );
 
         std::string sellText =
@@ -2801,26 +2965,26 @@ void RenderTradingPostTab()
                 historyHeader.c_str()
             );
 
-        ImGui::SameLine(
-            0.0f,
-            12.0f
+        ImGui::Indent(
+            18.0f
         );
 
         DrawTrendText(
             "Sell",
             sellTrend,
-            sellColor
-        );
-
-        ImGui::SameLine(
-            0.0f,
-            14.0f
+            sellColor,
+            trendWindowLabel
         );
 
         DrawTrendText(
             "Buy",
             buyTrend,
-            buyColor
+            buyColor,
+            trendWindowLabel
+        );
+
+        ImGui::Unindent(
+            18.0f
         );
 
         if (historyOpen)
