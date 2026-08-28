@@ -5995,9 +5995,31 @@ void RenderSessionTab()
             continue;
         }
 
+        //
+        // Conservative session-only savings estimate.
+        //
+        // We cannot reliably know how much Primer extension had already
+        // been consumed before the current session began. Therefore the
+        // first normal Food duration is treated as the baseline that the
+        // consumable itself would have provided without a Primer.
+        //
+        // Only Primer-protected time beyond that baseline is credited as
+        // estimated avoided reapplications.
+        //
+        const int64_t savingsEligibleMilliseconds =
+            usage.protectedMilliseconds >
+            static_cast<int64_t>(
+                metadata.durationMilliseconds
+                )
+            ? usage.protectedMilliseconds -
+            static_cast<int64_t>(
+                metadata.durationMilliseconds
+                )
+            : 0;
+
         const double usesSaved =
             static_cast<double>(
-                usage.protectedMilliseconds
+                savingsEligibleMilliseconds
                 ) /
             static_cast<double>(
                 metadata.durationMilliseconds
@@ -6062,9 +6084,28 @@ void RenderSessionTab()
             continue;
         }
 
+        //
+        // Conservative session-only savings estimate.
+        //
+        // As with Food, the first normal Utility duration is treated as
+        // baseline coverage. This avoids crediting Primer savings merely
+        // because the session began while an already-extended Utility was
+        // active.
+        //
+        const int64_t savingsEligibleMilliseconds =
+            usage.protectedMilliseconds >
+            static_cast<int64_t>(
+                metadata.durationMilliseconds
+                )
+            ? usage.protectedMilliseconds -
+            static_cast<int64_t>(
+                metadata.durationMilliseconds
+                )
+            : 0;
+
         const double usesSaved =
             static_cast<double>(
-                usage.protectedMilliseconds
+                savingsEligibleMilliseconds
                 ) /
             static_cast<double>(
                 metadata.durationMilliseconds
@@ -6275,7 +6316,7 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Estimated Food applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
+        "Conservative session-only estimate. The first normal Food duration is treated as baseline coverage, so savings are credited only after Primer-protected time exceeds that duration. Unknown Primer time is excluded."
     );
 
     ImGui::TextColored(
@@ -6287,7 +6328,7 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Estimated Trading Post value of Food applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
+        "Conservative Trading Post estimate based only on Primer-protected Food time beyond one normal Food duration. Unknown Primer time is excluded."
     );
 
     ImGui::Text(
@@ -6701,7 +6742,7 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Estimated Utility applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
+        "Conservative session-only estimate. The first normal Utility duration is treated as baseline coverage, so savings are credited only after Primer-protected time exceeds that duration. Unknown Primer time is excluded."
     );
 
     ImGui::TextColored(
@@ -6713,7 +6754,7 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Estimated Trading Post value of Utility applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
+        "Conservative Trading Post estimate based only on Primer-protected Utility time beyond one normal Utility duration. Unknown Primer time is excluded."
     );
     ImGui::Text(
         "Applications: %u",
@@ -7104,7 +7145,7 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Estimated Trading Post value of consumable applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
+        "Combined conservative Trading Post estimate. Savings are credited only after each consumable exceeds one normal-duration baseline under confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
 
     const double totalPrimerUsesSaved =
@@ -7118,7 +7159,7 @@ void RenderSessionTab()
     );
 
     HelpMarker(
-        "Combined estimated Food and Utility applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
+        "Combined conservative session-only estimate. Each consumable must exceed one normal-duration baseline before Primer savings are credited. Unknown Primer time is excluded."
     );
 
     //
