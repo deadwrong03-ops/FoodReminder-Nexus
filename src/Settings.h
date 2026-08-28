@@ -12,11 +12,27 @@ struct CharacterConsumableState
     int64_t foodRemainingSeconds = 0;
     int64_t utilityRemainingSeconds = 0;
 
+    // Whether Food/Utility state is actually known.
+    // false means the addon has not yet confirmed Active or Missing.
+    bool foodStateKnown = false;
+    bool utilityStateKnown = false;
+
+    // Primer timers are character-specific and pause
+    // while the character is not loaded.
+    int64_t metabolicPrimerRemainingSeconds = 0;
+    int64_t utilityPrimerRemainingSeconds = 0;
+
+    // Whether Primer state is actually known for this character.
+    // false means ArcDPS has not yet confirmed Active or Missing.
+    bool metabolicPrimerStateKnown = false;
+    bool utilityPrimerStateKnown = false;
+
     // ArcDPS effect IDs for the currently
     // active Food and Utility effects.
     uint32_t foodSkillID = 0;
     uint32_t utilitySkillID = 0;
 };
+
 struct SavedUnknownConsumable
 {
     uint32_t skillID = 0;
@@ -26,6 +42,7 @@ struct SavedUnknownConsumable
 
     uint64_t seenCount = 0;
 };
+
 struct FoodReminderSettings
 {
     bool enabled = true;
@@ -40,8 +57,8 @@ struct FoodReminderSettings
     int metabolicPrimerWarningSeconds = 1800;
     int utilityPrimerWarningSeconds = 1800;
 
-    // Primers still use absolute expiration timestamps
-    // for now.
+    // Legacy global Primer timestamps retained only for settings-file
+    // compatibility. New code does not restore Primers from these values.
     int64_t metabolicPrimerExpiresAt = 0;
     int64_t utilityPrimerExpiresAt = 0;
 

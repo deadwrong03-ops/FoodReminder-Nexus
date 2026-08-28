@@ -120,6 +120,126 @@ namespace
         );
     }
 
+    void TrackMetabolicPrimerState(
+        SessionPrimerState state,
+        bool hasFood,
+        uint32_t foodSkillID,
+        int64_t elapsedMilliseconds
+    )
+    {
+        switch (state)
+        {
+        case SessionPrimerState::ConfirmedActive:
+            g_Stats.metabolicPrimerConfirmedMilliseconds +=
+                elapsedMilliseconds;
+
+            g_Stats.metabolicPrimerActiveMilliseconds +=
+                elapsedMilliseconds;
+
+            if (hasFood)
+            {
+                AddPrimerProtectedTime(
+                    g_Stats.foodPrimerProtection,
+                    foodSkillID,
+                    elapsedMilliseconds
+                );
+            }
+            break;
+
+        case SessionPrimerState::InferredActive:
+            g_Stats.metabolicPrimerInferredMilliseconds +=
+                elapsedMilliseconds;
+
+            g_Stats.metabolicPrimerActiveMilliseconds +=
+                elapsedMilliseconds;
+
+            if (hasFood)
+            {
+                AddPrimerProtectedTime(
+                    g_Stats.foodPrimerProtection,
+                    foodSkillID,
+                    elapsedMilliseconds
+                );
+
+                AddPrimerProtectedTime(
+                    g_Stats.foodPrimerInferredProtection,
+                    foodSkillID,
+                    elapsedMilliseconds
+                );
+            }
+            break;
+
+        case SessionPrimerState::Unknown:
+            g_Stats.metabolicPrimerUnknownMilliseconds +=
+                elapsedMilliseconds;
+            break;
+
+        case SessionPrimerState::Inactive:
+        default:
+            break;
+        }
+    }
+
+    void TrackUtilityPrimerState(
+        SessionPrimerState state,
+        bool hasUtility,
+        uint32_t utilitySkillID,
+        int64_t elapsedMilliseconds
+    )
+    {
+        switch (state)
+        {
+        case SessionPrimerState::ConfirmedActive:
+            g_Stats.utilityPrimerConfirmedMilliseconds +=
+                elapsedMilliseconds;
+
+            g_Stats.utilityPrimerActiveMilliseconds +=
+                elapsedMilliseconds;
+
+            if (hasUtility)
+            {
+                AddPrimerProtectedTime(
+                    g_Stats.utilityPrimerProtection,
+                    utilitySkillID,
+                    elapsedMilliseconds
+                );
+            }
+            break;
+
+        case SessionPrimerState::InferredActive:
+            g_Stats.utilityPrimerInferredMilliseconds +=
+                elapsedMilliseconds;
+
+            g_Stats.utilityPrimerActiveMilliseconds +=
+                elapsedMilliseconds;
+
+            if (hasUtility)
+            {
+                AddPrimerProtectedTime(
+                    g_Stats.utilityPrimerProtection,
+                    utilitySkillID,
+                    elapsedMilliseconds
+                );
+
+                AddPrimerProtectedTime(
+                    g_Stats.utilityPrimerInferredProtection,
+                    utilitySkillID,
+                    elapsedMilliseconds
+                );
+            }
+            break;
+
+        case SessionPrimerState::Unknown:
+            g_Stats.utilityPrimerUnknownMilliseconds +=
+                elapsedMilliseconds;
+            break;
+
+        case SessionPrimerState::Inactive:
+        default:
+            break;
+        }
+    }
+
     bool g_HasLastUpdate = false;
 
     std::chrono::steady_clock::time_point
@@ -131,8 +251,8 @@ void SessionTracker::Update(
     uint32_t foodSkillID,
     bool hasUtility,
     uint32_t utilitySkillID,
-    bool hasMetabolicPrimer,
-    bool hasUtilityPrimer,
+    SessionPrimerState metabolicPrimerState,
+    SessionPrimerState utilityPrimerState,
     bool inCombat
 )
 {
@@ -181,35 +301,19 @@ void SessionTracker::Update(
             elapsedMilliseconds;
     }
 
-    if (
-        hasFood &&
-        hasMetabolicPrimer
-        )
-    {
-        g_Stats.metabolicPrimerActiveMilliseconds +=
-            elapsedMilliseconds;
+    TrackMetabolicPrimerState(
+        metabolicPrimerState,
+        hasFood,
+        foodSkillID,
+        elapsedMilliseconds
+    );
 
-        AddPrimerProtectedTime(
-            g_Stats.foodPrimerProtection,
-            foodSkillID,
-            elapsedMilliseconds
-        );
-    }
-
-    if (
-        hasUtility &&
-        hasUtilityPrimer
-        )
-    {
-        g_Stats.utilityPrimerActiveMilliseconds +=
-            elapsedMilliseconds;
-
-        AddPrimerProtectedTime(
-            g_Stats.utilityPrimerProtection,
-            utilitySkillID,
-            elapsedMilliseconds
-        );
-    }
+    TrackUtilityPrimerState(
+        utilityPrimerState,
+        hasUtility,
+        utilitySkillID,
+        elapsedMilliseconds
+    );
 
     if (inCombat)
     {

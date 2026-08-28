@@ -568,8 +568,23 @@ void RenderCompactTracker(
     // Stable but tighter tracker width.
     //
     ImGui::SetNextWindowSizeConstraints(
-        ImVec2(260.0f, 0.0f),
+        ImVec2(220.0f, 0.0f),
         ImVec2(FLT_MAX, FLT_MAX)
+    );
+
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_WindowBorderSize,
+        2.0f
+    );
+
+    ImGui::PushStyleColor(
+        ImGuiCol_Border,
+        ImVec4(
+            1.00f,
+            0.78f,
+            0.20f,
+            1.00f
+        )
     );
 
     if (ImGui::Begin(
@@ -639,7 +654,7 @@ void RenderCompactTracker(
             );
 
             ImGui::SameLine(
-                155.0f
+                140.0f
             );
             ImGui::TextUnformatted(
                 foodSkillID == 34210
@@ -706,10 +721,23 @@ void RenderCompactTracker(
         }
         else
         {
-            ImGui::TextColored(
-                missingColor,
-                "Food:    Not detected"
-            );
+            if (
+                BuffTracker::GetFoodDetectionState() ==
+                ConsumableDetectionState::Unknown
+                )
+            {
+                ImGui::TextColored(
+                    missingColor,
+                    "Food:    Unknown"
+                );
+            }
+            else
+            {
+                ImGui::TextColored(
+                    missingColor,
+                    "Food:    Not detected"
+                );
+            }
         }
         // Candy Cane is a separate nourishment-style buff.
 // It does not replace the player's normal Food buff.
@@ -795,7 +823,7 @@ void RenderCompactTracker(
             );
 
             ImGui::SameLine(
-                155.0f
+                140.0f
             );
 
             ImGui::TextUnformatted(
@@ -860,10 +888,23 @@ void RenderCompactTracker(
         }
         else
         {
-            ImGui::TextColored(
-                missingColor,
-                "Utility: Not detected"
-            );
+            if (
+                BuffTracker::GetUtilityDetectionState() ==
+                ConsumableDetectionState::Unknown
+                )
+            {
+                ImGui::TextColored(
+                    missingColor,
+                    "Utility: Unknown"
+                );
+            }
+            else
+            {
+                ImGui::TextColored(
+                    missingColor,
+                    "Utility: Not detected"
+                );
+            }
         }
         //
 // Metabolic Primer
@@ -908,10 +949,79 @@ void RenderCompactTracker(
         }
         else
         {
-            ImGui::TextColored(
-                missingColor,
-                "Metabolic: Not detected"
-            );
+            if (
+                BuffTracker::GetMetabolicPrimerDetectionState() ==
+                ConsumableDetectionState::Unknown
+                )
+            {
+                const bool inferredMetabolicPrimer =
+                    displayHasFood &&
+                    displayFoodRemaining >
+                    2LL * 60LL * 60LL * 1000LL;
+
+                if (inferredMetabolicPrimer)
+                {
+                    ImGui::TextColored(
+                        warningColor,
+                        "Metabolic: Active*"
+                    );
+
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::BeginTooltip();
+
+                        ImGui::TextUnformatted(
+                            "Primer presence inferred"
+                        );
+
+                        ImGui::Separator();
+
+                        ImGui::TextWrapped(
+                            "The Food duration is clearly Primer-extended, "
+                            "so Food Reminder can infer that a Metabolic "
+                            "Primer is active. ArcDPS does not provide the "
+                            "Primer's exact remaining timer after login or "
+                            "character switch, so no countdown is shown."
+                        );
+
+                        ImGui::EndTooltip();
+                    }
+                }
+                else
+                {
+                    ImGui::TextColored(
+                        missingColor,
+                        "Metabolic: Unknown"
+                    );
+
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::BeginTooltip();
+
+                        ImGui::TextUnformatted(
+                            "Primer status unavailable"
+                        );
+
+                        ImGui::Separator();
+
+                        ImGui::TextWrapped(
+                            "ArcDPS does not resend active Primer state "
+                            "after login or character switch. "
+                            "Food Reminder cannot confirm whether a "
+                            "Metabolic Primer is active."
+                        );
+
+                        ImGui::EndTooltip();
+                    }
+                }
+            }
+            else
+            {
+                ImGui::TextColored(
+                    missingColor,
+                    "Metabolic: Not detected"
+                );
+            }
         }
 
         //
@@ -957,14 +1067,86 @@ void RenderCompactTracker(
         }
         else
         {
-            ImGui::TextColored(
-                missingColor,
-                "Utility P: Not detected"
-            );
+            if (
+                BuffTracker::GetUtilityPrimerDetectionState() ==
+                ConsumableDetectionState::Unknown
+                )
+            {
+                const bool inferredUtilityPrimer =
+                    displayHasUtility &&
+                    displayUtilityRemaining >
+                    2LL * 60LL * 60LL * 1000LL;
+
+                if (inferredUtilityPrimer)
+                {
+                    ImGui::TextColored(
+                        warningColor,
+                        "Utility P: Active*"
+                    );
+
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::BeginTooltip();
+
+                        ImGui::TextUnformatted(
+                            "Primer presence inferred"
+                        );
+
+                        ImGui::Separator();
+
+                        ImGui::TextWrapped(
+                            "The Utility duration is clearly Primer-extended, "
+                            "so Food Reminder can infer that a Utility Primer "
+                            "is active. ArcDPS does not provide the Primer's "
+                            "exact remaining timer after login or character "
+                            "switch, so no countdown is shown."
+                        );
+
+                        ImGui::EndTooltip();
+                    }
+                }
+                else
+                {
+                    ImGui::TextColored(
+                        missingColor,
+                        "Utility P: Unknown"
+                    );
+
+                    if (ImGui::IsItemHovered())
+                    {
+                        ImGui::BeginTooltip();
+
+                        ImGui::TextUnformatted(
+                            "Primer status unavailable"
+                        );
+
+                        ImGui::Separator();
+
+                        ImGui::TextWrapped(
+                            "ArcDPS does not resend active Primer state "
+                            "after login or character switch. "
+                            "Food Reminder cannot confirm whether a "
+                            "Utility Primer is active."
+                        );
+
+                        ImGui::EndTooltip();
+                    }
+                }
+            }
+            else
+            {
+                ImGui::TextColored(
+                    missingColor,
+                    "Utility P: Not detected"
+                );
+            }
         }
     }
 
     ImGui::End();
+
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar();
 }
 
 void RenderTradingPostTargetOverlay()
@@ -1256,6 +1438,12 @@ void AddonRender()
     const bool hasUtility =
         BuffTracker::HasUtility();
 
+    const ConsumableDetectionState foodDetectionState =
+        BuffTracker::GetFoodDetectionState();
+
+    const ConsumableDetectionState utilityDetectionState =
+        BuffTracker::GetUtilityDetectionState();
+
     if (
         BuffTracker::ConsumeSettingsChanged()
         )
@@ -1281,6 +1469,16 @@ void AddonRender()
     const bool hasUtilityPrimer =
         BuffTracker::HasUtilityPrimer();
 
+    const ConsumableDetectionState
+        metabolicPrimerDetectionState =
+        BuffTracker::
+        GetMetabolicPrimerDetectionState();
+
+    const ConsumableDetectionState
+        utilityPrimerDetectionState =
+        BuffTracker::
+        GetUtilityPrimerDetectionState();
+
     if (
         BuffTracker::ConsumeSettingsChanged()
         )
@@ -1299,6 +1497,66 @@ void AddonRender()
         ? BuffTracker::
         GetUtilityPrimerRemainingMilliseconds()
         : 0;
+
+    SessionPrimerState metabolicPrimerSessionState =
+        SessionPrimerState::Unknown;
+
+    if (hasMetabolicPrimer)
+    {
+        metabolicPrimerSessionState =
+            SessionPrimerState::ConfirmedActive;
+    }
+    else if (
+        metabolicPrimerDetectionState ==
+        ConsumableDetectionState::Missing
+        )
+    {
+        metabolicPrimerSessionState =
+            SessionPrimerState::Inactive;
+    }
+    else if (
+        hasFood &&
+        foodRemaining >
+        2LL * 60LL * 60LL * 1000LL
+        )
+    {
+        //
+        // Presence only is inferred from clearly Primer-extended Food.
+        // Never infer the Primer's remaining countdown from Food duration.
+        //
+        metabolicPrimerSessionState =
+            SessionPrimerState::InferredActive;
+    }
+
+    SessionPrimerState utilityPrimerSessionState =
+        SessionPrimerState::Unknown;
+
+    if (hasUtilityPrimer)
+    {
+        utilityPrimerSessionState =
+            SessionPrimerState::ConfirmedActive;
+    }
+    else if (
+        utilityPrimerDetectionState ==
+        ConsumableDetectionState::Missing
+        )
+    {
+        utilityPrimerSessionState =
+            SessionPrimerState::Inactive;
+    }
+    else if (
+        hasUtility &&
+        utilityRemaining >
+        2LL * 60LL * 60LL * 1000LL
+        )
+    {
+        //
+        // Presence only is inferred from clearly Primer-extended Utility.
+        // Never infer the Primer's remaining countdown from Utility duration.
+        //
+        utilityPrimerSessionState =
+            SessionPrimerState::InferredActive;
+    }
 
     const bool inCombat =
         BuffTracker::IsInCombat();
@@ -1319,8 +1577,8 @@ void AddonRender()
             BuffTracker::GetFoodSkillID(),
             hasUtility,
             BuffTracker::GetUtilitySkillID(),
-            hasMetabolicPrimer,
-            hasUtilityPrimer,
+            metabolicPrimerSessionState,
+            utilityPrimerSessionState,
             inCombat
         );
     }
@@ -1370,8 +1628,14 @@ void AddonRender()
     ReminderManager::
         UpdateMissingBuffWarnings(
             inCombat,
-            hasFood,
-            hasUtility
+            foodDetectionState ==
+            ConsumableDetectionState::Missing
+            ? hasFood
+            : true,
+            utilityDetectionState ==
+            ConsumableDetectionState::Missing
+            ? hasUtility
+            : true
         );
 
     if (
@@ -5969,37 +6233,61 @@ void RenderSessionTab()
         "Total session time Food has been active."
     );
 
-    ImGui::Text(
-        "Metabolic Primer Active: %s",
+    ImGui::TextColored(
+        goodColor,
+        "Primer Confirmed: %s",
         FormatDuration(
-            stats.metabolicPrimerActiveMilliseconds
+            stats.metabolicPrimerConfirmedMilliseconds
         ).c_str()
     );
 
     HelpMarker(
-        "Session time during which active Food was protected by a Metabolic Primer."
+        "Session time during which Food Reminder had direct, trustworthy Metabolic Primer state."
+    );
+
+    ImGui::TextColored(
+        attentionColor,
+        "Primer Inferred*: %s",
+        FormatDuration(
+            stats.metabolicPrimerInferredMilliseconds
+        ).c_str()
+    );
+
+    HelpMarker(
+        "Primer presence inferred from clearly Primer-extended Food duration. The Primer countdown itself is not inferred."
+    );
+
+    ImGui::TextDisabled(
+        "Primer Unknown: %s",
+        FormatDuration(
+            stats.metabolicPrimerUnknownMilliseconds
+        ).c_str()
+    );
+
+    HelpMarker(
+        "Session time where ArcDPS did not provide enough information to confirm whether a Metabolic Primer was active."
     );
 
     ImGui::TextColored(
         goodColor,
-        "Primer Uses Saved: %.2f",
+        "Estimated Primer Uses Saved: %.2f",
         metabolicPrimerUsesSaved
     );
 
     HelpMarker(
-        "Estimated Food applications avoided because of primer protection. Uses each Food item's normal duration from the Guild Wars 2 item API."
+        "Estimated Food applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
 
     ImGui::TextColored(
         goodColor,
-        "Primer Gold Saved: %llug %llus %lluc",
+        "Estimated Primer Gold Saved: %llug %llus %lluc",
         metabolicPrimerCopperSavedRounded / 10000,
         (metabolicPrimerCopperSavedRounded % 10000) / 100,
         metabolicPrimerCopperSavedRounded % 100
     );
 
     HelpMarker(
-        "Estimated Trading Post value of the Food applications the primer has saved, using the current lowest sell listing."
+        "Estimated Trading Post value of Food applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
 
     ImGui::Text(
@@ -6343,38 +6631,61 @@ void RenderSessionTab()
     );
 
 
-    ImGui::Text(
-        "Utility Primer Active: %s",
+    ImGui::TextColored(
+        goodColor,
+        "Primer Confirmed: %s",
         FormatDuration(
-            stats.utilityPrimerActiveMilliseconds
+            stats.utilityPrimerConfirmedMilliseconds
         ).c_str()
     );
 
     HelpMarker(
-        "Session time during which active Utility was protected by a Utility Primer."
+        "Session time during which Food Reminder had direct, trustworthy Utility Primer state."
     );
 
+    ImGui::TextColored(
+        attentionColor,
+        "Primer Inferred*: %s",
+        FormatDuration(
+            stats.utilityPrimerInferredMilliseconds
+        ).c_str()
+    );
+
+    HelpMarker(
+        "Primer presence inferred from clearly Primer-extended Utility duration. The Primer countdown itself is not inferred."
+    );
+
+    ImGui::TextDisabled(
+        "Primer Unknown: %s",
+        FormatDuration(
+            stats.utilityPrimerUnknownMilliseconds
+        ).c_str()
+    );
+
+    HelpMarker(
+        "Session time where ArcDPS did not provide enough information to confirm whether a Utility Primer was active."
+    );
 
     ImGui::TextColored(
         goodColor,
-        "Primer Uses Saved: %.2f",
+        "Estimated Primer Uses Saved: %.2f",
         utilityPrimerUsesSaved
     );
 
     HelpMarker(
-        "Estimated Utility applications avoided because of primer protection. Uses each Utility item's normal duration from the Guild Wars 2 item API."
+        "Estimated Utility applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
 
     ImGui::TextColored(
         goodColor,
-        "Primer Gold Saved: %llug %llus %lluc",
+        "Estimated Primer Gold Saved: %llug %llus %lluc",
         utilityPrimerCopperSavedRounded / 10000,
         (utilityPrimerCopperSavedRounded % 10000) / 100,
         utilityPrimerCopperSavedRounded % 100
     );
 
     HelpMarker(
-        "Estimated Trading Post value of the Utility applications the primer has saved, using the current lowest sell listing."
+        "Estimated Trading Post value of Utility applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
     ImGui::Text(
         "Applications: %u",
@@ -6701,14 +7012,14 @@ void RenderSessionTab()
     //
     ImGui::TextColored(
         goodColor,
-        "Total Primer Gold Saved: %llug %llus %lluc",
+        "Estimated Total Primer Gold Saved: %llug %llus %lluc",
         totalPrimerCopperSaved / 10000,
         (totalPrimerCopperSaved % 10000) / 100,
         totalPrimerCopperSaved % 100
     );
 
     HelpMarker(
-        "Estimated Trading Post value of consumable applications avoided because your primers extended active Food and Utility."
+        "Estimated Trading Post value of consumable applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
 
     const double totalPrimerUsesSaved =
@@ -6717,12 +7028,12 @@ void RenderSessionTab()
 
     ImGui::TextColored(
         goodColor,
-        "Total Primer Uses Saved: %.2f",
+        "Estimated Total Primer Uses Saved: %.2f",
         totalPrimerUsesSaved
     );
 
     HelpMarker(
-        "Combined fractional Food and Utility applications avoided through primer protection."
+        "Combined estimated Food and Utility applications avoided during confirmed or inferred Primer protection. Unknown Primer time is excluded."
     );
 
     //

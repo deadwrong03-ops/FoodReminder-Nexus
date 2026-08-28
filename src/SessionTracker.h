@@ -15,6 +15,14 @@ struct SessionPrimerProtectedUsage
     int64_t protectedMilliseconds = 0;
 };
 
+enum class SessionPrimerState
+{
+    Unknown,
+    Inactive,
+    InferredActive,
+    ConfirmedActive
+};
+
 enum class SessionConsumableEventType
 {
     Applied,
@@ -65,18 +73,48 @@ struct SessionStats
     int64_t worstUtilityWasteMilliseconds = 0;
     uint32_t worstUtilityWasteSkillID = 0;
 
-    // Primer savings tracking.
+    //
+    // Primer session state.
+    //
+    // ArcDPS does not reliably resend active Primer state after login
+    // or character switch, so SessionTracker keeps confirmed, inferred,
+    // and unknown time separate instead of treating every false bool as
+    // "Primer missing".
+    //
+    int64_t metabolicPrimerConfirmedMilliseconds = 0;
+    int64_t metabolicPrimerInferredMilliseconds = 0;
+    int64_t metabolicPrimerUnknownMilliseconds = 0;
+
+    int64_t utilityPrimerConfirmedMilliseconds = 0;
+    int64_t utilityPrimerInferredMilliseconds = 0;
+    int64_t utilityPrimerUnknownMilliseconds = 0;
+
+    //
+    // Kept as total known-active Primer time for compatibility with
+    // existing session calculations. This equals confirmed + inferred.
+    //
     int64_t metabolicPrimerActiveMilliseconds = 0;
     int64_t utilityPrimerActiveMilliseconds = 0;
 
     uint32_t estimatedFoodUsesSaved = 0;
     uint32_t estimatedUtilityUsesSaved = 0;
 
+    //
+    // Aggregate protection contains both confirmed and inferred Primer
+    // protection. Inferred protection is also tracked separately so the
+    // UI can be transparent about how much data was inferred.
+    //
     std::vector<SessionPrimerProtectedUsage>
         foodPrimerProtection;
 
     std::vector<SessionPrimerProtectedUsage>
         utilityPrimerProtection;
+
+    std::vector<SessionPrimerProtectedUsage>
+        foodPrimerInferredProtection;
+
+    std::vector<SessionPrimerProtectedUsage>
+        utilityPrimerInferredProtection;
 
     std::vector<SessionConsumableUsage>
         foodUsage;
@@ -95,8 +133,8 @@ namespace SessionTracker
         uint32_t foodSkillID,
         bool hasUtility,
         uint32_t utilitySkillID,
-        bool hasMetabolicPrimer,
-        bool hasUtilityPrimer,
+        SessionPrimerState metabolicPrimerState,
+        SessionPrimerState utilityPrimerState,
         bool inCombat
     );
 

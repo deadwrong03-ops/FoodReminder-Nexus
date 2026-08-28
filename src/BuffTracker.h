@@ -25,6 +25,13 @@ struct BuffEventDebug
     bool destinationIsSelf = false;
 };
 
+enum class ConsumableDetectionState
+{
+    Unknown,
+    Active,
+    Missing
+};
+
 namespace BuffTracker
 {
     void Reset();
@@ -39,12 +46,17 @@ namespace BuffTracker
     bool HasFood();
     bool HasUtility();
 
+    ConsumableDetectionState GetFoodDetectionState();
+    ConsumableDetectionState GetUtilityDetectionState();
+
     bool HasCandyCane();
     int64_t GetCandyCaneRemainingMilliseconds();
-    
 
     bool HasMetabolicPrimer();
     bool HasUtilityPrimer();
+
+    ConsumableDetectionState GetMetabolicPrimerDetectionState();
+    ConsumableDetectionState GetUtilityPrimerDetectionState();
 
     bool IsInCombat();
 
@@ -64,5 +76,4 @@ namespace BuffTracker
     void SavePrimerState();
 
     bool ConsumeSettingsChanged();
-    
 }

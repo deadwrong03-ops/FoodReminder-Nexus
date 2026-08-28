@@ -25,6 +25,12 @@ namespace
     bool g_HasFood = false;
     bool g_HasUtility = false;
 
+    ConsumableDetectionState g_FoodDetectionState =
+        ConsumableDetectionState::Unknown;
+
+    ConsumableDetectionState g_UtilityDetectionState =
+        ConsumableDetectionState::Unknown;
+
     uint32_t g_FoodSkillID = 0;
     uint32_t g_UtilitySkillID = 0;
 
@@ -33,6 +39,12 @@ namespace
 
     bool g_HasMetabolicPrimer = false;
     bool g_HasUtilityPrimer = false;
+
+    ConsumableDetectionState g_MetabolicPrimerDetectionState =
+        ConsumableDetectionState::Unknown;
+
+    ConsumableDetectionState g_UtilityPrimerDetectionState =
+        ConsumableDetectionState::Unknown;
 
     bool g_HasCandyCane = false;
     int64_t g_CandyCaneDurationMilliseconds = 0;
@@ -97,12 +109,6 @@ namespace
     }
 
 
-    constexpr int64_t PRIMER_INFERENCE_THRESHOLD_MILLISECONDS =
-        2LL * 60LL * 60LL * 1000LL;
-
-    constexpr int64_t PRIMER_RECONCILE_TOLERANCE_MILLISECONDS =
-        5LL * 1000LL;
-
     int64_t GetRemainingMillisecondsLocked(
         bool hasBuff,
         int64_t durationMilliseconds,
@@ -131,104 +137,23 @@ namespace
             : 0;
     }
 
-    int64_t GetEffectiveMetabolicPrimerRemainingMillisecondsLocked()
+
+    int64_t GetDirectMetabolicPrimerRemainingMillisecondsLocked()
     {
-        const int64_t directRemaining =
-            GetRemainingMillisecondsLocked(
-                g_HasMetabolicPrimer,
-                g_MetabolicPrimerDurationMilliseconds,
-                g_MetabolicPrimerReceivedTime
-            );
-
-        const int64_t foodRemaining =
-            GetRemainingMillisecondsLocked(
-                g_HasFood,
-                g_FoodDurationMilliseconds,
-                g_FoodReceivedTime
-            );
-
-        // ArcDPS can report only a partial/stale Primer duration.
-        // A Food duration over two hours is already treated by the
-        // addon as evidence that Metabolic Primer extended it.
-        //
-        // If the extended Food timer is meaningfully longer than
-        // the direct Primer timer, promote that duration into the
-        // Primer state. This keeps the corrected Primer timer valid
-        // even if the Food is later removed or replaced.
-        if (foodRemaining >
-            PRIMER_INFERENCE_THRESHOLD_MILLISECONDS &&
-            foodRemaining >
-            directRemaining +
-            PRIMER_RECONCILE_TOLERANCE_MILLISECONDS)
-        {
-            g_HasMetabolicPrimer = true;
-
-            g_MetabolicPrimerDurationMilliseconds =
-                foodRemaining;
-
-            g_MetabolicPrimerReceivedTime =
-                std::chrono::steady_clock::now();
-
-            g_Settings.metabolicPrimerExpiresAt =
-                static_cast<int64_t>(
-                    std::time(nullptr)
-                    ) +
-                (foodRemaining + 999) / 1000;
-
-            g_SettingsChanged = true;
-
-            return foodRemaining;
-        }
-
-        return directRemaining;
+        return GetRemainingMillisecondsLocked(
+            g_HasMetabolicPrimer,
+            g_MetabolicPrimerDurationMilliseconds,
+            g_MetabolicPrimerReceivedTime
+        );
     }
 
-    int64_t GetEffectiveUtilityPrimerRemainingMillisecondsLocked()
+    int64_t GetDirectUtilityPrimerRemainingMillisecondsLocked()
     {
-        const int64_t directRemaining =
-            GetRemainingMillisecondsLocked(
-                g_HasUtilityPrimer,
-                g_UtilityPrimerDurationMilliseconds,
-                g_UtilityPrimerReceivedTime
-            );
-
-        const int64_t utilityRemaining =
-            GetRemainingMillisecondsLocked(
-                g_HasUtility,
-                g_UtilityDurationMilliseconds,
-                g_UtilityReceivedTime
-            );
-
-        // Same protection for Utility Primer: an Enhancement lasting
-        // over two hours is primer-extended. Promote that longer
-        // duration into the Primer state so a short partial/stale
-        // direct event cannot become the displayed or saved timer.
-        if (utilityRemaining >
-            PRIMER_INFERENCE_THRESHOLD_MILLISECONDS &&
-            utilityRemaining >
-            directRemaining +
-            PRIMER_RECONCILE_TOLERANCE_MILLISECONDS)
-        {
-            g_HasUtilityPrimer = true;
-
-            g_UtilityPrimerDurationMilliseconds =
-                utilityRemaining;
-
-            g_UtilityPrimerReceivedTime =
-                std::chrono::steady_clock::now();
-
-            g_Settings.utilityPrimerExpiresAt =
-                static_cast<int64_t>(
-                    std::time(nullptr)
-                    ) +
-                (utilityRemaining + 999) / 1000;
-
-            g_SettingsChanged = true;
-
-            return utilityRemaining;
-        }
-
-        return directRemaining;
+        return GetRemainingMillisecondsLocked(
+            g_HasUtilityPrimer,
+            g_UtilityPrimerDurationMilliseconds,
+            g_UtilityPrimerReceivedTime
+        );
     }
 
     void SaveCurrentCharacterConsumablesLocked()
@@ -242,6 +167,22 @@ namespace
             g_Settings.characterConsumables[
                 g_SelfCharacterName
             ];
+
+        const bool foodStateKnown =
+            g_FoodDetectionState !=
+            ConsumableDetectionState::Unknown;
+
+        const bool utilityStateKnown =
+            g_UtilityDetectionState !=
+            ConsumableDetectionState::Unknown;
+
+        const bool metabolicPrimerStateKnown =
+            g_MetabolicPrimerDetectionState !=
+            ConsumableDetectionState::Unknown;
+
+        const bool utilityPrimerStateKnown =
+            g_UtilityPrimerDetectionState !=
+            ConsumableDetectionState::Unknown;
 
         const int64_t foodRemainingSeconds =
             GetRemainingSecondsLocked(
@@ -257,6 +198,38 @@ namespace
                 g_UtilityReceivedTime
             );
 
+        const int64_t metabolicPrimerRemainingSeconds =
+            GetRemainingSecondsLocked(
+                g_HasMetabolicPrimer,
+                g_MetabolicPrimerDurationMilliseconds,
+                g_MetabolicPrimerReceivedTime
+            );
+
+        const int64_t utilityPrimerRemainingSeconds =
+            GetRemainingSecondsLocked(
+                g_HasUtilityPrimer,
+                g_UtilityPrimerDurationMilliseconds,
+                g_UtilityPrimerReceivedTime
+            );
+
+        if (state.foodStateKnown !=
+            foodStateKnown)
+        {
+            state.foodStateKnown =
+                foodStateKnown;
+
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityStateKnown !=
+            utilityStateKnown)
+        {
+            state.utilityStateKnown =
+                utilityStateKnown;
+
+            g_SettingsChanged = true;
+        }
+
         if (state.foodRemainingSeconds !=
             foodRemainingSeconds)
         {
@@ -271,6 +244,42 @@ namespace
         {
             state.utilityRemainingSeconds =
                 utilityRemainingSeconds;
+
+            g_SettingsChanged = true;
+        }
+
+        if (state.metabolicPrimerStateKnown !=
+            metabolicPrimerStateKnown)
+        {
+            state.metabolicPrimerStateKnown =
+                metabolicPrimerStateKnown;
+
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityPrimerStateKnown !=
+            utilityPrimerStateKnown)
+        {
+            state.utilityPrimerStateKnown =
+                utilityPrimerStateKnown;
+
+            g_SettingsChanged = true;
+        }
+
+        if (state.metabolicPrimerRemainingSeconds !=
+            metabolicPrimerRemainingSeconds)
+        {
+            state.metabolicPrimerRemainingSeconds =
+                metabolicPrimerRemainingSeconds;
+
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityPrimerRemainingSeconds !=
+            utilityPrimerRemainingSeconds)
+        {
+            state.utilityPrimerRemainingSeconds =
+                utilityPrimerRemainingSeconds;
 
             g_SettingsChanged = true;
         }
@@ -310,9 +319,25 @@ namespace
     {
         g_HasFood = false;
         g_HasUtility = false;
+        g_HasMetabolicPrimer = false;
+        g_HasUtilityPrimer = false;
+
+        g_MetabolicPrimerDetectionState =
+            ConsumableDetectionState::Unknown;
+
+        g_UtilityPrimerDetectionState =
+            ConsumableDetectionState::Unknown;
+
+        g_FoodDetectionState =
+            ConsumableDetectionState::Unknown;
+
+        g_UtilityDetectionState =
+            ConsumableDetectionState::Unknown;
 
         g_FoodDurationMilliseconds = 0;
         g_UtilityDurationMilliseconds = 0;
+        g_MetabolicPrimerDurationMilliseconds = 0;
+        g_UtilityPrimerDurationMilliseconds = 0;
 
         g_FoodSkillID = 0;
         g_UtilitySkillID = 0;
@@ -339,9 +364,18 @@ namespace
         CharacterConsumableState& state =
             it->second;
 
-        if (state.foodRemainingSeconds > 0)
+        if (state.foodRemainingSeconds > 0 &&
+            state.foodSkillID != 0)
         {
             g_HasFood = true;
+            g_FoodDetectionState =
+                ConsumableDetectionState::Active;
+
+            if (!state.foodStateKnown)
+            {
+                state.foodStateKnown = true;
+                g_SettingsChanged = true;
+            }
 
             g_FoodDurationMilliseconds =
                 state.foodRemainingSeconds *
@@ -361,6 +395,11 @@ namespace
         }
         else
         {
+            g_FoodDetectionState =
+                state.foodStateKnown
+                ? ConsumableDetectionState::Missing
+                : ConsumableDetectionState::Unknown;
+
             if (state.foodRemainingSeconds < 0)
             {
                 state.foodRemainingSeconds = 0;
@@ -374,9 +413,18 @@ namespace
             }
         }
 
-        if (state.utilityRemainingSeconds > 0)
+        if (state.utilityRemainingSeconds > 0 &&
+            state.utilitySkillID != 0)
         {
             g_HasUtility = true;
+            g_UtilityDetectionState =
+                ConsumableDetectionState::Active;
+
+            if (!state.utilityStateKnown)
+            {
+                state.utilityStateKnown = true;
+                g_SettingsChanged = true;
+            }
 
             g_UtilityDurationMilliseconds =
                 state.utilityRemainingSeconds *
@@ -396,6 +444,11 @@ namespace
         }
         else
         {
+            g_UtilityDetectionState =
+                state.utilityStateKnown
+                ? ConsumableDetectionState::Missing
+                : ConsumableDetectionState::Unknown;
+
             if (state.utilityRemainingSeconds < 0)
             {
                 state.utilityRemainingSeconds = 0;
@@ -405,6 +458,72 @@ namespace
             if (state.utilitySkillID != 0)
             {
                 state.utilitySkillID = 0;
+                g_SettingsChanged = true;
+            }
+        }
+
+        if (state.metabolicPrimerRemainingSeconds > 0)
+        {
+            g_HasMetabolicPrimer = true;
+            g_MetabolicPrimerDetectionState =
+                ConsumableDetectionState::Active;
+
+            g_MetabolicPrimerDurationMilliseconds =
+                state.metabolicPrimerRemainingSeconds *
+                1000;
+
+            g_MetabolicPrimerReceivedTime =
+                std::chrono::steady_clock::now();
+
+            if (!state.metabolicPrimerStateKnown)
+            {
+                state.metabolicPrimerStateKnown = true;
+                g_SettingsChanged = true;
+            }
+        }
+        else
+        {
+            g_MetabolicPrimerDetectionState =
+                state.metabolicPrimerStateKnown
+                ? ConsumableDetectionState::Missing
+                : ConsumableDetectionState::Unknown;
+
+            if (state.metabolicPrimerRemainingSeconds < 0)
+            {
+                state.metabolicPrimerRemainingSeconds = 0;
+                g_SettingsChanged = true;
+            }
+        }
+
+        if (state.utilityPrimerRemainingSeconds > 0)
+        {
+            g_HasUtilityPrimer = true;
+            g_UtilityPrimerDetectionState =
+                ConsumableDetectionState::Active;
+
+            g_UtilityPrimerDurationMilliseconds =
+                state.utilityPrimerRemainingSeconds *
+                1000;
+
+            g_UtilityPrimerReceivedTime =
+                std::chrono::steady_clock::now();
+
+            if (!state.utilityPrimerStateKnown)
+            {
+                state.utilityPrimerStateKnown = true;
+                g_SettingsChanged = true;
+            }
+        }
+        else
+        {
+            g_UtilityPrimerDetectionState =
+                state.utilityPrimerStateKnown
+                ? ConsumableDetectionState::Missing
+                : ConsumableDetectionState::Unknown;
+
+            if (state.utilityPrimerRemainingSeconds < 0)
+            {
+                state.utilityPrimerRemainingSeconds = 0;
                 g_SettingsChanged = true;
             }
         }
@@ -500,9 +619,25 @@ void BuffTracker::ProcessEvent(
 
                 g_HasFood = false;
                 g_HasUtility = false;
+                g_HasMetabolicPrimer = false;
+                g_HasUtilityPrimer = false;
+
+                g_MetabolicPrimerDetectionState =
+                    ConsumableDetectionState::Unknown;
+
+                g_UtilityPrimerDetectionState =
+                    ConsumableDetectionState::Unknown;
+
+                g_FoodDetectionState =
+                    ConsumableDetectionState::Unknown;
+
+                g_UtilityDetectionState =
+                    ConsumableDetectionState::Unknown;
 
                 g_FoodDurationMilliseconds = 0;
                 g_UtilityDurationMilliseconds = 0;
+                g_MetabolicPrimerDurationMilliseconds = 0;
+                g_UtilityPrimerDurationMilliseconds = 0;
 
                 g_FoodSkillID = 0;
                 g_UtilitySkillID = 0;
@@ -562,6 +697,12 @@ void BuffTracker::ProcessEvent(
 
             g_HasFood = false;
             g_HasUtility = false;
+
+            g_FoodDetectionState =
+                ConsumableDetectionState::Unknown;
+
+            g_UtilityDetectionState =
+                ConsumableDetectionState::Unknown;
 
             g_FoodDurationMilliseconds = 0;
             g_UtilityDurationMilliseconds = 0;
@@ -657,6 +798,12 @@ void BuffTracker::ProcessEvent(
 
         g_HasFood = false;
         g_HasUtility = false;
+
+        g_FoodDetectionState =
+            ConsumableDetectionState::Unknown;
+
+        g_UtilityDetectionState =
+            ConsumableDetectionState::Unknown;
 
         g_FoodDurationMilliseconds = 0;
         g_UtilityDurationMilliseconds = 0;
@@ -771,6 +918,8 @@ void BuffTracker::ProcessEvent(
             isRemoved)
         {
             g_HasFood = false;
+            g_FoodDetectionState =
+                ConsumableDetectionState::Missing;
             g_FoodDurationMilliseconds = 0;
 
             g_FoodSkillID = 0;
@@ -785,6 +934,7 @@ void BuffTracker::ProcessEvent(
 
                 state.foodRemainingSeconds = 0;
                 state.foodSkillID = 0;
+                state.foodStateKnown = true;
 
                 g_SettingsChanged = true;
             }
@@ -796,6 +946,8 @@ void BuffTracker::ProcessEvent(
             isRemoved)
         {
             g_HasUtility = false;
+            g_UtilityDetectionState =
+                ConsumableDetectionState::Missing;
             g_UtilityDurationMilliseconds = 0;
 
             g_UtilitySkillID = 0;
@@ -810,6 +962,7 @@ void BuffTracker::ProcessEvent(
 
                 state.utilityRemainingSeconds = 0;
                 state.utilitySkillID = 0;
+                state.utilityStateKnown = true;
 
                 g_SettingsChanged = true;
             }
@@ -821,9 +974,23 @@ void BuffTracker::ProcessEvent(
             isRemoved)
         {
             g_HasMetabolicPrimer = false;
+            g_MetabolicPrimerDetectionState =
+                ConsumableDetectionState::Missing;
             g_MetabolicPrimerDurationMilliseconds = 0;
 
             g_Settings.metabolicPrimerExpiresAt = 0;
+
+            if (!g_SelfCharacterName.empty())
+            {
+                CharacterConsumableState& state =
+                    g_Settings.characterConsumables[
+                        g_SelfCharacterName
+                    ];
+
+                state.metabolicPrimerRemainingSeconds = 0;
+                state.metabolicPrimerStateKnown = true;
+            }
+
             g_SettingsChanged = true;
 
             return;
@@ -833,9 +1000,23 @@ void BuffTracker::ProcessEvent(
             isRemoved)
         {
             g_HasUtilityPrimer = false;
+            g_UtilityPrimerDetectionState =
+                ConsumableDetectionState::Missing;
             g_UtilityPrimerDurationMilliseconds = 0;
 
             g_Settings.utilityPrimerExpiresAt = 0;
+
+            if (!g_SelfCharacterName.empty())
+            {
+                CharacterConsumableState& state =
+                    g_Settings.characterConsumables[
+                        g_SelfCharacterName
+                    ];
+
+                state.utilityPrimerRemainingSeconds = 0;
+                state.utilityPrimerStateKnown = true;
+            }
+
             g_SettingsChanged = true;
 
             return;
@@ -935,6 +1116,8 @@ void BuffTracker::ProcessEvent(
             }
 
             g_HasFood = true;
+            g_FoodDetectionState =
+                ConsumableDetectionState::Active;
 
             g_FoodDurationMilliseconds =
                 static_cast<int64_t>(
@@ -971,6 +1154,8 @@ void BuffTracker::ProcessEvent(
 
                 state.foodSkillID =
                     g_FoodSkillID;
+
+                state.foodStateKnown = true;
 
                 g_SettingsChanged = true;
             }
@@ -1010,6 +1195,8 @@ void BuffTracker::ProcessEvent(
             }
 
             g_HasUtility = true;
+            g_UtilityDetectionState =
+                ConsumableDetectionState::Active;
 
             g_UtilityDurationMilliseconds =
                 static_cast<int64_t>(
@@ -1046,6 +1233,8 @@ void BuffTracker::ProcessEvent(
                 state.utilitySkillID =
                     g_UtilitySkillID;
 
+                state.utilityStateKnown = true;
+
                 g_SettingsChanged = true;
             }
         }
@@ -1054,6 +1243,8 @@ void BuffTracker::ProcessEvent(
             hasDuration)
         {
             g_HasMetabolicPrimer = true;
+            g_MetabolicPrimerDetectionState =
+                ConsumableDetectionState::Active;
 
             g_MetabolicPrimerDurationMilliseconds =
                 static_cast<int64_t>(
@@ -1064,15 +1255,26 @@ void BuffTracker::ProcessEvent(
                 std::chrono::steady_clock::now();
 
             const int64_t durationSeconds =
-                g_MetabolicPrimerDurationMilliseconds /
+                (
+                    g_MetabolicPrimerDurationMilliseconds +
+                    999
+                    ) /
                 1000;
 
-            g_Settings.metabolicPrimerExpiresAt =
-                static_cast<int64_t>(
-                    std::time(nullptr)
-                    ) +
-                durationSeconds;
+            if (!g_SelfCharacterName.empty())
+            {
+                CharacterConsumableState& state =
+                    g_Settings.characterConsumables[
+                        g_SelfCharacterName
+                    ];
 
+                state.metabolicPrimerRemainingSeconds =
+                    durationSeconds;
+
+                state.metabolicPrimerStateKnown = true;
+            }
+
+            g_Settings.metabolicPrimerExpiresAt = 0;
             g_SettingsChanged = true;
         }
         else if (
@@ -1080,6 +1282,8 @@ void BuffTracker::ProcessEvent(
             hasDuration)
         {
             g_HasUtilityPrimer = true;
+            g_UtilityPrimerDetectionState =
+                ConsumableDetectionState::Active;
 
             g_UtilityPrimerDurationMilliseconds =
                 static_cast<int64_t>(
@@ -1090,15 +1294,26 @@ void BuffTracker::ProcessEvent(
                 std::chrono::steady_clock::now();
 
             const int64_t durationSeconds =
-                g_UtilityPrimerDurationMilliseconds /
+                (
+                    g_UtilityPrimerDurationMilliseconds +
+                    999
+                    ) /
                 1000;
 
-            g_Settings.utilityPrimerExpiresAt =
-                static_cast<int64_t>(
-                    std::time(nullptr)
-                    ) +
-                durationSeconds;
+            if (!g_SelfCharacterName.empty())
+            {
+                CharacterConsumableState& state =
+                    g_Settings.characterConsumables[
+                        g_SelfCharacterName
+                    ];
 
+                state.utilityPrimerRemainingSeconds =
+                    durationSeconds;
+
+                state.utilityPrimerStateKnown = true;
+            }
+
+            g_Settings.utilityPrimerExpiresAt = 0;
             g_SettingsChanged = true;
         }
     }
@@ -1203,6 +1418,26 @@ BuffTracker::GetRecentBuffEvents()
     return g_RecentBuffEvents;
 }
 
+ConsumableDetectionState
+BuffTracker::GetFoodDetectionState()
+{
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
+
+    return g_FoodDetectionState;
+}
+
+ConsumableDetectionState
+BuffTracker::GetUtilityDetectionState()
+{
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
+
+    return g_UtilityDetectionState;
+}
+
 bool BuffTracker::HasCandyCane()
 {
     std::lock_guard<std::mutex> lock(
@@ -1296,6 +1531,8 @@ bool BuffTracker::HasFood()
         );
 
         g_HasFood = false;
+        g_FoodDetectionState =
+            ConsumableDetectionState::Missing;
         g_FoodDurationMilliseconds = 0;
 
         g_FoodSkillID = 0;
@@ -1310,6 +1547,7 @@ bool BuffTracker::HasFood()
 
             state.foodRemainingSeconds = 0;
             state.foodSkillID = 0;
+            state.foodStateKnown = true;
 
             g_SettingsChanged = true;
         }
@@ -1347,6 +1585,8 @@ bool BuffTracker::HasUtility()
         );
 
         g_HasUtility = false;
+        g_UtilityDetectionState =
+            ConsumableDetectionState::Missing;
         g_UtilityDurationMilliseconds = 0;
 
         g_UtilitySkillID = 0;
@@ -1361,6 +1601,7 @@ bool BuffTracker::HasUtility()
 
             state.utilityRemainingSeconds = 0;
             state.utilitySkillID = 0;
+            state.utilityStateKnown = true;
 
             g_SettingsChanged = true;
         }
@@ -1378,7 +1619,7 @@ bool BuffTracker::HasMetabolicPrimer()
     );
 
     const int64_t remaining =
-        GetEffectiveMetabolicPrimerRemainingMillisecondsLocked();
+        GetDirectMetabolicPrimerRemainingMillisecondsLocked();
 
     if (remaining > 0)
     {
@@ -1390,9 +1631,23 @@ bool BuffTracker::HasMetabolicPrimer()
         g_Settings.metabolicPrimerExpiresAt != 0)
     {
         g_HasMetabolicPrimer = false;
+        g_MetabolicPrimerDetectionState =
+            ConsumableDetectionState::Missing;
         g_MetabolicPrimerDurationMilliseconds = 0;
 
         g_Settings.metabolicPrimerExpiresAt = 0;
+
+        if (!g_SelfCharacterName.empty())
+        {
+            CharacterConsumableState& state =
+                g_Settings.characterConsumables[
+                    g_SelfCharacterName
+                ];
+
+            state.metabolicPrimerRemainingSeconds = 0;
+            state.metabolicPrimerStateKnown = true;
+        }
+
         g_SettingsChanged = true;
     }
 
@@ -1406,7 +1661,7 @@ bool BuffTracker::HasUtilityPrimer()
     );
 
     const int64_t remaining =
-        GetEffectiveUtilityPrimerRemainingMillisecondsLocked();
+        GetDirectUtilityPrimerRemainingMillisecondsLocked();
 
     if (remaining > 0)
     {
@@ -1418,13 +1673,47 @@ bool BuffTracker::HasUtilityPrimer()
         g_Settings.utilityPrimerExpiresAt != 0)
     {
         g_HasUtilityPrimer = false;
+        g_UtilityPrimerDetectionState =
+            ConsumableDetectionState::Missing;
         g_UtilityPrimerDurationMilliseconds = 0;
 
         g_Settings.utilityPrimerExpiresAt = 0;
+
+        if (!g_SelfCharacterName.empty())
+        {
+            CharacterConsumableState& state =
+                g_Settings.characterConsumables[
+                    g_SelfCharacterName
+                ];
+
+            state.utilityPrimerRemainingSeconds = 0;
+            state.utilityPrimerStateKnown = true;
+        }
+
         g_SettingsChanged = true;
     }
 
     return false;
+}
+
+ConsumableDetectionState
+BuffTracker::GetMetabolicPrimerDetectionState()
+{
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
+
+    return g_MetabolicPrimerDetectionState;
+}
+
+ConsumableDetectionState
+BuffTracker::GetUtilityPrimerDetectionState()
+{
+    std::lock_guard<std::mutex> lock(
+        g_BuffMutex
+    );
+
+    return g_UtilityPrimerDetectionState;
 }
 
 bool BuffTracker::IsInCombat()
@@ -1500,7 +1789,7 @@ GetMetabolicPrimerRemainingMilliseconds()
     );
 
     return
-        GetEffectiveMetabolicPrimerRemainingMillisecondsLocked();
+        GetDirectMetabolicPrimerRemainingMillisecondsLocked();
 }
 
 int64_t BuffTracker::
@@ -1511,7 +1800,7 @@ GetUtilityPrimerRemainingMilliseconds()
     );
 
     return
-        GetEffectiveUtilityPrimerRemainingMillisecondsLocked();
+        GetDirectUtilityPrimerRemainingMillisecondsLocked();
 }
 
 uint32_t BuffTracker::GetFoodSkillID()
@@ -1556,53 +1845,36 @@ void BuffTracker::RestorePrimerState()
         g_BuffMutex
     );
 
-    const int64_t now =
-        static_cast<int64_t>(
-            std::time(nullptr)
-            );
+    //
+    // Primers are character-specific. At addon load we do not yet
+    // know which character is active, so do not restore a global
+    // Primer timer here. Per-character Primer state is restored when
+    // ArcDPS identifies the self character.
+    //
+    g_HasMetabolicPrimer = false;
+    g_HasUtilityPrimer = false;
 
-    if (g_Settings.metabolicPrimerExpiresAt >
-        now)
+    g_MetabolicPrimerDetectionState =
+        ConsumableDetectionState::Unknown;
+
+    g_UtilityPrimerDetectionState =
+        ConsumableDetectionState::Unknown;
+
+    g_MetabolicPrimerDurationMilliseconds = 0;
+    g_UtilityPrimerDurationMilliseconds = 0;
+
+    // Clear obsolete global timestamps so they cannot leak Primer
+    // state onto a different character.
+    if (g_Settings.metabolicPrimerExpiresAt != 0)
     {
-        const int64_t remainingSeconds =
-            g_Settings.metabolicPrimerExpiresAt -
-            now;
-
-        g_HasMetabolicPrimer = true;
-
-        g_MetabolicPrimerDurationMilliseconds =
-            remainingSeconds * 1000;
-
-        g_MetabolicPrimerReceivedTime =
-            std::chrono::steady_clock::now();
-    }
-    else
-    {
-        g_HasMetabolicPrimer = false;
-        g_MetabolicPrimerDurationMilliseconds = 0;
         g_Settings.metabolicPrimerExpiresAt = 0;
+        g_SettingsChanged = true;
     }
 
-    if (g_Settings.utilityPrimerExpiresAt >
-        now)
+    if (g_Settings.utilityPrimerExpiresAt != 0)
     {
-        const int64_t remainingSeconds =
-            g_Settings.utilityPrimerExpiresAt -
-            now;
-
-        g_HasUtilityPrimer = true;
-
-        g_UtilityPrimerDurationMilliseconds =
-            remainingSeconds * 1000;
-
-        g_UtilityPrimerReceivedTime =
-            std::chrono::steady_clock::now();
-    }
-    else
-    {
-        g_HasUtilityPrimer = false;
-        g_UtilityPrimerDurationMilliseconds = 0;
         g_Settings.utilityPrimerExpiresAt = 0;
+        g_SettingsChanged = true;
     }
 }
 
@@ -1618,8 +1890,8 @@ void BuffTracker::SavePrimerState()
     //
     SaveCurrentCharacterConsumablesLocked();
 
-    // Primer expiration timestamps are already
-    // stored directly in g_Settings.
+    // Food, Utility, and Primer remaining timers are stored
+    // per character by SaveCurrentCharacterConsumablesLocked().
 }
 
 bool BuffTracker::ConsumeSettingsChanged()
