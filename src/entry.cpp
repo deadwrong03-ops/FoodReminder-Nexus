@@ -5241,7 +5241,11 @@ void RenderGeneralTab()
 void RenderSquadTab()
 {
     ImGui::TextUnformatted(
-        "Squad Tracking"
+        "Squad Consumables"
+    );
+
+    ImGui::TextDisabled(
+        "Food and Utility status reported by ArcDPS."
     );
 
     ImGui::Separator();
@@ -5274,7 +5278,7 @@ void RenderSquadTab()
     );
 
     ImGui::Text(
-        "ArcDPS tracked players: %llu",
+        "Tracked players: %llu",
         static_cast<
         unsigned long long
         >(
@@ -5282,9 +5286,8 @@ void RenderSquadTab()
             )
     );
 
-    ImGui::TextWrapped(
-        "Players appear here when ArcDPS begins tracking them in your current area/instance. "
-        "? means ArcDPS has not established that consumable state yet."
+    ImGui::TextDisabled(
+        "? = consumable state not established yet."
     );
 
     static bool showSquadDebugColumns = false;
@@ -6184,12 +6187,13 @@ void RenderSessionTab()
     ImGui::Spacing();
     ImGui::Separator();
 
-    ImGui::TextUnformatted(
-        "Food"
+    ImGui::TextColored(
+        goodColor,
+        "FOOD"
     );
 
     ImGui::TextDisabled(
-        "Coverage, primer savings, and food usage."
+        "Coverage | Primer | Cost"
     );
 
     if (foodSessionCoverage >= 99.95)
@@ -6331,100 +6335,106 @@ void RenderSessionTab()
         "Conservative Trading Post estimate based only on Primer-protected Food time beyond one normal Food duration. Unknown Primer time is excluded."
     );
 
-    ImGui::Text(
-        "Applications: %u",
-        stats.foodApplications
-    );
-
-    HelpMarker(
-        "Number of Food applications detected during this session."
-    );
-
-    ImGui::Text(
-        "Refreshes: %u",
-        stats.foodRefreshes
-    );
-
-    HelpMarker(
-        "Times the same Food was reapplied while it was already active."
-    );
-
-    if (stats.foodReplacements > 0)
-    {
-        ImGui::TextColored(
-            attentionColor,
-            "Replacements: %u",
-            stats.foodReplacements
-        );
-    }
-    else
+    if (ImGui::TreeNodeEx(
+        "Usage & Waste Details##Food",
+        ImGuiTreeNodeFlags_SpanAvailWidth
+    ))
     {
         ImGui::Text(
-            "Replacements: %u",
-            stats.foodReplacements
+            "Applications: %u",
+            stats.foodApplications
         );
-    }
 
-    HelpMarker(
-        "Times a different Food replaced an already-active Food."
-    );
-
-    if (stats.foodExpiredInCombat > 0)
-    {
-        ImGui::TextColored(
-            badColor,
-            "Expired In Combat: %u",
-            stats.foodExpiredInCombat
+        HelpMarker(
+            "Number of Food applications detected during this session."
         );
-    }
-    else
-    {
+
         ImGui::Text(
-            "Expired In Combat: %u",
-            stats.foodExpiredInCombat
+            "Refreshes: %u",
+            stats.foodRefreshes
         );
+
+        HelpMarker(
+            "Times the same Food was reapplied while it was already active."
+        );
+
+        if (stats.foodReplacements > 0)
+        {
+            ImGui::TextColored(
+                attentionColor,
+                "Replacements: %u",
+                stats.foodReplacements
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Replacements: %u",
+                stats.foodReplacements
+            );
+        }
+
+        HelpMarker(
+            "Times a different Food replaced an already-active Food."
+        );
+
+        if (stats.foodExpiredInCombat > 0)
+        {
+            ImGui::TextColored(
+                badColor,
+                "Expired In Combat: %u",
+                stats.foodExpiredInCombat
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Expired In Combat: %u",
+                stats.foodExpiredInCombat
+            );
+        }
+
+        HelpMarker(
+            "Number of times Food expired while ArcDPS reported you were in combat."
+        );
+        if (stats.foodWastedMilliseconds > 0)
+        {
+            ImGui::TextColored(
+                attentionColor,
+                "Wasted Duration: %s",
+                FormatDuration(
+                    stats.foodWastedMilliseconds
+                ).c_str()
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Wasted Duration: %s",
+                FormatDuration(
+                    stats.foodWastedMilliseconds
+                ).c_str()
+            );
+        }
+
+        HelpMarker(
+            "Remaining Food duration lost when an active Food was replaced."
+        );
+
+        ImGui::TreePop();
     }
 
-    HelpMarker(
-        "Number of times Food expired while ArcDPS reported you were in combat."
-    );
-    if (stats.foodWastedMilliseconds > 0)
-    {
-        ImGui::TextColored(
-            attentionColor,
-            "Wasted Duration: %s",
-            FormatDuration(
-                stats.foodWastedMilliseconds
-            ).c_str()
-        );
-    }
-    else
-    {
-        ImGui::Text(
-            "Wasted Duration: %s",
-            FormatDuration(
-                stats.foodWastedMilliseconds
-            ).c_str()
-        );
-    }
-
-    HelpMarker(
-        "Remaining Food duration lost when an active Food was replaced."
-    );
     ImGui::Spacing();
 
-    ImGui::TextUnformatted(
-        "Food Used / Cost"
-    );
     uint64_t foodCostCopper = 0;
-    if (stats.foodUsage.empty())
+
+    if (!stats.foodUsage.empty())
     {
-        ImGui::TextDisabled(
-            "No Food applications recorded."
+        ImGui::TextColored(
+            attentionColor,
+            "Food Used / Cost"
         );
-    }
-    else
-    {
+
         std::vector<SessionConsumableUsage>
             sortedFoodUsage =
             stats.foodUsage;
@@ -6608,12 +6618,13 @@ void RenderSessionTab()
     ImGui::Spacing();
     ImGui::Separator();
 
-    ImGui::TextUnformatted(
-        "Utility"
+    ImGui::TextColored(
+        goodColor,
+        "UTILITY"
     );
 
     ImGui::TextDisabled(
-        "Coverage, primer savings, and utility usage."
+        "Coverage | Primer | Cost"
     );
 
     if (utilitySessionCoverage >= 99.95)
@@ -6756,101 +6767,106 @@ void RenderSessionTab()
     HelpMarker(
         "Conservative Trading Post estimate based only on Primer-protected Utility time beyond one normal Utility duration. Unknown Primer time is excluded."
     );
-    ImGui::Text(
-        "Applications: %u",
-        stats.utilityApplications
-    );
-
-    HelpMarker(
-        "Number of Utility applications detected during this session."
-    );
-
-    ImGui::Text(
-        "Refreshes: %u",
-        stats.utilityRefreshes
-    );
-
-    HelpMarker(
-        "Times the same Utility was reapplied while it was already active."
-    );
-
-    if (stats.utilityReplacements > 0)
-    {
-        ImGui::TextColored(
-            attentionColor,
-            "Replacements: %u",
-            stats.utilityReplacements
-        );
-    }
-    else
+    if (ImGui::TreeNodeEx(
+        "Usage & Waste Details##Utility",
+        ImGuiTreeNodeFlags_SpanAvailWidth
+    ))
     {
         ImGui::Text(
-            "Replacements: %u",
-            stats.utilityReplacements
+            "Applications: %u",
+            stats.utilityApplications
         );
-    }
 
-    HelpMarker(
-        "Times a different Utility replaced an already-active Utility."
-    );
-
-    if (stats.utilityExpiredInCombat > 0)
-    {
-        ImGui::TextColored(
-            badColor,
-            "Expired In Combat: %u",
-            stats.utilityExpiredInCombat
+        HelpMarker(
+            "Number of Utility applications detected during this session."
         );
-    }
-    else
-    {
+
         ImGui::Text(
-            "Expired In Combat: %u",
-            stats.utilityExpiredInCombat
+            "Refreshes: %u",
+            stats.utilityRefreshes
         );
+
+        HelpMarker(
+            "Times the same Utility was reapplied while it was already active."
+        );
+
+        if (stats.utilityReplacements > 0)
+        {
+            ImGui::TextColored(
+                attentionColor,
+                "Replacements: %u",
+                stats.utilityReplacements
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Replacements: %u",
+                stats.utilityReplacements
+            );
+        }
+
+        HelpMarker(
+            "Times a different Utility replaced an already-active Utility."
+        );
+
+        if (stats.utilityExpiredInCombat > 0)
+        {
+            ImGui::TextColored(
+                badColor,
+                "Expired In Combat: %u",
+                stats.utilityExpiredInCombat
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Expired In Combat: %u",
+                stats.utilityExpiredInCombat
+            );
+        }
+
+        HelpMarker(
+            "Number of times Utility expired while ArcDPS reported you were in combat."
+        );
+        if (stats.utilityWastedMilliseconds > 0)
+        {
+            ImGui::TextColored(
+                attentionColor,
+                "Wasted Duration: %s",
+                FormatDuration(
+                    stats.utilityWastedMilliseconds
+                ).c_str()
+            );
+        }
+        else
+        {
+            ImGui::Text(
+                "Wasted Duration: %s",
+                FormatDuration(
+                    stats.utilityWastedMilliseconds
+                ).c_str()
+            );
+        }
+
+        HelpMarker(
+            "Remaining Utility duration lost when an active Utility was replaced."
+        );
+
+        ImGui::TreePop();
     }
 
-    HelpMarker(
-        "Number of times Utility expired while ArcDPS reported you were in combat."
-    );
-    if (stats.utilityWastedMilliseconds > 0)
-    {
-        ImGui::TextColored(
-            attentionColor,
-            "Wasted Duration: %s",
-            FormatDuration(
-                stats.utilityWastedMilliseconds
-            ).c_str()
-        );
-    }
-    else
-    {
-        ImGui::Text(
-            "Wasted Duration: %s",
-            FormatDuration(
-                stats.utilityWastedMilliseconds
-            ).c_str()
-        );
-    }
-
-    HelpMarker(
-        "Remaining Utility duration lost when an active Utility was replaced."
-    );
     ImGui::Spacing();
 
-    ImGui::TextUnformatted(
-        "Utility Used / Cost"
-    );
     uint64_t utilityCostCopper = 0;
 
-    if (stats.utilityUsage.empty())
+    if (!stats.utilityUsage.empty())
     {
-        ImGui::TextDisabled(
-            "No Utility applications recorded."
+        ImGui::TextColored(
+            attentionColor,
+            "Utility Used / Cost"
         );
-    }
-    else
-    {
+
         std::vector<SessionConsumableUsage>
             sortedUtilityUsage =
             stats.utilityUsage;
@@ -7011,12 +7027,13 @@ void RenderSessionTab()
     ImGui::Spacing();
     ImGui::Separator();
 
-    ImGui::TextUnformatted(
-        "Session Totals & Efficiency"
+    ImGui::TextColored(
+        attentionColor,
+        "SESSION TOTALS"
     );
 
     ImGui::TextDisabled(
-        "Quick read on coverage, spending, primer savings, and avoidable waste."
+        "Coverage | Spending | Savings | Waste"
     );
 
     const uint64_t totalUsedCostCopper =
@@ -7342,212 +7359,215 @@ void RenderSessionTab()
     ImGui::Spacing();
     ImGui::Separator();
 
-    ImGui::TextUnformatted(
+    if (ImGui::CollapsingHeader(
         "Consumable History"
-    );
-
-    ImGui::TextDisabled(
-        "Timeline of food and utility changes during this session."
-    );
-
-    if (stats.consumableHistory.empty())
+    ))
     {
         ImGui::TextDisabled(
-            "No consumable events recorded."
+            "Timeline of Food and Utility changes during this session."
         );
-    }
-    else
-    {
-        for (
-            const SessionConsumableEvent& event :
-            stats.consumableHistory
-            )
+
+        if (stats.consumableHistory.empty())
         {
-            const int64_t totalSeconds =
-                event.sessionMilliseconds / 1000;
-
-            const int64_t hours =
-                totalSeconds / 3600;
-
-            const int64_t minutes =
-                (totalSeconds % 3600) / 60;
-
-            const int64_t seconds =
-                totalSeconds % 60;
-
-            const ConsumableInfo& info =
-                event.isFood
-                ? ConsumableData::GetFoodInfo(
-                    event.skillID
-                )
-                : ConsumableData::GetUtilityInfo(
-                    event.skillID
-                );
-
-            const char* actionText =
-                event.type ==
-                SessionConsumableEventType::Applied
-                ? "Applied"
-                : event.type ==
-                SessionConsumableEventType::Refreshed
-                ? "Refreshed"
-                : event.type ==
-                SessionConsumableEventType::Replaced
-                ? "Replaced"
-                : "Expired";
-            const ConsumableInfo* previousInfo = nullptr;
-
-            if (
-                event.type ==
-                SessionConsumableEventType::Replaced &&
-                event.previousSkillID != 0
+            ImGui::TextDisabled(
+                "No consumable events recorded."
+            );
+        }
+        else
+        {
+            for (
+                const SessionConsumableEvent& event :
+                stats.consumableHistory
                 )
             {
-                previousInfo =
+                const int64_t totalSeconds =
+                    event.sessionMilliseconds / 1000;
+
+                const int64_t hours =
+                    totalSeconds / 3600;
+
+                const int64_t minutes =
+                    (totalSeconds % 3600) / 60;
+
+                const int64_t seconds =
+                    totalSeconds % 60;
+
+                const ConsumableInfo& info =
                     event.isFood
-                    ? &ConsumableData::GetFoodInfo(
-                        event.previousSkillID
+                    ? ConsumableData::GetFoodInfo(
+                        event.skillID
                     )
-                    : &ConsumableData::GetUtilityInfo(
-                        event.previousSkillID
-                    );
-            }
-            if (
-                event.type ==
-                SessionConsumableEventType::Replaced &&
-                previousInfo != nullptr
-                )
-            {
-                const bool previousUnknown =
-                    std::string(
-                        previousInfo->label
-                    ) == "Unknown";
-
-                const bool currentUnknown =
-                    std::string(
-                        info.label
-                    ) == "Unknown";
-
-                const int64_t previousTotalSeconds =
-                    event.previousRemainingMilliseconds / 1000;
-
-                const int64_t previousMinutes =
-                    previousTotalSeconds / 60;
-
-                const int64_t previousSeconds =
-                    previousTotalSeconds % 60;
-
-                if (!previousUnknown &&
-                    !currentUnknown)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s -> %s  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        previousInfo->name,
-                        info.name,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-                else if (previousUnknown &&
-                    !currentUnknown)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Unknown (%u) -> %s  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        event.previousSkillID,
-                        info.name,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-                else if (!previousUnknown &&
-                    currentUnknown)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s -> Unknown (%u)  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        previousInfo->name,
-                        event.skillID,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-                else
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)  (%lld:%02lld remaining)",
-                        hours,
-                        minutes,
-                        seconds,
-                        event.previousSkillID,
-                        event.skillID,
-                        previousMinutes,
-                        previousSeconds
-                    );
-                }
-            }
-            else if (std::string(info.label) ==
-                "Unknown")
-            {
-                if (event.type ==
-                    SessionConsumableEventType::Expired &&
-                    event.inCombat)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Expired Unknown (%u) (in combat)",
-                        hours,
-                        minutes,
-                        seconds,
+                    : ConsumableData::GetUtilityInfo(
                         event.skillID
                     );
+
+                const char* actionText =
+                    event.type ==
+                    SessionConsumableEventType::Applied
+                    ? "Applied"
+                    : event.type ==
+                    SessionConsumableEventType::Refreshed
+                    ? "Refreshed"
+                    : event.type ==
+                    SessionConsumableEventType::Replaced
+                    ? "Replaced"
+                    : "Expired";
+                const ConsumableInfo* previousInfo = nullptr;
+
+                if (
+                    event.type ==
+                    SessionConsumableEventType::Replaced &&
+                    event.previousSkillID != 0
+                    )
+                {
+                    previousInfo =
+                        event.isFood
+                        ? &ConsumableData::GetFoodInfo(
+                            event.previousSkillID
+                        )
+                        : &ConsumableData::GetUtilityInfo(
+                            event.previousSkillID
+                        );
+                }
+                if (
+                    event.type ==
+                    SessionConsumableEventType::Replaced &&
+                    previousInfo != nullptr
+                    )
+                {
+                    const bool previousUnknown =
+                        std::string(
+                            previousInfo->label
+                        ) == "Unknown";
+
+                    const bool currentUnknown =
+                        std::string(
+                            info.label
+                        ) == "Unknown";
+
+                    const int64_t previousTotalSeconds =
+                        event.previousRemainingMilliseconds / 1000;
+
+                    const int64_t previousMinutes =
+                        previousTotalSeconds / 60;
+
+                    const int64_t previousSeconds =
+                        previousTotalSeconds % 60;
+
+                    if (!previousUnknown &&
+                        !currentUnknown)
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  %s -> %s  (%lld:%02lld remaining)",
+                            hours,
+                            minutes,
+                            seconds,
+                            previousInfo->name,
+                            info.name,
+                            previousMinutes,
+                            previousSeconds
+                        );
+                    }
+                    else if (previousUnknown &&
+                        !currentUnknown)
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  Unknown (%u) -> %s  (%lld:%02lld remaining)",
+                            hours,
+                            minutes,
+                            seconds,
+                            event.previousSkillID,
+                            info.name,
+                            previousMinutes,
+                            previousSeconds
+                        );
+                    }
+                    else if (!previousUnknown &&
+                        currentUnknown)
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  %s -> Unknown (%u)  (%lld:%02lld remaining)",
+                            hours,
+                            minutes,
+                            seconds,
+                            previousInfo->name,
+                            event.skillID,
+                            previousMinutes,
+                            previousSeconds
+                        );
+                    }
+                    else
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  Unknown (%u) -> Unknown (%u)  (%lld:%02lld remaining)",
+                            hours,
+                            minutes,
+                            seconds,
+                            event.previousSkillID,
+                            event.skillID,
+                            previousMinutes,
+                            previousSeconds
+                        );
+                    }
+                }
+                else if (std::string(info.label) ==
+                    "Unknown")
+                {
+                    if (event.type ==
+                        SessionConsumableEventType::Expired &&
+                        event.inCombat)
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  Expired Unknown (%u) (in combat)",
+                            hours,
+                            minutes,
+                            seconds,
+                            event.skillID
+                        );
+                    }
+                    else
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  %s Unknown (%u)",
+                            hours,
+                            minutes,
+                            seconds,
+                            actionText,
+                            event.skillID
+                        );
+                    }
                 }
                 else
                 {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s Unknown (%u)",
-                        hours,
-                        minutes,
-                        seconds,
-                        actionText,
-                        event.skillID
-                    );
-                }
-            }
-            else
-            {
-                if (event.type ==
-                    SessionConsumableEventType::Expired &&
-                    event.inCombat)
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  Expired %s (in combat)",
-                        hours,
-                        minutes,
-                        seconds,
-                        info.name
-                    );
-                }
-                else
-                {
-                    ImGui::Text(
-                        "%02lld:%02lld:%02lld  %s %s",
-                        hours,
-                        minutes,
-                        seconds,
-                        actionText,
-                        info.name
-                    );
+                    if (event.type ==
+                        SessionConsumableEventType::Expired &&
+                        event.inCombat)
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  Expired %s (in combat)",
+                            hours,
+                            minutes,
+                            seconds,
+                            info.name
+                        );
+                    }
+                    else
+                    {
+                        ImGui::Text(
+                            "%02lld:%02lld:%02lld  %s %s",
+                            hours,
+                            minutes,
+                            seconds,
+                            actionText,
+                            info.name
+                        );
+                    }
                 }
             }
         }
+
     }
+
     ImGui::Spacing();
     ImGui::Separator();
 
