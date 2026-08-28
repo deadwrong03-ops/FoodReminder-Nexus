@@ -20,14 +20,37 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Warns when entering combat without Food and/or Utility
 - Detects consumable applications, refreshes, replacements, and expirations
 - Clears stale consumable state when switching characters
+- Persists per-character Food and Utility state across addon/game reloads
+- Distinguishes between `Unknown`, active, and confirmed-missing state
 
 ### Primer Support
 
-- Tracks Metabolic Primer and Utility Primer
-- Displays remaining Primer duration
-- Warns before Primers expire
-- Restores previously detected Primer state after addon reload
-- Can infer Primer protection from extended consumable duration when direct state is unavailable
+- Tracks Metabolic Primer and Utility Primer when reliable ArcDPS state is available
+- Keeps Primer state character-specific
+- Prevents Primer state from leaking between characters
+- Can infer Primer **presence only** from clearly Primer-extended Food or Utility duration
+- Does not infer a false Primer countdown from extended consumable duration
+- Displays `Active*` when Primer presence is inferred rather than directly confirmed
+- Displays `Unknown` when ArcDPS does not provide enough information to determine Primer state
+- Provides tooltip explanations for Primer data limitations
+- Session reporting separates confirmed, inferred, and unknown Primer time
+
+> **Primer limitation:** ArcDPS does not reliably resend already-active Primer state after login or character switching, and current testing did not expose reliable Primer application events through the combat-event stream used by FoodReminder-Nexus. The addon therefore prefers an honest `Unknown` or inferred-presence state instead of displaying a fabricated countdown.
+
+### Compact Tracker
+
+- Compact always-available Food/Utility tracker
+- Remaining Food and Utility duration
+- Recognized consumable labels
+- Primer state display
+- Warning and critical timer colors
+- `Unknown` and `Not detected` states
+- Hover tooltips for consumable and Primer information
+- Right-click consumable actions
+- Compact width for reduced screen space
+- Distinctive gold tracker border for quick visual recognition
+- Draggable position
+- Optional position locking
 
 ### Squad Consumable Tracker
 
@@ -51,8 +74,19 @@ Tracks consumable usage during the current gameplay session, including:
 - Per-consumable usage history
 - Consumable cost tracking when Trading Post pricing is available
 - Total consumable cost
+- Confirmed Primer-active time
+- Inferred Primer-active time
+- Unknown Primer-state time
+- Estimated Primer uses saved
+- Estimated Primer gold saved
 
-Primer-protected time is tracked separately so extended consumable durations are not mistaken for ordinary consumable waste.
+Primer protection is handled conservatively:
+
+- **Confirmed** — direct trustworthy Primer state
+- **Inferred*** — Primer presence inferred from clearly extended Food/Utility duration
+- **Unknown** — ArcDPS has not supplied enough information
+- Unknown Primer time is excluded from Primer savings estimates
+- Extended Food/Utility duration is never copied into the Primer countdown
 
 ### Trading Post Integration
 
@@ -72,6 +106,7 @@ The built-in Trading Post Watcher currently supports:
 - Fresh-API-only target alerts
 - Anti-spam target alert latching
 - Dismissible target-reached notifications
+- Standalone gameplay-visible target-hit overlay
 - Dragon Bash-style target celebration effects
 - Manual per-item price refresh
 - Refresh All control
@@ -105,6 +140,8 @@ The Sell Target represents the **maximum price the user is willing to pay**.
 
 A target is considered reached when the current lowest sell listing is equal to or below the configured Sell Target.
 
+Target notifications are based on a fresh Trading Post API observation rather than immediately firing from stale cached pricing after a target edit.
+
 Deal-quality and opportunity signals are based on locally collected Trading Post observations and are intended as informational market context rather than guaranteed buying advice.
 
 Items without available Trading Post pricing remain tracked normally and are reported without a cost rather than using an estimated or guessed value.
@@ -133,7 +170,11 @@ FoodReminder-Nexus receives combat and buff information through **ArcDPS combat 
 
 ArcDPS does not always resend every already-active buff immediately after login, map changes, character changes, or addon reloads. Because of this, some consumable state may remain unknown until ArcDPS reports a relevant event.
 
-The addon intentionally prefers displaying an effect as **unknown** rather than guessing its identity.
+Food and Utility state can often resynchronize when fresh combat events arrive.
+
+Primer state is more limited. Current testing showed that already-active Primer state is not reliably resent after login or character switching, and Primer application did not appear in the Recent Buff Events stream used during testing. FoodReminder-Nexus therefore does not fabricate Primer timers.
+
+The addon intentionally prefers displaying an effect as **unknown** rather than guessing its identity or remaining duration.
 
 Squad consumable states may appear as:
 
@@ -164,7 +205,7 @@ The addon is written in **C++** and developed using **Visual Studio**.
 
 FoodReminder-Nexus is currently an experimental development build.
 
-Core consumable tracking, reminders, Primer support, squad tracking, session reporting, unknown-consumable collection, Trading Post cost integration, and the Trading Post Watcher are operational and undergoing live in-game testing.
+Core consumable tracking, reminders, squad tracking, session reporting, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
 
 The Trading Post Watcher has successfully passed:
 
@@ -182,16 +223,29 @@ The Trading Post Watcher has successfully passed:
 - Anti-spam target alert testing
 - Deal-quality analysis
 - Opportunity-signal testing
+- Standalone gameplay-visible target-hit overlay testing
+
+Recent consumable-state work has also passed:
+
+- Per-character Food/Utility state restoration
+- `Unknown` vs confirmed-missing state handling
+- False missing-warning suppression while state is unknown
+- Character-specific Primer state isolation
+- Removal of inaccurate Food/Utility-to-Primer countdown inference
+- Primer presence-only inference
+- Primer limitation tooltips
+- Primer-safe Session Report tracking
+- Compact tracker width cleanup
+- Gold tracker border styling
 
 Current development is focused on:
 
-- Adding a standalone Trading Post target-hit notification that can appear outside the Trading Post tab
-- Improving already-active buff synchronization
 - Expanding the consumable database
-- Refining consumable cost analysis
-- Improving the Squad and Session interfaces
+- Refining consumable cost and savings analysis
+- Improving Squad and Session interfaces
 - Improving reminder presentation
 - Continued gameplay and stability testing
+- Evaluating additional reliable data sources for initial-state synchronization
 
 ---
 
@@ -199,18 +253,16 @@ Current development is focused on:
 
 Future development may include:
 
-- Standalone Trading Post target-hit overlay
 - Additional Trading Post market-analysis tools
 - Additional Trading Post notification customization
 - Longer-term Trading Post history analysis
 - Session cost-per-hour analysis
 - Historical consumable usage statistics
-- Compact optional Food/Utility timer HUD
 - Additional reminder customization
 - Combat-aware reminder behavior
 - Per-character settings and preferred consumables
 - Squad tracker customization
-- Improved initial-state synchronization
+- Improved initial-state synchronization where reliable data is available
 - Additional consumable database coverage
 - Jade Tech tracking if a reliable data source becomes available
 

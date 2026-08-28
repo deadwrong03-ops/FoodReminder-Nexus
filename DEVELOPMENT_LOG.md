@@ -4,6 +4,124 @@ A chronological record of major development changes, testing results, fixes, and
 
 ---
 
+
+## 2026-08-28 — Consumable State Reliability, Primer Limitations & Tracker Cleanup
+
+### Added
+- Explicit `Unknown`, `Active`, and `Missing` consumable detection states.
+- Persistent per-character Food/Utility detection-state flags so a zero timer no longer automatically means a confirmed missing buff.
+- Character-specific Primer persistence fields.
+- Separate Primer detection state for Metabolic Primer and Utility Primer.
+- Primer presence-only inference from clearly Primer-extended Food or Utility duration.
+- `Active*` tracker state for inferred Primer presence.
+- Primer limitation tooltips explaining when ArcDPS data is unavailable.
+- Primer-safe Session Report tracking:
+  - Confirmed Primer time.
+  - Inferred Primer time.
+  - Unknown Primer-state time.
+- Estimated Primer savings labels that explicitly distinguish calculated estimates from directly observed values.
+- Standalone gameplay-visible Trading Post target-hit overlay.
+- Compact tracker width cleanup.
+- Gold tracker border for improved visual recognition.
+
+### Changed
+- Food and Utility timers continue to use paused per-character duration snapshots while the character/game is unloaded.
+- Primer state is now character-specific instead of global.
+- Primer countdown inference from extended Food/Utility duration was removed.
+- Extended Food/Utility duration may now infer Primer **presence only**, never the Primer's remaining countdown.
+- Unknown Food/Utility state no longer triggers false missing-buff warnings when entering combat.
+- SessionTracker no longer receives only simple Primer booleans.
+- Session Primer tracking now distinguishes:
+  - `ConfirmedActive`
+  - `InferredActive`
+  - `Unknown`
+  - `Inactive`
+- Unknown Primer time is excluded from Primer savings estimates.
+- Existing aggregate Primer-protected time remains available for savings calculations but now consists only of confirmed and inferred protection.
+- Compact tracker minimum width reduced from 260 px to 220 px.
+- Food/Utility label columns moved left to reduce unused horizontal space.
+- Tracker border changed from experimental red to gold after in-game visual testing.
+- Experimental decorative dragon-corner drawing was tested and reverted because it did not read clearly at the compact tracker size.
+
+### Fixed
+- Food/Utility were briefly changed to absolute expiration timestamps based on the incorrect assumption that GW2 consumable timers continue while offline.
+- In-game testing proved Food/Utility timers pause while the character/game is unloaded, so the absolute-expiration change was fully reverted.
+- Brand-new characters could inherit Primer state from another character because Primer persistence was global.
+- Primer state no longer leaks between characters.
+- Food/Utility `Unknown` state could become `Missing` after persistence because zero remaining duration did not retain whether the state was actually known.
+- Detection-state persistence now preserves `Unknown` correctly across reloads.
+- Primer timers could be inflated by incorrectly treating long Food/Utility duration as the Primer's own remaining duration.
+- Food/Utility-to-Primer timer inference was removed.
+- Session statistics no longer silently treat uncertain Primer state as directly confirmed Primer protection.
+- Standalone Trading Post target overlay compile issue caused by the Windows `max` macro was fixed.
+
+### Tested
+- Food/Utility offline behavior tested by closing the game for several minutes:
+  - GW2 consumable timers remained effectively paused.
+  - Absolute-expiration implementation was rejected.
+- Brand-new character test:
+  - Food displayed `Unknown`.
+  - Utility displayed `Unknown`.
+  - No false missing-buff warning triggered after entering combat.
+- Character-specific Primer test:
+  - Brand-new character no longer inherited another character's Primer timers.
+- Existing-character Food/Utility resynchronization:
+  - Restored timers could initially be stale.
+  - Entering combat resynchronized Food/Utility to within a few seconds of the in-game buff bar.
+- Active Primer recovery test:
+  - Logging in with existing Primers did not restore a trustworthy active Primer timer from ArcDPS.
+  - Entering combat did not activate Primer state.
+  - Recent Buff Events continued to show unrelated events such as Rescue Protocol rather than usable Primer events.
+- Direct Primer application test:
+  - No usable Primer event appeared in Recent Buff Events.
+  - Exact Primer countdown recovery through the current ArcDPS event stream was therefore considered unreliable.
+- Primer presence-only inference:
+  - Extended Food/Utility duration correctly displayed `Metabolic: Active*` and `Utility P: Active*`.
+  - No fabricated Primer countdown was shown.
+- Primer-safe Session Report:
+  - `Primer Confirmed` remained at zero when direct state was unavailable.
+  - `Primer Inferred*` accumulated during clearly Primer-extended consumable protection.
+  - `Primer Unknown` remained separate.
+  - Estimated savings fields displayed correctly.
+- Compact tracker:
+  - Reduced-width layout displayed correctly in-game.
+  - Red border was tested and rejected as too similar to an error state.
+  - Gold border was tested and accepted as easier to locate without appearing as an error.
+  - Decorative dragon-style corner drawing was tested and rejected; tracker reverted to the clean gold-border baseline.
+- Standalone Trading Post target-hit overlay displayed correctly during normal gameplay with the Trading Post tab closed.
+
+### Known Limitations
+- ArcDPS does not reliably resend already-active Primer state after login or character switching through the combat-event stream currently used by FoodReminder-Nexus.
+- Current testing did not expose reliable Primer application events in Recent Buff Events.
+- Exact Primer countdowns therefore cannot always be reconstructed after login or character switching.
+- Primer presence may be inferred from clearly extended Food/Utility duration, but the Primer countdown itself is never inferred.
+- Food/Utility restored snapshots may briefly be stale until a fresh combat event resynchronizes them.
+- Initial-state synchronization remains dependent on what ArcDPS exposes.
+
+### Status
+✅ Build successful  
+✅ In-game Food/Utility pause behavior verified  
+✅ Unknown-state persistence passed  
+✅ False missing-warning suppression passed  
+✅ Character-specific Primer isolation passed  
+✅ Inaccurate Primer countdown inference removed  
+✅ Primer presence-only inference working  
+✅ Primer limitation UI working  
+✅ Primer-safe Session Report working  
+✅ Compact gold tracker styling accepted  
+✅ Standalone Trading Post target overlay working  
+✅ Latest Primer/session reliability batch ready to commit and push  
+
+### Next
+- Continue expanding the consumable database.
+- Refine consumable cost-per-hour and Primer savings analysis.
+- Continue long-term Trading Post history collection.
+- Improve Squad and Session presentation where useful.
+- Continue gameplay and stability testing.
+- Revisit initial-state synchronization only if a more reliable ArcDPS/Nexus data source becomes available.
+
+---
+
 ## 2026-08-27 — Trading Post Watcher, Search, History, Alerts & Market Analysis
 
 ### Added
@@ -146,11 +264,11 @@ A chronological record of major development changes, testing results, fixes, and
 - Longer trend windows such as 6 hours and 24 hours require sufficient locally collected history before analysis is available.
 - Deal-quality and opportunity signals are informational only and are not guarantees that an item will continue rising or falling.
 - The target celebration currently appears inside the Trading Post Watcher interface.
-- A standalone target-hit notification outside the Trading Post tab is not yet implemented.
+- Standalone target-hit notification outside the Trading Post tab has now been implemented and validated in-game.
 - Custom image-based Dragon Bash assets are not currently used; celebration effects are generated through ImGui drawing.
 
 ### Next
-- Add a standalone Trading Post target-hit notification overlay that can appear while the player is actively playing and the Trading Post tab is closed.
+- Continue validating the standalone Trading Post target-hit overlay during normal gameplay.
 - Reuse the existing fresh-API-only alert and anti-spam latch logic for the standalone overlay.
 - Keep the larger Dragon Bash-style celebration inside the Trading Post Watcher.
 - Continue long-term Trading Post history collection for 6-hour and 24-hour trend validation.
@@ -179,7 +297,7 @@ A chronological record of major development changes, testing results, fixes, and
 ✅ GOOD BUY / WATCH / OVERPRICED opportunity signals working  
 ✅ History-gap handling working  
 ✅ Latest Trading Post milestones committed and pushed  
-➡️ Next checkpoint: standalone Trading Post target-hit overlay
+✅ Standalone Trading Post target-hit overlay completed and tested
 
 ---
 
