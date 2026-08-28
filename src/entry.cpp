@@ -6533,6 +6533,34 @@ void RenderSessionTab()
                 foodSilver,
                 foodCopper
             );
+
+            if (stats.sessionMilliseconds > 0)
+            {
+                const uint64_t foodCostPerHourCopper =
+                    static_cast<uint64_t>(
+                        static_cast<long double>(
+                            foodCostCopper
+                            ) *
+                        3600000.0L /
+                        static_cast<long double>(
+                            stats.sessionMilliseconds
+                            )
+                        );
+
+                const std::string foodCostPerHourText =
+                    FormatCoinValue(
+                        foodCostPerHourCopper
+                    );
+
+                ImGui::TextDisabled(
+                    "Food Cost / Hour: %s",
+                    foodCostPerHourText.c_str()
+                );
+
+                HelpMarker(
+                    "Projects the current session's recorded Food spending to a one-hour rate. Short sessions can fluctuate heavily."
+                );
+            }
         }
     }
 
@@ -6892,6 +6920,34 @@ void RenderSessionTab()
                         (utilityCostCopper % 10000) / 100,
                         utilityCostCopper % 100
                     );
+
+                    if (stats.sessionMilliseconds > 0)
+                    {
+                        const uint64_t utilityCostPerHourCopper =
+                            static_cast<uint64_t>(
+                                static_cast<long double>(
+                                    utilityCostCopper
+                                    ) *
+                                3600000.0L /
+                                static_cast<long double>(
+                                    stats.sessionMilliseconds
+                                    )
+                                );
+
+                        const std::string utilityCostPerHourText =
+                            FormatCoinValue(
+                                utilityCostPerHourCopper
+                            );
+
+                        ImGui::TextDisabled(
+                            "Utility Cost / Hour: %s",
+                            utilityCostPerHourText.c_str()
+                        );
+
+                        HelpMarker(
+                            "Projects the current session's recorded Utility spending to a one-hour rate. Short sessions can fluctuate heavily."
+                        );
+                    }
                 }
                 const uint64_t totalConsumableCostCopper =
                     foodCostCopper +
@@ -6999,6 +7055,35 @@ void RenderSessionTab()
         HelpMarker(
             "Current Trading Post sell-price value of Food and Utility applications recorded during this session."
         );
+
+        if (stats.sessionMilliseconds > 0)
+        {
+            const uint64_t sessionCostPerHourCopper =
+                static_cast<uint64_t>(
+                    static_cast<long double>(
+                        totalUsedCostCopper
+                        ) *
+                    3600000.0L /
+                    static_cast<long double>(
+                        stats.sessionMilliseconds
+                        )
+                    );
+
+            const std::string sessionCostPerHourText =
+                FormatCoinValue(
+                    sessionCostPerHourCopper
+                );
+
+            ImGui::TextColored(
+                attentionColor,
+                "Session Cost Rate: %s / hour",
+                sessionCostPerHourText.c_str()
+            );
+
+            HelpMarker(
+                "Projects all priced Food and Utility spending recorded in this session to a one-hour rate. It becomes more representative as the session gets longer."
+            );
+        }
     }
     else
     {
