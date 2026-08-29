@@ -875,6 +875,16 @@ void BuffTracker::ProcessEvent(
                 detectedFoodInfo.label
             ) != "Unknown";
 
+        const ConsumableInfo& detectedUtilityInfo =
+            ConsumableData::GetUtilityInfo(
+                ev.SkillID
+            );
+
+        const bool isKnownUtilityEffect =
+            std::string(
+                detectedUtilityInfo.label
+            ) != "Unknown";
+
         const bool isFoodEvent =
             ev.SkillID != 34210 &&
             (
@@ -884,7 +894,8 @@ void BuffTracker::ProcessEvent(
                 );
 
         const bool isUtilityEvent =
-            skillName == "Enhancement";
+            skillName == "Enhancement" ||
+            isKnownUtilityEffect;
 
         const bool isMetabolicPrimerEvent =
             skillName == "Metabolic Primer";
