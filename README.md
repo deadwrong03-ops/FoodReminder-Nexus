@@ -162,6 +162,20 @@ The collector records:
 
 Collected effects persist between sessions and can be exported for later identification and database expansion.
 
+The collector automatically removes stored entries once their effect IDs become recognized by the current consumable database, keeping the list focused on genuinely unresolved effects.
+
+### External Consumable Database
+
+FoodReminder-Nexus supports an external `FoodReminder_Consumables.tsv` database stored beside the addon DLL.
+
+- Consumable mappings can be added or corrected without rebuilding the DLL
+- The database automatically reloads after the TSV is saved
+- Verified built-in mappings remain authoritative
+- The compiled database remains available as a fallback
+- Shared effect IDs can use combined/shared descriptions when ArcDPS cannot uniquely identify the consumed item
+
+This allows normal gameplay and the Unknown Consumable Collector to drive database expansion without requiring repeated Visual Studio rebuilds for data-only changes.
+
 ---
 
 ## How Tracking Works
@@ -237,10 +251,13 @@ Recent consumable-state work has also passed:
 - Primer-safe Session Report tracking
 - Compact tracker width cleanup
 - Gold tracker border styling
+- External consumable TSV loading and automatic reload
+- Resolved unknown effects automatically disappearing from the Unknown Consumable Collector
 
 Current development is focused on:
 
-- Expanding the consumable database
+- Expanding the external consumable database through normal gameplay and reliable public-data reconciliation
+- Resolving only genuinely unknown effect IDs that remain after database lookup
 - Refining consumable cost and savings analysis
 - Improving Squad and Session interfaces
 - Improving reminder presentation

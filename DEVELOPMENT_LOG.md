@@ -5,6 +5,52 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-08-29 — External Consumable Database & Unknown Collector Cleanup
+
+### Added
+- External `FoodReminder_Consumables.tsv` consumable database.
+- Automatic database loading from the same folder as the FoodReminder-Nexus DLL.
+- Automatic TSV reload after the database file is saved, allowing consumable mappings to be added or corrected without rebuilding the DLL.
+- Additional Food and Utility mappings from live testing and public-data reconciliation.
+- Fried Banana Chips (`62677`) and other resolved effects from the latest consumable test batch.
+
+### Changed
+- Consumable lookup now supports the external TSV database while retaining the compiled database as a fallback.
+- Existing hand-authored consumable mappings remain authoritative so verified item IDs and detailed metadata are preserved.
+- Shared effect IDs use shared/combined descriptions rather than pretending a single effect uniquely identifies one consumable.
+- Unknown Consumables now acts as a current unresolved list instead of retaining every historically unknown effect.
+
+### Fixed
+- Previously captured unknown IDs could remain in the Unknown Consumables list after their effects were added to the consumable database.
+- `SquadTracker::GetUnknownConsumables()` now checks stored unknowns against the current consumable database and removes entries that have become recognized.
+
+### Tested
+- External TSV loading verified in-game by changing the display name for effect `58110` and observing the change immediately in FoodReminder-Nexus.
+- DLL rebuild was not required for the TSV data change.
+- Updated `SquadTracker.cpp` build passed.
+- Latest external database and resolved-unknown pruning changes installed successfully.
+
+### Known Limitations
+- External TSV entries do not override existing hand-authored switch mappings; verified built-in mappings remain authoritative.
+- Effect IDs `57334` and `57406` remain intentionally unresolved pending reliable identification.
+- Some Guild Wars 2 consumables share the same effect ID and therefore cannot be uniquely identified from the ArcDPS effect alone.
+
+### Status
+✅ External consumable database working  
+✅ Automatic TSV reload verified in-game  
+✅ Consumable data can now be expanded without rebuilding the DLL  
+✅ Resolved unknown-ID pruning implemented  
+✅ Latest build passed  
+✅ Changes committed/pushed checkpoint ready  
+
+### Next
+- Play normally and collect genuinely new unknown consumable effects.
+- Resolve new unknowns from reliable public data before resorting to manual consumable testing.
+- Continue expanding `FoodReminder_Consumables.tsv`.
+- Manually isolate unresolved effects only when public data cannot identify them.
+
+---
+
 ## 2026-08-28 — Consumable State Reliability, Primer Limitations & Tracker Cleanup
 
 ### Added
