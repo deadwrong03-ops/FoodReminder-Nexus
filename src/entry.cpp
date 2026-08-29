@@ -5518,7 +5518,13 @@ void RenderSquadTab()
                     }
                     else
                     {
-                        ImGui::Text(
+                        ImGui::TextColored(
+                            ImVec4(
+                                0.35f,
+                                0.90f,
+                                0.45f,
+                                1.00f
+                            ),
                             "%s %02lld:%02lld:%02lld",
                             GetSquadConsumableLabel(
                                 foodInfo.label
@@ -5633,7 +5639,13 @@ void RenderSquadTab()
                     }
                     else
                     {
-                        ImGui::Text(
+                        ImGui::TextColored(
+                            ImVec4(
+                                0.45f,
+                                0.75f,
+                                1.00f,
+                                1.00f
+                            ),
                             "%s %02lld:%02lld:%02lld",
                             GetSquadConsumableLabel(
                                 utilityInfo.label
