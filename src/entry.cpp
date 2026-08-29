@@ -1663,10 +1663,27 @@ void AddonRender()
     ImGui::SetNextWindowBgAlpha(
         0.90f
     );
+
     ImGui::PushStyleVar(
         ImGuiStyleVar_WindowPadding,
         ImVec2(24.0f, 18.0f)
     );
+
+    ImGui::PushStyleVar(
+        ImGuiStyleVar_WindowBorderSize,
+        3.0f
+    );
+
+    ImGui::PushStyleColor(
+        ImGuiCol_Border,
+        ImVec4(
+            0.95f,
+            0.15f,
+            0.15f,
+            1.00f
+        )
+    );
+
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_AlwaysAutoResize |
@@ -1787,7 +1804,8 @@ void AddonRender()
 
     ImGui::End();
 
-    ImGui::PopStyleVar();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(2);
 }
 
 
@@ -5278,6 +5296,30 @@ void RenderSquadTab()
         }
     );
 
+    static bool showSquadDebugColumns = false;
+
+    if (ImGui::CollapsingHeader(
+        "Display Options"
+    ))
+    {
+        ImGui::Checkbox(
+            "Show squad debug columns",
+            &showSquadDebugColumns
+        );
+    }
+
+    ImGui::Spacing();
+
+    ImGui::Spacing();
+
+    ImGui::TextUnformatted(
+        "Player Status"
+    );
+
+    ImGui::TextDisabled(
+        "Current Food and Utility state for tracked players."
+    );
+
     ImGui::Text(
         "Tracked players: %llu",
         static_cast<
@@ -5291,19 +5333,7 @@ void RenderSquadTab()
         "? = consumable state not established yet."
     );
 
-    static bool showSquadDebugColumns = false;
-
-    if (ImGui::CollapsingHeader(
-        "Squad Display Options"
-    ))
-    {
-        ImGui::Checkbox(
-            "Show squad debug columns",
-            &showSquadDebugColumns
-        );
-    }
-
-    ImGui::Spacing();
+    ImGui::Separator();
 
     if (trackedPlayers.empty())
     {
@@ -5330,19 +5360,27 @@ void RenderSquadTab()
             playerTableFlags))
         {
             ImGui::TableSetupColumn(
-                "Group"
+                "Group",
+                ImGuiTableColumnFlags_WidthFixed,
+                72.0f
             );
 
             ImGui::TableSetupColumn(
-                "Character"
+                "Character",
+                ImGuiTableColumnFlags_WidthStretch,
+                1.25f
             );
 
             ImGui::TableSetupColumn(
-                "Food Status"
+                "Food Status",
+                ImGuiTableColumnFlags_WidthStretch,
+                1.0f
             );
 
             ImGui::TableSetupColumn(
-                "Utility Status"
+                "Utility Status",
+                ImGuiTableColumnFlags_WidthStretch,
+                1.0f
             );
 
             if (showSquadDebugColumns)
@@ -5391,7 +5429,7 @@ void RenderSquadTab()
 
                 if (!player.foodStateKnown)
                 {
-                    ImGui::TextUnformatted(
+                    ImGui::TextDisabled(
                         "?"
                     );
 
@@ -5497,7 +5535,7 @@ void RenderSquadTab()
                 }
                 else
                 {
-                    ImGui::TextUnformatted(
+                    ImGui::TextDisabled(
                         "None"
                     );
                 }
@@ -5506,7 +5544,7 @@ void RenderSquadTab()
 
                 if (!player.utilityStateKnown)
                 {
-                    ImGui::TextUnformatted(
+                    ImGui::TextDisabled(
                         "?"
                     );
 
@@ -5612,7 +5650,7 @@ void RenderSquadTab()
                 }
                 else
                 {
-                    ImGui::TextUnformatted(
+                    ImGui::TextDisabled(
                         "None"
                     );
                 }
@@ -5655,7 +5693,7 @@ void RenderSquadTab()
     ImGui::Separator();
 
     if (ImGui::CollapsingHeader(
-        "Unknown Consumables"
+        "Unknown Consumable IDs"
     ))
     {
         const std::vector<UnknownConsumable>
@@ -5796,7 +5834,7 @@ void RenderSquadTab()
     ImGui::Separator();
 
     if (ImGui::CollapsingHeader(
-        "Developer / Unofficial Extras"
+        "Developer Tools"
     ))
     {
         const bool extrasAvailable =
