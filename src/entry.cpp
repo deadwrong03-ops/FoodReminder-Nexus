@@ -1910,8 +1910,6 @@ void RenderTradingPostTab()
         Down
     };
 
-    static int trendWindowIndex = 1;
-
     const uint64_t trendWindowSecondsOptions[] =
     {
         15ULL * 60ULL,
@@ -1932,12 +1930,12 @@ void RenderTradingPostTab()
 
     const uint64_t trendWindowSeconds =
         trendWindowSecondsOptions[
-            trendWindowIndex
+            g_Settings.tradingPostTrendWindowIndex
         ];
 
     const char* trendWindowLabel =
         trendWindowLabels[
-            trendWindowIndex
+            g_Settings.tradingPostTrendWindowIndex
         ];
 
     struct TrendInfo
@@ -3255,9 +3253,9 @@ void RenderTradingPostTab()
         90.0f
     );
 
-    ImGui::Combo(
+    if (ImGui::Combo(
         "Trend Window",
-        &trendWindowIndex,
+        &g_Settings.tradingPostTrendWindowIndex,
         trendWindowLabels,
         static_cast<int>(
             sizeof(
@@ -3269,7 +3267,10 @@ void RenderTradingPostTab()
                 ]
                 )
             )
-    );
+    ))
+    {
+        Settings::Save(hSelf);
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -5292,10 +5293,15 @@ void RenderSquadTab()
 
     static bool showSquadDebugColumns = false;
 
-    ImGui::Checkbox(
-        "Show squad debug columns",
-        &showSquadDebugColumns
-    );
+    if (ImGui::CollapsingHeader(
+        "Squad Display Options"
+    ))
+    {
+        ImGui::Checkbox(
+            "Show squad debug columns",
+            &showSquadDebugColumns
+        );
+    }
 
     ImGui::Spacing();
 
@@ -5324,7 +5330,7 @@ void RenderSquadTab()
             playerTableFlags))
         {
             ImGui::TableSetupColumn(
-                "Sub"
+                "Group"
             );
 
             ImGui::TableSetupColumn(
@@ -5332,11 +5338,11 @@ void RenderSquadTab()
             );
 
             ImGui::TableSetupColumn(
-                "Food"
+                "Food Status"
             );
 
             ImGui::TableSetupColumn(
-                "Utility"
+                "Utility Status"
             );
 
             if (showSquadDebugColumns)
@@ -5649,8 +5655,7 @@ void RenderSquadTab()
     ImGui::Separator();
 
     if (ImGui::CollapsingHeader(
-        "Unknown Consumables",
-        ImGuiTreeNodeFlags_DefaultOpen
+        "Unknown Consumables"
     ))
     {
         const std::vector<UnknownConsumable>
