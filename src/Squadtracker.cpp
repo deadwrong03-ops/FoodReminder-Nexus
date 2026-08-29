@@ -630,14 +630,53 @@ SquadTracker::GetUnknownConsumables()
         g_UnknownConsumables.size()
     );
 
+    //
+    // Prune IDs that have since been added to the built-in
+    // or external consumable database. This keeps the Unknown
+    // list as a real current to-do list instead of retaining
+    // historical IDs that are already recognized.
+    //
     for (
-        const auto& entry :
-        g_UnknownConsumables
+        auto it = g_UnknownConsumables.begin();
+        it != g_UnknownConsumables.end();
         )
     {
+        const UnknownConsumable& unknown =
+            it->second;
+
+        const ConsumableInfo& info =
+            unknown.isFood
+            ? ConsumableData::GetFoodInfo(
+                unknown.skillID
+            )
+            : ConsumableData::GetUtilityInfo(
+                unknown.skillID
+            );
+
+        const std::string label =
+            info.label != nullptr
+            ? info.label
+            : "";
+
+        if (label != "Unknown")
+        {
+            g_Settings.unknownConsumables.erase(
+                it->first
+            );
+
+            it =
+                g_UnknownConsumables.erase(
+                    it
+                );
+
+            continue;
+        }
+
         result.push_back(
-            entry.second
+            unknown
         );
+
+        ++it;
     }
 
     std::sort(

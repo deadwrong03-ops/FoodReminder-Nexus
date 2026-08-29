@@ -1,5 +1,13 @@
 ﻿#include "ConsumableData.h"
 #include <cstddef>
+#include <windows.h>
+#include <filesystem>
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <limits>
 
 namespace
 {
@@ -16,6 +24,343 @@ namespace
         "Unknown Utility",
         "This utility effect has not been added to the Food Reminder database yet."
     };
+
+
+    //
+    // EXTERNAL CONSUMABLE DATABASE
+    //
+    // File location:
+    //   FoodReminder_Consumables.tsv
+    // placed beside the FoodReminder Nexus DLL.
+    //
+    // The file is checked automatically whenever a consumable lookup occurs.
+    // If the file changes, it is reloaded without rebuilding/replacing the DLL.
+    //
+    struct DynamicConsumable
+    {
+        std::string label;
+        std::string name;
+        std::string effects;
+        uint32_t itemID = 0;
+        bool active = false;
+        ConsumableInfo view{};
+
+        void RefreshView()
+        {
+            view.label = label.c_str();
+            view.name = name.c_str();
+            view.effects = effects.c_str();
+            view.itemID = itemID;
+        }
+    };
+
+    std::map<uint32_t, DynamicConsumable> ExternalFoodDatabase;
+    std::map<uint32_t, DynamicConsumable> ExternalUtilityDatabase;
+
+    bool ExternalDatabaseHasTimestamp = false;
+    std::filesystem::file_time_type ExternalDatabaseTimestamp{};
+
+    int DatabaseModuleAnchor = 0;
+
+    std::filesystem::path GetExternalDatabasePath()
+    {
+        HMODULE module = nullptr;
+
+        if (GetModuleHandleExA(
+            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCSTR>(&DatabaseModuleAnchor),
+            &module))
+        {
+            char modulePath[MAX_PATH] = {};
+            const DWORD length =
+                GetModuleFileNameA(
+                    module,
+                    modulePath,
+                    static_cast<DWORD>(sizeof(modulePath))
+                );
+
+            if (length > 0 &&
+                length < static_cast<DWORD>(sizeof(modulePath)))
+            {
+                return std::filesystem::path(modulePath)
+                    .parent_path() /
+                    "FoodReminder_Consumables.tsv";
+            }
+        }
+
+        // Fallback only. Normally the module path above is used.
+        return std::filesystem::path(
+            "FoodReminder_Consumables.tsv"
+        );
+    }
+
+    std::string UnescapeDatabaseField(
+        const std::string& value
+    )
+    {
+        std::string result;
+        result.reserve(value.size());
+
+        for (std::size_t i = 0; i < value.size(); ++i)
+        {
+            if (value[i] != '\\' || i + 1 >= value.size())
+            {
+                result.push_back(value[i]);
+                continue;
+            }
+
+            const char next = value[++i];
+
+            switch (next)
+            {
+            case 'n':
+                result.push_back('\n');
+                break;
+
+            case 'r':
+                result.push_back('\r');
+                break;
+
+            case 't':
+                result.push_back('\t');
+                break;
+
+            case '\\':
+                result.push_back('\\');
+                break;
+
+            default:
+                result.push_back('\\');
+                result.push_back(next);
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    std::vector<std::string> SplitDatabaseLine(
+        const std::string& line
+    )
+    {
+        std::vector<std::string> fields;
+        std::stringstream stream(line);
+        std::string field;
+
+        while (std::getline(stream, field, '\t'))
+        {
+            fields.push_back(field);
+        }
+
+        return fields;
+    }
+
+    bool TryParseDatabaseID(
+        const std::string& textValue,
+        uint32_t& value
+    )
+    {
+        try
+        {
+            std::size_t used = 0;
+            const unsigned long parsed =
+                std::stoul(textValue, &used, 10);
+
+            if (used != textValue.size() ||
+                parsed >
+                static_cast<unsigned long>(
+                    (std::numeric_limits<uint32_t>::max)()
+                    ))
+            {
+                return false;
+            }
+
+            value = static_cast<uint32_t>(parsed);
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    void MarkExternalDatabaseInactive()
+    {
+        for (auto& pair : ExternalFoodDatabase)
+        {
+            pair.second.active = false;
+        }
+
+        for (auto& pair : ExternalUtilityDatabase)
+        {
+            pair.second.active = false;
+        }
+    }
+
+    void LoadExternalDatabase(
+        const std::filesystem::path& path
+    )
+    {
+        std::ifstream file(path);
+
+        if (!file.is_open())
+        {
+            return;
+        }
+
+        MarkExternalDatabaseInactive();
+
+        std::string line;
+
+        while (std::getline(file, line))
+        {
+            if (!line.empty() &&
+                line.back() == '\r')
+            {
+                line.pop_back();
+            }
+
+            if (line.empty() ||
+                line[0] == '#')
+            {
+                continue;
+            }
+
+            const std::vector<std::string> fields =
+                SplitDatabaseLine(line);
+
+            // type, effectID, label, name, effects, itemID
+            if (fields.size() < 6)
+            {
+                continue;
+            }
+
+            const std::string& type = fields[0];
+
+            uint32_t effectID = 0;
+            uint32_t itemID = 0;
+
+            if (!TryParseDatabaseID(
+                fields[1],
+                effectID))
+            {
+                continue;
+            }
+
+            if (!fields[5].empty() &&
+                !TryParseDatabaseID(
+                    fields[5],
+                    itemID))
+            {
+                continue;
+            }
+
+            std::map<uint32_t, DynamicConsumable>* database =
+                nullptr;
+
+            if (type == "food")
+            {
+                database = &ExternalFoodDatabase;
+            }
+            else if (type == "utility")
+            {
+                database = &ExternalUtilityDatabase;
+            }
+            else
+            {
+                continue;
+            }
+
+            DynamicConsumable& entry =
+                (*database)[effectID];
+
+            entry.label =
+                UnescapeDatabaseField(fields[2]);
+
+            entry.name =
+                UnescapeDatabaseField(fields[3]);
+
+            entry.effects =
+                UnescapeDatabaseField(fields[4]);
+
+            entry.itemID = itemID;
+            entry.active = true;
+            entry.RefreshView();
+        }
+    }
+
+    void RefreshExternalDatabaseIfNeeded()
+    {
+        const std::filesystem::path path =
+            GetExternalDatabasePath();
+
+        std::error_code error;
+
+        if (!std::filesystem::exists(path, error) ||
+            error)
+        {
+            return;
+        }
+
+        const std::filesystem::file_time_type timestamp =
+            std::filesystem::last_write_time(
+                path,
+                error
+            );
+
+        if (error)
+        {
+            return;
+        }
+
+        if (ExternalDatabaseHasTimestamp &&
+            timestamp == ExternalDatabaseTimestamp)
+        {
+            return;
+        }
+
+        LoadExternalDatabase(path);
+
+        ExternalDatabaseTimestamp = timestamp;
+        ExternalDatabaseHasTimestamp = true;
+    }
+
+    const ConsumableInfo* FindExternalFood(
+        uint32_t skillID
+    )
+    {
+        RefreshExternalDatabaseIfNeeded();
+
+        const auto found =
+            ExternalFoodDatabase.find(skillID);
+
+        if (found == ExternalFoodDatabase.end() ||
+            !found->second.active)
+        {
+            return nullptr;
+        }
+
+        return &found->second.view;
+    }
+
+    const ConsumableInfo* FindExternalUtility(
+        uint32_t skillID
+    )
+    {
+        RefreshExternalDatabaseIfNeeded();
+
+        const auto found =
+            ExternalUtilityDatabase.find(skillID);
+
+        if (found == ExternalUtilityDatabase.end() ||
+            !found->second.active)
+        {
+            return nullptr;
+        }
+
+        return &found->second.view;
+    }
 
     //
     // FOOD - POWER
@@ -465,7 +810,8 @@ namespace
     const ConsumableInfo HardenedSharpeningStone =
     {
         "Power",
-        "Hardened Sharpening Stone",
+        "Hardened Sharpening Stone / Potent Hardened Sharpening Stone",
+        "Shared enhancement effect\n"
         "2% Power from Precision\n"
         "4% Power from Ferocity",
         9440
@@ -701,6 +1047,7 @@ namespace
 
     const FallbackConsumable MasterFoodFallback[] =
     {
+        { 9733, { "Food", "Shared Nourishment", "Bowl of Sauteed Carrots / Bowl of Simple Stirfry / Bowl of Ettin Stew / Celebratory Steak" } },
         { 9736, { "Food", "Bowl of Avocado Stirfry", "Known nourishment effect" } },
         { 9743, { "Food", "Moa Haunch", "Known nourishment effect" } },
         { 9745, { "Food", "Pepper Steak Dinner", "Known nourishment effect" } },
@@ -708,6 +1055,7 @@ namespace
         { 9752, { "Food", "Sage-Stuffed Mushroom", "Known nourishment effect" } },
         { 9756, { "Kill", "Saffron Stuffed Mushroom", "+200 Condition Damage on Kill\n+70 Precision" } },
         { 9758, { "Food", "Roasted Meaty Sandwich", "Known nourishment effect" } },
+        { 9765, { "Food", "Plate of Fire Flank Steak", "Known nourishment effect" } },
         { 9769, { "Prec", "Plate of Truffle Steak", "+100 Power\n+70 Precision" } },
         { 9776, { "Food", "Bowl of Beet and Bean Stew", "Known nourishment effect" } },
         { 9782, { "Food", "Blueberry Muffin / Passion Fruit Soufflé", "Known nourishment effect" } },
@@ -735,6 +1083,10 @@ namespace
         { 9991, { "Food", "Pumpkin Pie", "Known nourishment effect" } },
         { 9992, { "Food", "Peach Pie", "Known nourishment effect" } },
         { 9994, { "Food", "Bowl of Apple Sauce / Shared nourishment effect", "Known nourishment effect" } },
+        { 10018, { "Food", "Cup of Potato Fries / Cooked Fish Steak / Mashed Potato / Loaf of Shaemoor Bread", "Shared nourishment effect" } },
+        { 10027, { "Food", "Bowl of Strawberry Apple Compote", "Known nourishment effect" } },
+        { 10083, { "Food", "Bowl of Hearty Red Meat Stew / Bowl of Onion Soup / Poached Griffon Egg", "Shared nourishment effect" } },
+        { 10087, { "Food", "Bowl of Savory Spinach and Poultry Soup", "Known nourishment effect" } },
         { 9999, { "Food", "Orange Coconut Bar", "Known nourishment effect" } },
         { 10000, { "Food", "Raspberry Peach Bar", "Known nourishment effect" } },
         { 10001, { "Food", "Omnomberry Bar", "Known nourishment effect" } },
@@ -751,7 +1103,7 @@ namespace
         { 10031, { "Food", "Omnomberry Compote", "Known nourishment effect" } },
         { 10041, { "Food", "Quaggan Fish Snack", "Known nourishment effect" } },
         { 10043, { "Food", "Bag of Simple Cat Food / Sage-Stuffed Poultry", "Known nourishment effect" } },
-        { 10048, { "Power", "Dragonfish Candy", "+100 Vitality\n+200 Power when Health below 50%\n+10% Experience from Kills" } },
+        { 10048, { "Power", "Dragonfish Candy / Plate of Lemongrass Poultry", "+100 Vitality\n+200 Power when Health below 50%\n+10% Experience from Kills\nShared nourishment effect" } },
         { 10049, { "Food", "Rabbit Offering", "Known nourishment effect" } },
         { 10051, { "Food", "Bowl of Bean Salad", "Known nourishment effect" } },
         { 10053, { "Food", "Bowl of Avocado Salsa", "Known nourishment effect" } },
@@ -828,6 +1180,8 @@ namespace
         { 57269, { "Exper", "Salsa-Topped Veggie Flatbread", "66% Life Steal Chance\n+100 Expertise\n+70 Condition Damage" } },
         { 57276, { "Heal", "Bowl of Spiced Fruit Salad", "-10% Incoming Damage\n+100 Healing Power\n+70 Concentration" } },
         { 57290, { "Prec", "Plate of Sesame-Crusted Coq Au Vin", "Health every second\n+100 Power\n+70 Precision" } },
+        { 57299, { "Food", "Plate of Peppercorn-Spiced Poultry Aspic", "Known nourishment effect" } },
+        { 57320, { "Kill", "Chef's Tasting Platter", "+80 Power for 30 Seconds on Kill\n+50 Precision\n+50 Condition Damage\n+30% Magic Find\n+10% Experience from Kills" } },
         { 57342, { "Power", "Sous-Vide Steak with Mint-Parsley Sauce", "+10% Outgoing Healing\n+100 Power\n+70 Ferocity" } },
         { 57344, { "Exper", "Clove and Veggie Flatbread", "-20% Incoming Condition Duration\n+100 Expertise\n+70 Condition Damage" } },
         { 57348, { "Prec", "Plate of Clove-Spiced Coq Au Vin", "-20% Incoming Condition Duration\n+100 Power\n+70 Precision" } },
@@ -855,6 +1209,9 @@ namespace
         { 67705, { "All", "Flight of Sushi", "+150 Fishing Power\n+45 All Attributes" } },
         { 77728, { "Food", "Bag of Popped Candy Corn", "Known nourishment effect" } },
         { 79403, { "Food", "New Year Rice Cake", "Known nourishment effect" } },
+
+        { 58110, { "Food", "Soul Cake", "Manually verified nourishment effect" } },
+        { 63487, { "Food", "Longevity Noodles", "Manually verified nourishment effect" } },
     };
 
     const FallbackConsumable MasterUtilityFallback[] =
@@ -874,6 +1231,7 @@ namespace
         { 9925, { "Slay", "Powerful Potion of Flame Legion Slaying", "+10% Damage vs Flame Legion\n-10% Damage from Flame Legion" } },
         { 9933, { "Slay", "Powerful Potion of Outlaw Slaying", "+10% Damage vs Outlaws\n-10% Damage from Outlaws" } },
         { 9941, { "Slay", "Powerful Potion of Nightmare Court Slaying", "+10% Damage vs Nightmare Court\n-10% Damage from Nightmare Court" } },
+        { 9942, { "Slay", "Weak Potion of Dredge Slaying", "+3% Damage vs Dredge\n+10% Experience from Kills" } },
         { 9949, { "Slay", "Powerful Potion of Dredge Slaying", "+10% Damage vs Dredge\n-10% Damage from Dredge" } },
         { 9963, { "Power", "Superior Sharpening Stone", "3% Power from Precision\n6% Power from Ferocity" } },
         { 9965, { "Utility", "Artisan Tuning Crystal", "Known enhancement effect" } },
@@ -1092,6 +1450,14 @@ namespace ConsumableData
             return MangoPie;
         default:
         {
+            const ConsumableInfo* externalInfo =
+                FindExternalFood(skillID);
+
+            if (externalInfo != nullptr)
+            {
+                return *externalInfo;
+            }
+
             const ConsumableInfo* masterInfo =
                 FindMasterFood(skillID);
 
@@ -1187,6 +1553,14 @@ namespace ConsumableData
 
         default:
         {
+            const ConsumableInfo* externalInfo =
+                FindExternalUtility(skillID);
+
+            if (externalInfo != nullptr)
+            {
+                return *externalInfo;
+            }
+
             const ConsumableInfo* masterInfo =
                 FindMasterUtility(skillID);
 

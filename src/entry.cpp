@@ -5708,9 +5708,33 @@ void RenderSquadTab()
         "Unknown Consumable IDs"
     ))
     {
-        const std::vector<UnknownConsumable>
+        std::vector<UnknownConsumable>
             unknownConsumables =
             SquadTracker::GetUnknownConsumables();
+
+        std::sort(
+            unknownConsumables.begin(),
+            unknownConsumables.end(),
+            [](
+                const UnknownConsumable& left,
+                const UnknownConsumable& right
+                )
+            {
+                if (left.seenCount != right.seenCount)
+                {
+                    return left.seenCount >
+                        right.seenCount;
+                }
+
+                if (left.isFood != right.isFood)
+                {
+                    return left.isFood;
+                }
+
+                return left.skillID <
+                    right.skillID;
+            }
+        );
 
         ImGui::Text(
             "Unique unknown effects captured: %llu",
