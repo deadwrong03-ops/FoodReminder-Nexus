@@ -46,10 +46,6 @@ namespace
     ConsumableDetectionState g_UtilityPrimerDetectionState =
         ConsumableDetectionState::Unknown;
 
-    bool g_HasCandyCane = false;
-    int64_t g_CandyCaneDurationMilliseconds = 0;
-    std::chrono::steady_clock::time_point g_CandyCaneReceivedTime;
-
 
     bool g_IsInCombat = false;
 
@@ -903,27 +899,11 @@ void BuffTracker::ProcessEvent(
         const bool isUtilityPrimerEvent =
             skillName == "Utility Primer";
 
-        const bool isCandyCaneEvent =
-            ev.SkillID == 34210;
-
         const bool hasDuration =
             ev.Value > 0;
 
         const bool isRemoved =
             ev.IsBuffRemove != 0;
-
-        if (isCandyCaneEvent &&
-            isRemoved)
-        {
-            //
-            // Candy Cane / Minty Breath can coexist with
-            // normal Nourishment and stacks duration.
-            // ArcDPS may report removal for an individual
-            // application while stacked duration remains,
-            // so do not clear the dedicated timer here.
-            //
-            return;
-        }
 
         if (isFoodEvent &&
             isRemoved)
@@ -1029,67 +1009,6 @@ void BuffTracker::ProcessEvent(
             }
 
             g_SettingsChanged = true;
-
-            return;
-        }
-
-        if (isCandyCaneEvent &&
-            hasDuration)
-        {
-
-
-            const auto now =
-                std::chrono::steady_clock::now();
-
-            int64_t previousRemainingMilliseconds = 0;
-
-            if (g_HasCandyCane &&
-                g_CandyCaneDurationMilliseconds > 0)
-            {
-                const auto elapsed =
-                    std::chrono::duration_cast<
-                    std::chrono::milliseconds
-                    >(
-                        now -
-                        g_CandyCaneReceivedTime
-                    ).count();
-
-                const int64_t remaining =
-                    g_CandyCaneDurationMilliseconds -
-                    elapsed;
-
-                if (remaining > 0)
-                {
-                    previousRemainingMilliseconds =
-                        remaining;
-                }
-            }
-
-            g_HasCandyCane = true;
-
-            if (!g_HasCandyCane)
-            {
-                //
-                // ArcDPS does not expose the initial Candy Cane
-                // application through this event path. The first
-                // event we receive occurs when the second stack
-                // is applied, so account for both stacks.
-                //
-                g_CandyCaneDurationMilliseconds =
-                    static_cast<int64_t>(
-                        ev.Value
-                        ) * 2;
-            }
-            else
-            {
-                g_CandyCaneDurationMilliseconds =
-                    previousRemainingMilliseconds +
-                    static_cast<int64_t>(
-                        ev.Value
-                        );
-            }
-
-            g_CandyCaneReceivedTime = now;
 
             return;
         }
@@ -1449,70 +1368,6 @@ BuffTracker::GetUtilityDetectionState()
     return g_UtilityDetectionState;
 }
 
-bool BuffTracker::HasCandyCane()
-{
-    std::lock_guard<std::mutex> lock(
-        g_BuffMutex
-    );
-
-    if (!g_HasCandyCane)
-    {
-        return false;
-    }
-
-    const auto elapsed =
-        std::chrono::duration_cast<
-        std::chrono::milliseconds
-        >(
-            std::chrono::steady_clock::now() -
-            g_CandyCaneReceivedTime
-        ).count();
-
-    if (elapsed >=
-        g_CandyCaneDurationMilliseconds)
-    {
-        g_HasCandyCane = false;
-        g_CandyCaneDurationMilliseconds = 0;
-        return false;
-    }
-
-    return true;
-}
-
-int64_t BuffTracker::GetCandyCaneRemainingMilliseconds()
-
-{
-    std::lock_guard<std::mutex> lock(
-        g_BuffMutex
-    );
-
-    if (!g_HasCandyCane ||
-        g_CandyCaneDurationMilliseconds <= 0)
-    {
-        return 0;
-    }
-
-    const auto elapsed =
-        std::chrono::duration_cast<
-        std::chrono::milliseconds
-        >(
-            std::chrono::steady_clock::now() -
-            g_CandyCaneReceivedTime
-        ).count();
-
-    const int64_t remaining =
-        g_CandyCaneDurationMilliseconds -
-        elapsed;
-
-    if (remaining <= 0)
-    {
-        g_HasCandyCane = false;
-        g_CandyCaneDurationMilliseconds = 0;
-        return 0;
-    }
-
-    return remaining;
-}
 
 
 bool BuffTracker::HasFood()

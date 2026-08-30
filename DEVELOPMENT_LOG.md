@@ -5,6 +5,93 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-08-30 — Persistent Personal History, Tracker Naming & Cleanup
+
+### Added
+- Persistent personal consumable session history stored locally in `FoodReminder_SessionHistory.tsv`.
+- Session history survives full game/addon restarts and appends new completed sessions without overwriting older records.
+- New `History` tab with selectable ranges:
+  - 1 Day
+  - 7 Days
+  - 30 Days
+  - All Time
+- History summary for completed sessions, tracked time, combat time, Food/Utility usage, coverage, and estimated cost.
+- Direct-draw History trend charts for:
+  - Food coverage
+  - Utility coverage
+  - Estimated consumable spend
+- Per-item Food and Utility usage history with use counts and estimated spend.
+- Collapsible History detail sections for:
+  - Coverage & Waste Details
+  - Trends
+  - Per-Item Usage
+  - Primer Details
+- Trends now opens by default while the heavier detail sections remain collapsed.
+
+### Changed
+- History tab layout was slimmed down so the default view focuses on the compact Summary and Trends rather than showing all details at once.
+- History cost wording now separates priced consumables from unpriced uses instead of combining them into one ambiguous value.
+- Session Report `UTILITY` heading now uses blue styling to distinguish it visually from Food.
+- Trading Post selectable trend windows were extended to:
+  - 15m
+  - 30m
+  - 1h
+  - 6h
+  - 24h
+  - 3d
+  - 7d
+  - 30d
+  - 90d
+- Compact tracker now displays actual consumable names rather than database category/short labels.
+- Long compact-tracker consumable names are truncated with `...` to preserve the compact tracker width; the full name remains available in the existing hover tooltip.
+- Candy Cane / Minty Breath dedicated tracking support was removed.
+
+### Fixed
+- Compact tracker could display generic database labels such as `Food`, `Power`, or other short stat labels instead of the actual consumable name.
+- Grumble Cake and other consumables using generic labels can now display their real item names in the compact tracker.
+- Full consumable names initially caused the compact tracker to grow excessively wide; names are now safely shortened in the compact view.
+- Removed stale Candy Cane-specific tracker code, state, display logic, and database mapping.
+- Effect ID `34210` remains explicitly excluded from normal Food detection so Minty Breath cannot corrupt the regular Food timer.
+
+### Tested
+- Persistent session-history save tested through `Reset Session`.
+- Session-history archive on game/addon unload tested.
+- Full restart verified that existing history loads and new sessions append correctly.
+- History tab summary, charts, per-item usage, Primer details, and collapsible layout displayed correctly in-game.
+- Direct-draw History charts remained visible where built-in ImGui plotting was not visually useful in Nexus.
+- Extended Trading Post trend selector displayed the longer windows correctly in-game.
+- Compact tracker actual-name display tested in-game.
+- Compact tracker long-name truncation tested in-game and restored the intended compact width.
+- Candy Cane/Minty Breath code cleanup build passed.
+- External consumable database entry for effect `34210` was removed.
+
+### Known Limitations
+- Historical consumable cost uses current Trading Post sell prices, not the price actually paid at the time of each completed session.
+- Unpriced consumables remain counted but are excluded from priced cost totals.
+- Session history begins only after the persistent history feature was introduced.
+- History trend charts represent completed saved sessions rather than continuous time-series sampling.
+- Effect ID `34210` is intentionally ignored by normal Food tracking as a protective exclusion.
+
+### Status
+✅ Persistent personal session history working  
+✅ Restart/load/append persistence passed  
+✅ History tab working  
+✅ History layout slimmed and accepted  
+✅ Direct-draw History charts working  
+✅ Per-item historical usage working  
+✅ Extended 3d / 7d / 30d / 90d Trading Post trend choices working  
+✅ Compact tracker actual consumable names working  
+✅ Long-name truncation working  
+✅ Candy Cane/Minty Breath dedicated support removed  
+✅ Latest build and in-game tracker test passed  
+
+### Next
+- Continue normal gameplay so personal History and longer Trading Post windows accumulate real data naturally.
+- Continue stability testing.
+- Move to the next outstanding feature or bug after this checkpoint.
+
+---
+
 ## 2026-08-29 — External Consumable Database & Unknown Collector Cleanup
 
 ### Added

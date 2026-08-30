@@ -602,7 +602,7 @@ bool Settings::Load(void* moduleHandle)
         std::clamp(
             g_Settings.tradingPostTrendWindowIndex,
             0,
-            4
+            8
         );
 
     return true;

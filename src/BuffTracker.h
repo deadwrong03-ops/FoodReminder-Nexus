@@ -49,9 +49,6 @@ namespace BuffTracker
     ConsumableDetectionState GetFoodDetectionState();
     ConsumableDetectionState GetUtilityDetectionState();
 
-    bool HasCandyCane();
-    int64_t GetCandyCaneRemainingMilliseconds();
-
     bool HasMetabolicPrimer();
     bool HasUtilityPrimer();
 

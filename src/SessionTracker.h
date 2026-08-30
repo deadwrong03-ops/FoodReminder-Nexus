@@ -126,8 +126,31 @@ struct SessionStats
         consumableHistory;
 };
 
+struct SessionHistoryRecord
+{
+    uint64_t startedUnixSeconds = 0;
+    uint64_t endedUnixSeconds = 0;
+
+    SessionStats stats;
+};
+
 namespace SessionTracker
 {
+    //
+    // Initializes persistent session-history storage.
+    // History is stored beside the addon DLL in:
+    // FoodReminder_SessionHistory.tsv
+    //
+    void Start(
+        void* moduleHandle
+    );
+
+    //
+    // Archives the active session, if it contains meaningful elapsed
+    // gameplay time, and writes persistent history to disk.
+    //
+    void Shutdown();
+
     void Update(
         bool hasFood,
         uint32_t foodSkillID,
@@ -158,5 +181,15 @@ namespace SessionTracker
 
     SessionStats GetStats();
 
+    //
+    // Returns completed sessions loaded from / written to local history.
+    // Records are ordered oldest to newest.
+    //
+    std::vector<SessionHistoryRecord>
+        GetHistory();
+
+    //
+    // Archives the current session first, then starts a fresh session.
+    //
     void Reset();
 }

@@ -331,6 +331,7 @@ void AddonLoad(AddonAPI_t* aApi)
         APIDefs->ImguiFree
     );
     Settings::Load(hSelf);
+    SessionTracker::Start(hSelf);
     BuffTracker::RestorePrimerState();
     SquadTracker::RestoreUnknownConsumables();
     TradingPostPriceManager::Start();
@@ -397,6 +398,7 @@ void AddonUnload()
     BuffTracker::SavePrimerState();
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
+    SessionTracker::Shutdown();
 
     TradingPostWatchManager::Shutdown();
     TradingPostItemIndexManager::Shutdown();
@@ -656,10 +658,20 @@ void RenderCompactTracker(
             ImGui::SameLine(
                 140.0f
             );
-            ImGui::TextUnformatted(
-                foodSkillID == 34210
+            std::string foodDisplayName =
+                foodInfo.name != nullptr
                 ? foodInfo.name
-                : foodInfo.label
+                : "";
+
+            if (foodDisplayName.length() > 24)
+            {
+                foodDisplayName =
+                    foodDisplayName.substr(0, 21) +
+                    "...";
+            }
+
+            ImGui::TextUnformatted(
+                foodDisplayName.c_str()
             );
 
             RenderConsumableTooltip(
@@ -741,26 +753,6 @@ void RenderCompactTracker(
         }
         // Candy Cane is a separate nourishment-style buff.
 // It does not replace the player's normal Food buff.
-        if (BuffTracker::HasCandyCane())
-        {
-            const int64_t candyCaneMs =
-                BuffTracker::GetCandyCaneRemainingMilliseconds();
-
-            const int64_t candyCaneSeconds =
-                candyCaneMs / 1000;
-
-            const int64_t candyCaneMinutes =
-                candyCaneSeconds / 60;
-
-            const int64_t candyCaneRemainingSeconds =
-                candyCaneSeconds % 60;
-
-            ImGui::Text(
-                "Candy Cane: %02lld:%02lld",
-                candyCaneMinutes,
-                candyCaneRemainingSeconds
-            );
-        }
         if (displayHasUtility)
         {
             const int64_t totalSeconds =
@@ -826,8 +818,20 @@ void RenderCompactTracker(
                 140.0f
             );
 
+            std::string utilityDisplayName =
+                utilityInfo.name != nullptr
+                ? utilityInfo.name
+                : "";
+
+            if (utilityDisplayName.length() > 24)
+            {
+                utilityDisplayName =
+                    utilityDisplayName.substr(0, 21) +
+                    "...";
+            }
+
             ImGui::TextUnformatted(
-                utilityInfo.label
+                utilityDisplayName.c_str()
             );
 
             RenderConsumableTooltip(
@@ -1934,7 +1938,11 @@ void RenderTradingPostTab()
         30ULL * 60ULL,
         60ULL * 60ULL,
         6ULL * 60ULL * 60ULL,
-        24ULL * 60ULL * 60ULL
+        24ULL * 60ULL * 60ULL,
+        3ULL * 24ULL * 60ULL * 60ULL,
+        7ULL * 24ULL * 60ULL * 60ULL,
+        30ULL * 24ULL * 60ULL * 60ULL,
+        90ULL * 24ULL * 60ULL * 60ULL
     };
 
     const char* trendWindowLabels[] =
@@ -1943,7 +1951,11 @@ void RenderTradingPostTab()
         "30m",
         "1h",
         "6h",
-        "24h"
+        "24h",
+        "3d",
+        "7d",
+        "30d",
+        "90d"
     };
 
     const uint64_t trendWindowSeconds =
@@ -6698,7 +6710,12 @@ void RenderSessionTab()
     ImGui::Separator();
 
     ImGui::TextColored(
-        goodColor,
+        ImVec4(
+            0.45f,
+            0.75f,
+            1.00f,
+            1.00f
+        ),
         "UTILITY"
     );
 
@@ -7664,6 +7681,1459 @@ void RenderSessionTab()
     );
 }
 
+
+void RenderHistoryTab()
+{
+    const std::vector<SessionHistoryRecord> history =
+        SessionTracker::GetHistory();
+
+    ImGui::TextUnformatted(
+        "Personal Consumable History"
+    );
+
+    ImGui::TextDisabled(
+        "Completed FoodReminder sessions saved on this PC."
+    );
+
+    ImGui::Spacing();
+
+    static int selectedRange = 1;
+
+    const char* rangeLabels[] =
+    {
+        "1 Day",
+        "7 Days",
+        "30 Days",
+        "All Time"
+    };
+
+    ImGui::SetNextItemWidth(
+        150.0f
+    );
+
+    ImGui::Combo(
+        "Range",
+        &selectedRange,
+        rangeLabels,
+        IM_ARRAYSIZE(
+            rangeLabels
+        )
+    );
+
+    const uint64_t nowUnixSeconds =
+        static_cast<uint64_t>(
+            std::chrono::duration_cast<
+            std::chrono::seconds
+            >(
+                std::chrono::system_clock::
+                now().
+                time_since_epoch()
+            ).count()
+            );
+
+    uint64_t rangeSeconds = 0;
+
+    switch (selectedRange)
+    {
+    case 0:
+        rangeSeconds =
+            24ULL * 60ULL * 60ULL;
+        break;
+
+    case 1:
+        rangeSeconds =
+            7ULL * 24ULL * 60ULL * 60ULL;
+        break;
+
+    case 2:
+        rangeSeconds =
+            30ULL * 24ULL * 60ULL * 60ULL;
+        break;
+
+    case 3:
+    default:
+        rangeSeconds = 0;
+        break;
+    }
+
+    uint64_t cutoffUnixSeconds = 0;
+
+    if (
+        rangeSeconds > 0 &&
+        nowUnixSeconds > rangeSeconds
+        )
+    {
+        cutoffUnixSeconds =
+            nowUnixSeconds -
+            rangeSeconds;
+    }
+
+    uint32_t includedSessions = 0;
+
+    int64_t totalSessionMilliseconds = 0;
+    int64_t totalCombatMilliseconds = 0;
+
+    int64_t totalFoodActiveMilliseconds = 0;
+    int64_t totalUtilityActiveMilliseconds = 0;
+
+    int64_t totalFoodCombatMilliseconds = 0;
+    int64_t totalUtilityCombatMilliseconds = 0;
+
+    uint64_t totalFoodUses = 0;
+    uint64_t totalUtilityUses = 0;
+
+    int64_t totalMetabolicConfirmedMilliseconds = 0;
+    int64_t totalMetabolicInferredMilliseconds = 0;
+    int64_t totalMetabolicUnknownMilliseconds = 0;
+
+    int64_t totalUtilityPrimerConfirmedMilliseconds = 0;
+    int64_t totalUtilityPrimerInferredMilliseconds = 0;
+    int64_t totalUtilityPrimerUnknownMilliseconds = 0;
+
+    uint64_t totalFoodReplacements = 0;
+    uint64_t totalUtilityReplacements = 0;
+
+    int64_t totalFoodWastedMilliseconds = 0;
+    int64_t totalUtilityWastedMilliseconds = 0;
+
+    std::vector<float>
+        foodCoverageHistory;
+
+    std::vector<float>
+        utilityCoverageHistory;
+
+    std::vector<const SessionHistoryRecord*>
+        selectedHistoryRecords;
+
+    std::vector<SessionConsumableUsage>
+        aggregateFoodUsage;
+
+    std::vector<SessionConsumableUsage>
+        aggregateUtilityUsage;
+
+    const auto AddUsage =
+        [](
+            std::vector<SessionConsumableUsage>& aggregate,
+            const SessionConsumableUsage& usage
+            )
+        {
+            for (
+                SessionConsumableUsage& existing :
+                aggregate
+                )
+            {
+                if (
+                    existing.skillID ==
+                    usage.skillID
+                    )
+                {
+                    existing.uses +=
+                        usage.uses;
+
+                    return;
+                }
+            }
+
+            aggregate.push_back(
+                usage
+            );
+        };
+
+    for (
+        const SessionHistoryRecord& record :
+        history
+        )
+    {
+        if (
+            cutoffUnixSeconds != 0 &&
+            record.endedUnixSeconds <
+            cutoffUnixSeconds
+            )
+        {
+            continue;
+        }
+
+        ++includedSessions;
+
+        selectedHistoryRecords.push_back(
+            &record
+        );
+
+        const SessionStats& stats =
+            record.stats;
+
+        const float foodCoverageForSession =
+            stats.sessionMilliseconds > 0
+            ? static_cast<float>(
+                static_cast<double>(
+                    stats.foodActiveMilliseconds
+                    ) *
+                100.0 /
+                static_cast<double>(
+                    stats.sessionMilliseconds
+                    )
+                )
+            : 0.0f;
+
+        const float utilityCoverageForSession =
+            stats.sessionMilliseconds > 0
+            ? static_cast<float>(
+                static_cast<double>(
+                    stats.utilityActiveMilliseconds
+                    ) *
+                100.0 /
+                static_cast<double>(
+                    stats.sessionMilliseconds
+                    )
+                )
+            : 0.0f;
+
+        foodCoverageHistory.push_back(
+            foodCoverageForSession
+        );
+
+        utilityCoverageHistory.push_back(
+            utilityCoverageForSession
+        );
+
+        totalSessionMilliseconds +=
+            stats.sessionMilliseconds;
+
+        totalCombatMilliseconds +=
+            stats.combatMilliseconds;
+
+        totalFoodActiveMilliseconds +=
+            stats.foodActiveMilliseconds;
+
+        totalUtilityActiveMilliseconds +=
+            stats.utilityActiveMilliseconds;
+
+        totalFoodCombatMilliseconds +=
+            stats.foodCombatMilliseconds;
+
+        totalUtilityCombatMilliseconds +=
+            stats.utilityCombatMilliseconds;
+
+        totalMetabolicConfirmedMilliseconds +=
+            stats.metabolicPrimerConfirmedMilliseconds;
+
+        totalMetabolicInferredMilliseconds +=
+            stats.metabolicPrimerInferredMilliseconds;
+
+        totalMetabolicUnknownMilliseconds +=
+            stats.metabolicPrimerUnknownMilliseconds;
+
+        totalUtilityPrimerConfirmedMilliseconds +=
+            stats.utilityPrimerConfirmedMilliseconds;
+
+        totalUtilityPrimerInferredMilliseconds +=
+            stats.utilityPrimerInferredMilliseconds;
+
+        totalUtilityPrimerUnknownMilliseconds +=
+            stats.utilityPrimerUnknownMilliseconds;
+
+        totalFoodReplacements +=
+            stats.foodReplacements;
+
+        totalUtilityReplacements +=
+            stats.utilityReplacements;
+
+        totalFoodWastedMilliseconds +=
+            stats.foodWastedMilliseconds;
+
+        totalUtilityWastedMilliseconds +=
+            stats.utilityWastedMilliseconds;
+
+        for (
+            const SessionConsumableUsage& usage :
+            stats.foodUsage
+            )
+        {
+            totalFoodUses +=
+                usage.uses;
+
+            AddUsage(
+                aggregateFoodUsage,
+                usage
+            );
+        }
+
+        for (
+            const SessionConsumableUsage& usage :
+            stats.utilityUsage
+            )
+        {
+            totalUtilityUses +=
+                usage.uses;
+
+            AddUsage(
+                aggregateUtilityUsage,
+                usage
+            );
+        }
+    }
+
+    if (includedSessions == 0)
+    {
+        ImGui::Spacing();
+
+        ImGui::TextDisabled(
+            "No completed sessions are available for this range yet."
+        );
+
+        ImGui::TextDisabled(
+            "A session is saved when you press Reset Session or when FoodReminder unloads."
+        );
+
+        return;
+    }
+
+    const auto FormatHistoryDuration =
+        [](int64_t milliseconds)
+        {
+            const int64_t totalSeconds =
+                milliseconds / 1000;
+
+            const int64_t days =
+                totalSeconds /
+                86400;
+
+            const int64_t hours =
+                (
+                    totalSeconds %
+                    86400
+                    ) /
+                3600;
+
+            const int64_t minutes =
+                (
+                    totalSeconds %
+                    3600
+                    ) /
+                60;
+
+            char buffer[64] = {};
+
+            if (days > 0)
+            {
+                snprintf(
+                    buffer,
+                    sizeof(buffer),
+                    "%lldd %02lldh %02lldm",
+                    days,
+                    hours,
+                    minutes
+                );
+            }
+            else
+            {
+                snprintf(
+                    buffer,
+                    sizeof(buffer),
+                    "%02lldh %02lldm",
+                    hours,
+                    minutes
+                );
+            }
+
+            return std::string(
+                buffer
+            );
+        };
+
+    const auto CoveragePercent =
+        [](
+            int64_t activeMilliseconds,
+            int64_t totalMilliseconds
+            )
+        {
+            if (totalMilliseconds <= 0)
+            {
+                return 0.0;
+            }
+
+            return
+                static_cast<double>(
+                    activeMilliseconds
+                    ) *
+                100.0 /
+                static_cast<double>(
+                    totalMilliseconds
+                    );
+        };
+
+    const double foodSessionCoverage =
+        CoveragePercent(
+            totalFoodActiveMilliseconds,
+            totalSessionMilliseconds
+        );
+
+    const double utilitySessionCoverage =
+        CoveragePercent(
+            totalUtilityActiveMilliseconds,
+            totalSessionMilliseconds
+        );
+
+    const double foodCombatCoverage =
+        CoveragePercent(
+            totalFoodCombatMilliseconds,
+            totalCombatMilliseconds
+        );
+
+    const double utilityCombatCoverage =
+        CoveragePercent(
+            totalUtilityCombatMilliseconds,
+            totalCombatMilliseconds
+        );
+
+    uint64_t estimatedFoodCostCopper = 0;
+    uint64_t estimatedUtilityCostCopper = 0;
+    bool hasMissingFoodPrice = false;
+    bool hasMissingUtilityPrice = false;
+
+    uint64_t unpricedFoodUses = 0;
+    uint64_t unpricedUtilityUses = 0;
+
+    for (
+        const SessionConsumableUsage& usage :
+        aggregateFoodUsage
+        )
+    {
+        const ConsumableInfo& info =
+            ConsumableData::GetFoodInfo(
+                usage.skillID
+            );
+
+        if (
+            std::string(info.label) ==
+            "Unknown" ||
+            info.itemID == 0
+            )
+        {
+            hasMissingFoodPrice = true;
+
+            unpricedFoodUses +=
+                usage.uses;
+
+            continue;
+        }
+
+        TradingPostPriceManager::RequestPrice(
+            info.itemID
+        );
+
+        TradingPostPrice price;
+
+        if (
+            TradingPostPriceManager::TryGetPrice(
+                info.itemID,
+                price
+            )
+            )
+        {
+            estimatedFoodCostCopper +=
+                static_cast<uint64_t>(
+                    price.sellUnitPrice
+                    ) *
+                static_cast<uint64_t>(
+                    usage.uses
+                    );
+        }
+        else
+        {
+            hasMissingFoodPrice = true;
+
+            unpricedFoodUses +=
+                usage.uses;
+        }
+    }
+
+    for (
+        const SessionConsumableUsage& usage :
+        aggregateUtilityUsage
+        )
+    {
+        const ConsumableInfo& info =
+            ConsumableData::GetUtilityInfo(
+                usage.skillID
+            );
+
+        if (
+            std::string(info.label) ==
+            "Unknown" ||
+            info.itemID == 0
+            )
+        {
+            hasMissingUtilityPrice = true;
+
+            unpricedUtilityUses +=
+                usage.uses;
+
+            continue;
+        }
+
+        TradingPostPriceManager::RequestPrice(
+            info.itemID
+        );
+
+        TradingPostPrice price;
+
+        if (
+            TradingPostPriceManager::TryGetPrice(
+                info.itemID,
+                price
+            )
+            )
+        {
+            estimatedUtilityCostCopper +=
+                static_cast<uint64_t>(
+                    price.sellUnitPrice
+                    ) *
+                static_cast<uint64_t>(
+                    usage.uses
+                    );
+        }
+        else
+        {
+            hasMissingUtilityPrice = true;
+
+            unpricedUtilityUses +=
+                usage.uses;
+        }
+    }
+
+    const uint64_t estimatedTotalCostCopper =
+        estimatedFoodCostCopper +
+        estimatedUtilityCostCopper;
+
+    std::vector<float>
+        estimatedSpendHistoryGold;
+
+    estimatedSpendHistoryGold.reserve(
+        selectedHistoryRecords.size()
+    );
+
+    for (
+        const SessionHistoryRecord* record :
+        selectedHistoryRecords
+        )
+    {
+        uint64_t sessionCostCopper = 0;
+
+        if (record != nullptr)
+        {
+            for (
+                const SessionConsumableUsage& usage :
+                record->stats.foodUsage
+                )
+            {
+                const ConsumableInfo& info =
+                    ConsumableData::GetFoodInfo(
+                        usage.skillID
+                    );
+
+                if (
+                    std::string(info.label) ==
+                    "Unknown" ||
+                    info.itemID == 0
+                    )
+                {
+                    continue;
+                }
+
+                TradingPostPriceManager::RequestPrice(
+                    info.itemID
+                );
+
+                TradingPostPrice price;
+
+                if (
+                    TradingPostPriceManager::TryGetPrice(
+                        info.itemID,
+                        price
+                    )
+                    )
+                {
+                    sessionCostCopper +=
+                        static_cast<uint64_t>(
+                            price.sellUnitPrice
+                            ) *
+                        static_cast<uint64_t>(
+                            usage.uses
+                            );
+                }
+            }
+
+            for (
+                const SessionConsumableUsage& usage :
+                record->stats.utilityUsage
+                )
+            {
+                const ConsumableInfo& info =
+                    ConsumableData::GetUtilityInfo(
+                        usage.skillID
+                    );
+
+                if (
+                    std::string(info.label) ==
+                    "Unknown" ||
+                    info.itemID == 0
+                    )
+                {
+                    continue;
+                }
+
+                TradingPostPriceManager::RequestPrice(
+                    info.itemID
+                );
+
+                TradingPostPrice price;
+
+                if (
+                    TradingPostPriceManager::TryGetPrice(
+                        info.itemID,
+                        price
+                    )
+                    )
+                {
+                    sessionCostCopper +=
+                        static_cast<uint64_t>(
+                            price.sellUnitPrice
+                            ) *
+                        static_cast<uint64_t>(
+                            usage.uses
+                            );
+                }
+            }
+        }
+
+        estimatedSpendHistoryGold.push_back(
+            static_cast<float>(
+                static_cast<double>(
+                    sessionCostCopper
+                    ) /
+                10000.0
+                )
+        );
+    }
+
+    const ImVec4 foodColor(
+        0.35f,
+        0.90f,
+        0.45f,
+        1.00f
+    );
+
+    const ImVec4 utilityColor(
+        0.45f,
+        0.75f,
+        1.00f,
+        1.00f
+    );
+
+    const ImVec4 attentionColor(
+        1.00f,
+        0.78f,
+        0.25f,
+        1.00f
+    );
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    ImGui::TextColored(
+        attentionColor,
+        "SUMMARY"
+    );
+
+    ImGui::Text(
+        "Sessions: %u  |  Tracked: %s  |  Combat: %s",
+        includedSessions,
+        FormatHistoryDuration(
+            totalSessionMilliseconds
+        ).c_str(),
+        FormatHistoryDuration(
+            totalCombatMilliseconds
+        ).c_str()
+    );
+
+    ImGui::TextColored(
+        foodColor,
+        "Food"
+    );
+
+    ImGui::SameLine();
+
+    ImGui::Text(
+        "Uses %llu  |  Coverage %.1f%%  |  Cost %s%s",
+        static_cast<
+        unsigned long long
+        >(
+            totalFoodUses
+            ),
+        foodSessionCoverage,
+        FormatCoinValue(
+            estimatedFoodCostCopper
+        ).c_str(),
+        hasMissingFoodPrice
+        ? " + unpriced"
+        : ""
+    );
+
+    ImGui::TextColored(
+        utilityColor,
+        "Utility"
+    );
+
+    ImGui::SameLine();
+
+    ImGui::Text(
+        "Uses %llu  |  Coverage %.1f%%  |  Cost %s%s",
+        static_cast<
+        unsigned long long
+        >(
+            totalUtilityUses
+            ),
+        utilitySessionCoverage,
+        FormatCoinValue(
+            estimatedUtilityCostCopper
+        ).c_str(),
+        hasMissingUtilityPrice
+        ? " + unpriced"
+        : ""
+    );
+
+    ImGui::TextColored(
+        attentionColor,
+        "Total"
+    );
+
+    ImGui::SameLine();
+
+    ImGui::Text(
+        "%s",
+        FormatCoinValue(
+            estimatedTotalCostCopper
+        ).c_str()
+    );
+
+    const uint64_t totalUnpricedUses =
+        unpricedFoodUses +
+        unpricedUtilityUses;
+
+    if (totalUnpricedUses > 0)
+    {
+        ImGui::SameLine();
+
+        ImGui::TextDisabled(
+            "+ %llu unpriced use%s",
+            static_cast<
+            unsigned long long
+            >(
+                totalUnpricedUses
+                ),
+            totalUnpricedUses == 1
+            ? ""
+            : "s"
+        );
+    }
+
+    if (
+        ImGui::CollapsingHeader(
+            "Coverage & Waste Details"
+        )
+        )
+    {
+        ImGui::Indent();
+
+        ImGui::TextColored(
+            foodColor,
+            "FOOD"
+        );
+
+        ImGui::Text(
+            "Session Coverage: %.1f%%",
+            foodSessionCoverage
+        );
+
+        if (totalCombatMilliseconds > 0)
+        {
+            ImGui::Text(
+                "Combat Coverage: %.1f%%",
+                foodCombatCoverage
+            );
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "Combat Coverage: No combat recorded"
+            );
+        }
+
+        ImGui::Text(
+            "Replacements: %llu",
+            static_cast<
+            unsigned long long
+            >(
+                totalFoodReplacements
+                )
+        );
+
+        ImGui::Text(
+            "Wasted Duration: %s",
+            FormatHistoryDuration(
+                totalFoodWastedMilliseconds
+            ).c_str()
+        );
+
+        ImGui::Spacing();
+
+        ImGui::TextColored(
+            utilityColor,
+            "UTILITY"
+        );
+
+        ImGui::Text(
+            "Session Coverage: %.1f%%",
+            utilitySessionCoverage
+        );
+
+        if (totalCombatMilliseconds > 0)
+        {
+            ImGui::Text(
+                "Combat Coverage: %.1f%%",
+                utilityCombatCoverage
+            );
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "Combat Coverage: No combat recorded"
+            );
+        }
+
+        ImGui::Text(
+            "Replacements: %llu",
+            static_cast<
+            unsigned long long
+            >(
+                totalUtilityReplacements
+                )
+        );
+
+        ImGui::Text(
+            "Wasted Duration: %s",
+            FormatHistoryDuration(
+                totalUtilityWastedMilliseconds
+            ).c_str()
+        );
+
+        ImGui::Unindent();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    if (
+        ImGui::CollapsingHeader(
+            "Trends",
+            ImGuiTreeNodeFlags_DefaultOpen
+        )
+        )
+    {
+        ImGui::Indent();
+
+        ImGui::TextDisabled(
+            "Each point represents one completed session in the selected range."
+        );
+
+        const ImVec2 chartSize(
+            ImGui::GetContentRegionAvail().x,
+            72.0f
+        );
+
+        const ImVec4 chartBackgroundColor(
+            0.06f,
+            0.07f,
+            0.10f,
+            0.75f
+        );
+
+        const auto DrawSessionBarChart =
+            [](
+                const char* label,
+                const std::vector<float>& values,
+                float scaleMax,
+                const ImVec4& barColor,
+                const ImVec4& backgroundColor
+                )
+            {
+                if (values.empty())
+                {
+                    return;
+                }
+
+                ImGui::TextUnformatted(
+                    label
+                );
+
+                const float chartHeight =
+                    72.0f;
+
+                const float chartWidth =
+                    ImGui::GetContentRegionAvail().x;
+
+                const ImVec2 chartMin =
+                    ImGui::GetCursorScreenPos();
+
+                const ImVec2 chartMax(
+                    chartMin.x +
+                    chartWidth,
+                    chartMin.y +
+                    chartHeight
+                );
+
+                ImDrawList* drawList =
+                    ImGui::GetWindowDrawList();
+
+                drawList->AddRectFilled(
+                    chartMin,
+                    chartMax,
+                    ImGui::ColorConvertFloat4ToU32(
+                        backgroundColor
+                    ),
+                    3.0f
+                );
+
+                drawList->AddRect(
+                    chartMin,
+                    chartMax,
+                    ImGui::GetColorU32(
+                        ImGuiCol_Border
+                    ),
+                    3.0f
+                );
+
+                const float innerPadding =
+                    5.0f;
+
+                const float innerWidth =
+                    chartWidth -
+                    innerPadding * 2.0f;
+
+                const float innerHeight =
+                    chartHeight -
+                    innerPadding * 2.0f;
+
+                const size_t count =
+                    values.size();
+
+                const float slotWidth =
+                    count > 0
+                    ? innerWidth /
+                    static_cast<float>(
+                        count
+                        )
+                    : innerWidth;
+
+                const float barGap =
+                    count > 1
+                    ? 2.0f
+                    : 0.0f;
+
+                const float barWidth =
+                    slotWidth >
+                    barGap
+                    ? slotWidth -
+                    barGap
+                    : slotWidth;
+
+                const ImU32 barColorU32 =
+                    ImGui::ColorConvertFloat4ToU32(
+                        barColor
+                    );
+
+                for (
+                    size_t i = 0;
+                    i < count;
+                    ++i
+                    )
+                {
+                    float normalized =
+                        scaleMax > 0.0f
+                        ? values[i] /
+                        scaleMax
+                        : 0.0f;
+
+                    if (normalized < 0.0f)
+                    {
+                        normalized = 0.0f;
+                    }
+
+                    if (normalized > 1.0f)
+                    {
+                        normalized = 1.0f;
+                    }
+
+                    const float x0 =
+                        chartMin.x +
+                        innerPadding +
+                        slotWidth *
+                        static_cast<float>(
+                            i
+                            ) +
+                        barGap * 0.5f;
+
+                    const float x1 =
+                        x0 +
+                        barWidth;
+
+                    const float y1 =
+                        chartMax.y -
+                        innerPadding;
+
+                    float y0 =
+                        y1 -
+                        innerHeight *
+                        normalized;
+
+                    //
+                    // Keep zero-value sessions visible as a small baseline marker.
+                    //
+                    if (
+                        values[i] <= 0.0f
+                        )
+                    {
+                        y0 =
+                            y1 -
+                            2.0f;
+                    }
+
+                    drawList->AddRectFilled(
+                        ImVec2(
+                            x0,
+                            y0
+                        ),
+                        ImVec2(
+                            x1,
+                            y1
+                        ),
+                        barColorU32,
+                        1.5f
+                    );
+                }
+
+                ImGui::Dummy(
+                    ImVec2(
+                        chartWidth,
+                        chartHeight
+                    )
+                );
+            };
+
+        if (!foodCoverageHistory.empty())
+        {
+            DrawSessionBarChart(
+                "Food Coverage",
+                foodCoverageHistory,
+                100.0f,
+                foodColor,
+                chartBackgroundColor
+            );
+
+            ImGui::TextDisabled(
+                "Average: %.1f%% | Sessions: %d",
+                foodSessionCoverage,
+                static_cast<int>(
+                    foodCoverageHistory.size()
+                    )
+            );
+        }
+
+        if (!utilityCoverageHistory.empty())
+        {
+            DrawSessionBarChart(
+                "Utility Coverage",
+                utilityCoverageHistory,
+                100.0f,
+                utilityColor,
+                chartBackgroundColor
+            );
+
+            ImGui::TextDisabled(
+                "Average: %.1f%% | Sessions: %d",
+                utilitySessionCoverage,
+                static_cast<int>(
+                    utilityCoverageHistory.size()
+                    )
+            );
+        }
+
+        if (!estimatedSpendHistoryGold.empty())
+        {
+            float maxSpendGold = 0.0f;
+
+            for (
+                const float value :
+            estimatedSpendHistoryGold
+                )
+            {
+                if (value > maxSpendGold)
+                {
+                    maxSpendGold = value;
+                }
+            }
+
+            const float spendScaleMax =
+                maxSpendGold > 0.0f
+                ? maxSpendGold
+                : 1.0f;
+
+            DrawSessionBarChart(
+                "Estimated Spend (g)",
+                estimatedSpendHistoryGold,
+                spendScaleMax,
+                attentionColor,
+                chartBackgroundColor
+            );
+
+            ImGui::TextDisabled(
+                "Range total: %s | Sessions: %d",
+                FormatCoinValue(
+                    estimatedTotalCostCopper
+                ).c_str(),
+                static_cast<int>(
+                    estimatedSpendHistoryGold.size()
+                    )
+            );
+
+            ImGui::TextDisabled(
+                "Spend uses current Trading Post sell prices, not historical purchase prices."
+            );
+        }
+
+        ImGui::Unindent();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    if (
+        ImGui::CollapsingHeader(
+            "Per-Item Usage"
+        )
+        )
+    {
+        ImGui::Indent();
+
+        ImGui::TextDisabled(
+            "Usage totals for completed sessions in the selected range."
+        );
+
+        const auto DrawItemUsageTable =
+            [](
+                const char* tableID,
+                const char* heading,
+                const std::vector<SessionConsumableUsage>& usageList,
+                bool isFood,
+                const ImVec4& headingColor
+                )
+            {
+                ImGui::Spacing();
+
+                ImGui::TextColored(
+                    headingColor,
+                    "%s",
+                    heading
+                );
+
+                if (usageList.empty())
+                {
+                    ImGui::TextDisabled(
+                        "No recorded uses."
+                    );
+
+                    return;
+                }
+
+                std::vector<SessionConsumableUsage>
+                    sortedUsage =
+                    usageList;
+
+                for (
+                    size_t i = 0;
+                    i < sortedUsage.size();
+                    ++i
+                    )
+                {
+                    for (
+                        size_t j = i + 1;
+                        j < sortedUsage.size();
+                        ++j
+                        )
+                    {
+                        if (
+                            sortedUsage[j].uses >
+                            sortedUsage[i].uses
+                            )
+                        {
+                            const SessionConsumableUsage temp =
+                                sortedUsage[i];
+
+                            sortedUsage[i] =
+                                sortedUsage[j];
+
+                            sortedUsage[j] =
+                                temp;
+                        }
+                    }
+                }
+
+                if (
+                    ImGui::BeginTable(
+                        tableID,
+                        3,
+                        ImGuiTableFlags_BordersInnerH |
+                        ImGuiTableFlags_RowBg |
+                        ImGuiTableFlags_SizingStretchProp
+                    )
+                    )
+                {
+                    ImGui::TableSetupColumn(
+                        "Item",
+                        ImGuiTableColumnFlags_WidthStretch,
+                        2.3f
+                    );
+
+                    ImGui::TableSetupColumn(
+                        "Uses",
+                        ImGuiTableColumnFlags_WidthFixed,
+                        62.0f
+                    );
+
+                    ImGui::TableSetupColumn(
+                        "Est. Spend",
+                        ImGuiTableColumnFlags_WidthFixed,
+                        110.0f
+                    );
+
+                    ImGui::TableHeadersRow();
+
+                    for (
+                        const SessionConsumableUsage& usage :
+                        sortedUsage
+                        )
+                    {
+                        const ConsumableInfo& info =
+                            isFood
+                            ? ConsumableData::GetFoodInfo(
+                                usage.skillID
+                            )
+                            : ConsumableData::GetUtilityInfo(
+                                usage.skillID
+                            );
+
+                        std::string itemName;
+
+                        if (
+                            std::string(info.label) !=
+                            "Unknown"
+                            )
+                        {
+                            itemName =
+                                info.name != nullptr &&
+                                info.name[0] != '\0'
+                                ? info.name
+                                : info.label;
+                        }
+                        else
+                        {
+                            char unknownBuffer[64] = {};
+
+                            snprintf(
+                                unknownBuffer,
+                                sizeof(unknownBuffer),
+                                "Effect ID %u",
+                                usage.skillID
+                            );
+
+                            itemName =
+                                unknownBuffer;
+                        }
+
+                        bool hasPrice = false;
+                        uint64_t spendCopper = 0;
+
+                        if (info.itemID != 0)
+                        {
+                            TradingPostPriceManager::RequestPrice(
+                                info.itemID
+                            );
+
+                            TradingPostPrice price;
+
+                            if (
+                                TradingPostPriceManager::TryGetPrice(
+                                    info.itemID,
+                                    price
+                                )
+                                )
+                            {
+                                hasPrice = true;
+
+                                spendCopper =
+                                    static_cast<uint64_t>(
+                                        price.sellUnitPrice
+                                        ) *
+                                    static_cast<uint64_t>(
+                                        usage.uses
+                                        );
+                            }
+                        }
+
+                        ImGui::TableNextRow();
+
+                        ImGui::TableSetColumnIndex(0);
+
+                        ImGui::TextUnformatted(
+                            itemName.c_str()
+                        );
+
+                        if (ImGui::IsItemHovered())
+                        {
+                            ImGui::BeginTooltip();
+
+                            ImGui::Text(
+                                "Effect ID: %u",
+                                usage.skillID
+                            );
+
+                            if (info.itemID != 0)
+                            {
+                                ImGui::Text(
+                                    "Item ID: %u",
+                                    info.itemID
+                                );
+                            }
+
+                            ImGui::EndTooltip();
+                        }
+
+                        ImGui::TableSetColumnIndex(1);
+
+                        ImGui::Text(
+                            "%u",
+                            usage.uses
+                        );
+
+                        ImGui::TableSetColumnIndex(2);
+
+                        if (hasPrice)
+                        {
+                            ImGui::TextUnformatted(
+                                FormatCoinValue(
+                                    spendCopper
+                                ).c_str()
+                            );
+                        }
+                        else
+                        {
+                            ImGui::TextDisabled(
+                                "Unpriced"
+                            );
+                        }
+                    }
+
+                    ImGui::EndTable();
+                }
+            };
+
+        DrawItemUsageTable(
+            "HistoryFoodUsageTable",
+            "FOOD ITEMS",
+            aggregateFoodUsage,
+            true,
+            foodColor
+        );
+
+        DrawItemUsageTable(
+            "HistoryUtilityUsageTable",
+            "UTILITY ITEMS",
+            aggregateUtilityUsage,
+            false,
+            utilityColor
+        );
+
+        ImGui::Unindent();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+
+    if (
+        ImGui::CollapsingHeader(
+            "Primer Details"
+        )
+        )
+    {
+        ImGui::Indent();
+
+        ImGui::Text(
+            "Metabolic Confirmed: %s",
+            FormatHistoryDuration(
+                totalMetabolicConfirmedMilliseconds
+            ).c_str()
+        );
+
+        ImGui::Text(
+            "Metabolic Inferred*: %s",
+            FormatHistoryDuration(
+                totalMetabolicInferredMilliseconds
+            ).c_str()
+        );
+
+        ImGui::TextDisabled(
+            "Metabolic Unknown: %s",
+            FormatHistoryDuration(
+                totalMetabolicUnknownMilliseconds
+            ).c_str()
+        );
+
+        ImGui::Text(
+            "Utility Confirmed: %s",
+            FormatHistoryDuration(
+                totalUtilityPrimerConfirmedMilliseconds
+            ).c_str()
+        );
+
+        ImGui::Text(
+            "Utility Inferred*: %s",
+            FormatHistoryDuration(
+                totalUtilityPrimerInferredMilliseconds
+            ).c_str()
+        );
+
+        ImGui::TextDisabled(
+            "Utility Unknown: %s",
+            FormatHistoryDuration(
+                totalUtilityPrimerUnknownMilliseconds
+            ).c_str()
+        );
+
+        ImGui::TextDisabled(
+            "* Inferred Primer time is kept separate because ArcDPS may not resend already-active Primer state."
+        );
+
+        ImGui::Unindent();
+    }
+
+    ImGui::Spacing();
+
+    ImGui::TextDisabled(
+        "Cost uses current Trading Post sell prices, not historical purchase prices."
+    );
+}
+
 void AddonOptions()
 {
     ImGui::TextUnformatted(
@@ -7696,6 +9166,14 @@ void AddonOptions()
             "Session"))
         {
             RenderSessionTab();
+
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem(
+            "History"))
+        {
+            RenderHistoryTab();
 
             ImGui::EndTabItem();
         }

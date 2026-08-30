@@ -41,7 +41,7 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 
 - Compact always-available Food/Utility tracker
 - Remaining Food and Utility duration
-- Recognized consumable labels
+- Recognized consumable names, with long names shortened in the compact view
 - Primer state display
 - Warning and critical timer colors
 - `Unknown` and `Not detected` states
@@ -88,6 +88,30 @@ Primer protection is handled conservatively:
 - Unknown Primer time is excluded from Primer savings estimates
 - Extended Food/Utility duration is never copied into the Primer countdown
 
+### Personal History
+
+FoodReminder-Nexus keeps a local history of completed consumable-tracking sessions.
+
+The History tab currently includes:
+
+- Selectable 1 Day / 7 Days / 30 Days / All Time ranges
+- Completed-session count
+- Tracked time and combat time
+- Food and Utility use counts
+- Food and Utility coverage
+- Estimated current-price consumable cost
+- Separate reporting for unpriced consumable uses
+- Food coverage trend chart
+- Utility coverage trend chart
+- Estimated spend trend chart
+- Per-item Food and Utility usage history
+- Primer detail history
+- Coverage and waste details
+
+History is stored locally in `FoodReminder_SessionHistory.tsv` and survives game/addon restarts.
+
+> **History cost limitation:** Historical cost uses current Trading Post sell prices when available. It does not reconstruct the price actually paid when a consumable was used.
+
 ### Trading Post Integration
 
 FoodReminder-Nexus can retrieve Guild Wars 2 Trading Post pricing for recognized consumables and independently watched Trading Post items.
@@ -124,6 +148,10 @@ The built-in Trading Post Watcher currently supports:
   - 1 hour
   - 6 hours
   - 24 hours
+  - 3 days
+  - 7 days
+  - 30 days
+  - 90 days
 - Time-based buy and sell trend analysis
 - Actual coin and percentage movement over the selected trend window
 - Trading Post buy/sell spread analysis
@@ -219,7 +247,7 @@ The addon is written in **C++** and developed using **Visual Studio**.
 
 FoodReminder-Nexus is currently an experimental development build.
 
-Core consumable tracking, reminders, squad tracking, session reporting, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
+Core consumable tracking, reminders, squad tracking, session reporting, persistent personal consumable history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
 
 The Trading Post Watcher has successfully passed:
 
@@ -253,13 +281,17 @@ Recent consumable-state work has also passed:
 - Gold tracker border styling
 - External consumable TSV loading and automatic reload
 - Resolved unknown effects automatically disappearing from the Unknown Consumable Collector
+- Persistent session-history save/load/append behavior
+- Personal History tab with trend charts and per-item usage
+- Compact tracker actual-name display with long-name truncation
+- Candy Cane/Minty Breath dedicated tracking removal
 
 Current development is focused on:
 
 - Expanding the external consumable database through normal gameplay and reliable public-data reconciliation
 - Resolving only genuinely unknown effect IDs that remain after database lookup
 - Refining consumable cost and savings analysis
-- Improving Squad and Session interfaces
+- Refining Squad, Session, and History interfaces where useful
 - Improving reminder presentation
 - Continued gameplay and stability testing
 - Evaluating additional reliable data sources for initial-state synchronization
@@ -273,10 +305,7 @@ Future development may include:
 - Additional Trading Post market-analysis tools
 - Additional Trading Post notification customization
 - Longer-term Trading Post history analysis
-- Session cost-per-hour analysis
-- Historical consumable usage statistics
 - Additional reminder customization
-- Combat-aware reminder behavior
 - Per-character settings and preferred consumables
 - Squad tracker customization
 - Improved initial-state synchronization where reliable data is available
