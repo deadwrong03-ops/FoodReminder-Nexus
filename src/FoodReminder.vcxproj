@@ -109,6 +109,8 @@
     <ClInclude Include="imgui\imstb_truetype.h" />
     <ClInclude Include="KeyBindStructs.h" />
     <ClInclude Include="nexus\Nexus.h" />
+    <ClInclude Include="RTAPI.h" />
+    <ClInclude Include="RTAPIIntegration.h" />
     <ClInclude Include="SessionTracker.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="ReminderManager.h" />
@@ -124,6 +126,7 @@
     <ClCompile Include="ConsumableMetadataManager.cpp" />
     <ClCompile Include="entry.cpp" />
     <ClCompile Include="ExtrasIntegration.cpp" />
+    <ClCompile Include="RTAPIIntegration.cpp" />
     <ClCompile Include="SessionTracker.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="ReminderManager.cpp" />

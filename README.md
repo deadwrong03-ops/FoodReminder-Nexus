@@ -18,6 +18,8 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Displays remaining duration
 - Warns before Food or Utility expires
 - Warns when entering combat without Food and/or Utility
+- Independent enable/disable controls for Food expiration, Utility expiration, missing-consumable, and Primer expiration reminders
+- Configurable reminder popup display duration from 3 to 10 seconds
 - Detects consumable applications, refreshes, replacements, and expirations
 - Clears stale consumable state when switching characters
 - Persists per-character Food and Utility state across addon/game reloads
@@ -54,10 +56,17 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 
 ### Squad Consumable Tracker
 
-- Tracks nearby players reported by ArcDPS
+- Uses RTAPI as the current squad roster/subgroup source when RTAPI is installed and synchronized
+- Falls back automatically to the existing ArcDPS-only roster when RTAPI is unavailable or still syncing
+- Continues using ArcDPS for Food/Utility effect IDs, active state, and remaining duration
 - Displays Food and Utility status and remaining duration
 - Identifies recognized consumables
 - Distinguishes unknown, missing, and not-yet-known consumable states
+- Shows the active roster source directly in the Squad tab
+- Provides three player-filter modes:
+  - All players
+  - Missing / Unknown / Unmapped
+  - Unknown / Unmapped only
 - Automatically collects unidentified consumable effect IDs for future database expansion
 
 ### Session Report
@@ -208,7 +217,11 @@ This allows normal gameplay and the Unknown Consumable Collector to drive databa
 
 ## How Tracking Works
 
-FoodReminder-Nexus receives combat and buff information through **ArcDPS combat events**.
+FoodReminder-Nexus receives Food/Utility combat and buff information through **ArcDPS combat events**.
+
+When **RTAPI** is installed and synchronized, FoodReminder-Nexus uses RTAPI for the live squad roster, subgroup membership, profession/specialization, self identity, and same-instance status. ArcDPS remains the source for actual Food/Utility effect IDs and remaining duration.
+
+If RTAPI is unavailable, unloaded, or still synchronizing, the Squad tracker automatically falls back to the existing ArcDPS-only roster behavior.
 
 ArcDPS does not always resend every already-active buff immediately after login, map changes, character changes, or addon reloads. Because of this, some consumable state may remain unknown until ArcDPS reports a relevant event.
 
@@ -239,6 +252,10 @@ FoodReminder-Nexus currently requires:
 - **Nexus**
 - **ArcDPS**
 
+Optional:
+
+- **RTAPI** — improves Squad roster/subgroup accuracy and live membership handling; FoodReminder automatically falls back to ArcDPS-only squad tracking when RTAPI is unavailable.
+
 The addon is written in **C++** and developed using **Visual Studio**.
 
 ---
@@ -247,7 +264,7 @@ The addon is written in **C++** and developed using **Visual Studio**.
 
 FoodReminder-Nexus is currently an experimental development build.
 
-Core consumable tracking, reminders, squad tracking, session reporting, persistent personal consumable history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
+Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent personal consumable history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
 
 The Trading Post Watcher has successfully passed:
 
@@ -285,6 +302,11 @@ Recent consumable-state work has also passed:
 - Personal History tab with trend charts and per-item usage
 - Compact tracker actual-name display with long-name truncation
 - Candy Cane/Minty Breath dedicated tracking removal
+- Independent reminder-type enable/disable controls
+- Configurable 3-10 second reminder display duration
+- Three-mode Squad player filtering
+- RTAPI roster integration with ArcDPS consumable-state pairing
+- RTAPI live-roster status display and automatic ArcDPS fallback
 
 Current development is focused on:
 
@@ -292,9 +314,9 @@ Current development is focused on:
 - Resolving only genuinely unknown effect IDs that remain after database lookup
 - Refining consumable cost and savings analysis
 - Refining Squad, Session, and History interfaces where useful
-- Improving reminder presentation
+- Continued RTAPI/ArcDPS hybrid roster testing across joins, leaves, subgroup changes, and map changes
 - Continued gameplay and stability testing
-- Evaluating additional reliable data sources for initial-state synchronization
+- Improving initial-state synchronization only where reliable data is available
 
 ---
 
@@ -305,9 +327,9 @@ Future development may include:
 - Additional Trading Post market-analysis tools
 - Additional Trading Post notification customization
 - Longer-term Trading Post history analysis
-- Additional reminder customization
-- Per-character settings and preferred consumables
-- Squad tracker customization
+- Additional reminder customization where useful
+- Per-character settings
+- Further Squad tracker filtering/presentation improvements
 - Improved initial-state synchronization where reliable data is available
 - Additional consumable database coverage
 - Jade Tech tracking if a reliable data source becomes available

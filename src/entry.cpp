@@ -22,6 +22,7 @@
 #include "ExtrasIntegration.h"
 #include "SquadTracker.h"
 #include "SessionTracker.h"
+#include "RTAPIIntegration.h"
 
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -339,6 +340,7 @@ void AddonLoad(AddonAPI_t* aApi)
     TradingPostItemIndexManager::Start(hSelf);
     TradingPostWatchManager::Start(hSelf);
     ConsumableMetadataManager::Start();
+    RTAPIIntegration::Start(APIDefs);
     SquadTracker::SaveUnknownConsumables();
     Settings::Save(hSelf);
 
@@ -408,6 +410,7 @@ void AddonUnload()
     TradingPostHistoryManager::Shutdown();
     ConsumableMetadataManager::Shutdown();
     ConsumableMetadataManager::Reset();
+    RTAPIIntegration::Shutdown();
 
     ExtrasIntegration::Reset();
     SquadTracker::Reset();
@@ -1608,20 +1611,24 @@ void AddonRender()
     }
 
     ReminderManager::Update(
-        hasFood,
+        hasFood &&
+        g_Settings.enableFoodExpirationReminder,
         foodRemaining,
         g_Settings.foodWarningSeconds,
-        hasUtility,
+        hasUtility &&
+        g_Settings.enableUtilityExpirationReminder,
         utilityRemaining,
         g_Settings.utilityWarningSeconds
     );
 
     ReminderManager::UpdatePrimerWarnings(
-        hasMetabolicPrimer,
+        hasMetabolicPrimer &&
+        g_Settings.enablePrimerExpirationReminder,
         metabolicPrimerRemaining,
         g_Settings
         .metabolicPrimerWarningSeconds,
-        hasUtilityPrimer,
+        hasUtilityPrimer &&
+        g_Settings.enablePrimerExpirationReminder,
         utilityPrimerRemaining,
         g_Settings
         .utilityPrimerWarningSeconds
@@ -1632,13 +1639,21 @@ void AddonRender()
     ReminderManager::
         UpdateMissingBuffWarnings(
             inCombat,
-            foodDetectionState ==
-            ConsumableDetectionState::Missing
-            ? hasFood
+            g_Settings.enableMissingConsumableWarning
+            ? (
+                foodDetectionState ==
+                ConsumableDetectionState::Missing
+                ? hasFood
+                : true
+                )
             : true,
-            utilityDetectionState ==
-            ConsumableDetectionState::Missing
-            ? hasUtility
+            g_Settings.enableMissingConsumableWarning
+            ? (
+                utilityDetectionState ==
+                ConsumableDetectionState::Missing
+                ? hasUtility
+                : true
+                )
             : true
         );
 
@@ -4627,6 +4642,50 @@ void RenderGeneralTab()
         settingsChanged = true;
     }
 
+    ImGui::Indent();
+
+    if (ImGui::Checkbox(
+        "Food expiration reminders",
+        &g_Settings.enableFoodExpirationReminder))
+    {
+        settingsChanged = true;
+    }
+
+    if (ImGui::Checkbox(
+        "Utility expiration reminders",
+        &g_Settings.enableUtilityExpirationReminder))
+    {
+        settingsChanged = true;
+    }
+
+    if (ImGui::Checkbox(
+        "Missing Food/Utility combat warnings",
+        &g_Settings.enableMissingConsumableWarning))
+    {
+        settingsChanged = true;
+    }
+
+    if (ImGui::Checkbox(
+        "Primer expiration reminders",
+        &g_Settings.enablePrimerExpirationReminder))
+    {
+        settingsChanged = true;
+    }
+
+    ImGui::Unindent();
+
+    ImGui::SetNextItemWidth(180.0f);
+
+    if (ImGui::SliderInt(
+        "Reminder display time (seconds)",
+        &g_Settings.reminderDisplaySeconds,
+        3,
+        10
+    ))
+    {
+        settingsChanged = true;
+    }
+
     if (ImGui::Checkbox(
         "Show compact tracker",
         &g_Settings.showTracker))
@@ -5279,6 +5338,27 @@ void RenderSquadTab()
         "Food and Utility status reported by ArcDPS."
     );
 
+    RTAPIIntegration::Update();
+
+    if (RTAPIIntegration::HasAuthoritativeRoster())
+    {
+        ImGui::TextDisabled(
+            "Roster: RTAPI | Consumables: ArcDPS"
+        );
+    }
+    else if (RTAPIIntegration::IsAvailable())
+    {
+        ImGui::TextDisabled(
+            "Roster: ArcDPS fallback | RTAPI syncing"
+        );
+    }
+    else
+    {
+        ImGui::TextDisabled(
+            "Roster: ArcDPS fallback | RTAPI unavailable"
+        );
+    }
+
     ImGui::Separator();
 
     std::vector<
@@ -5310,6 +5390,11 @@ void RenderSquadTab()
 
     static bool showSquadDebugColumns = false;
 
+    // 0 = All players
+    // 1 = Missing / Unknown / Unmapped
+    // 2 = Unknown / Unmapped only
+    static int squadAttentionFilterMode = 0;
+
     if (ImGui::CollapsingHeader(
         "Display Options"
     ))
@@ -5318,6 +5403,85 @@ void RenderSquadTab()
             "Show squad debug columns",
             &showSquadDebugColumns
         );
+
+        const char* attentionFilterLabels[] =
+        {
+            "All players",
+            "Missing / Unknown / Unmapped",
+            "Unknown / Unmapped only"
+        };
+
+        ImGui::SetNextItemWidth(230.0f);
+
+        ImGui::Combo(
+            "Player filter",
+            &squadAttentionFilterMode,
+            attentionFilterLabels,
+            3
+        );
+
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip(
+                "All players: show everyone.\n"
+                "Missing / Unknown / Unmapped: include confirmed missing states.\n"
+                "Unknown / Unmapped only: focus on unresolved or not-yet-known data."
+            );
+        }
+    }
+
+    size_t visiblePlayerCount = 0;
+
+    for (
+        const SquadTrackedPlayer& player :
+        trackedPlayers
+        )
+    {
+        const ConsumableInfo& foodInfo =
+            ConsumableData::GetFoodInfo(
+                player.foodSkillID
+            );
+
+        const ConsumableInfo& utilityInfo =
+            ConsumableData::GetUtilityInfo(
+                player.utilitySkillID
+            );
+
+        const bool foodUnmapped =
+            player.hasFood &&
+            foodInfo.label != nullptr &&
+            std::string(foodInfo.label) == "Unknown";
+
+        const bool utilityUnmapped =
+            player.hasUtility &&
+            utilityInfo.label != nullptr &&
+            std::string(utilityInfo.label) == "Unknown";
+
+        const bool hasUnknownOrUnmapped =
+            !player.foodStateKnown ||
+            !player.utilityStateKnown ||
+            foodUnmapped ||
+            utilityUnmapped;
+
+        const bool hasMissing =
+            (player.foodStateKnown && !player.hasFood) ||
+            (player.utilityStateKnown && !player.hasUtility);
+
+        const bool shouldShow =
+            squadAttentionFilterMode == 0 ||
+            (
+                squadAttentionFilterMode == 1 &&
+                (hasUnknownOrUnmapped || hasMissing)
+                ) ||
+            (
+                squadAttentionFilterMode == 2 &&
+                hasUnknownOrUnmapped
+                );
+
+        if (shouldShow)
+        {
+            ++visiblePlayerCount;
+        }
     }
 
     ImGui::Spacing();
@@ -5332,14 +5496,33 @@ void RenderSquadTab()
         "Current Food and Utility state for tracked players."
     );
 
-    ImGui::Text(
-        "Tracked players: %llu",
-        static_cast<
-        unsigned long long
-        >(
-            trackedPlayers.size()
-            )
-    );
+    if (squadAttentionFilterMode != 0)
+    {
+        ImGui::Text(
+            "Showing: %llu of %llu tracked players",
+            static_cast<
+            unsigned long long
+            >(
+                visiblePlayerCount
+                ),
+            static_cast<
+            unsigned long long
+            >(
+                trackedPlayers.size()
+                )
+        );
+    }
+    else
+    {
+        ImGui::Text(
+            "Tracked players: %llu",
+            static_cast<
+            unsigned long long
+            >(
+                trackedPlayers.size()
+                )
+        );
+    }
 
     ImGui::TextDisabled(
         "? = consumable state not established yet."
@@ -5418,6 +5601,61 @@ void RenderSquadTab()
                 trackedPlayers
                 )
             {
+                const ConsumableInfo& filterFoodInfo =
+                    ConsumableData::GetFoodInfo(
+                        player.foodSkillID
+                    );
+
+                const ConsumableInfo& filterUtilityInfo =
+                    ConsumableData::GetUtilityInfo(
+                        player.utilitySkillID
+                    );
+
+                const bool filterFoodUnmapped =
+                    player.hasFood &&
+                    filterFoodInfo.label != nullptr &&
+                    std::string(
+                        filterFoodInfo.label
+                    ) == "Unknown";
+
+                const bool filterUtilityUnmapped =
+                    player.hasUtility &&
+                    filterUtilityInfo.label != nullptr &&
+                    std::string(
+                        filterUtilityInfo.label
+                    ) == "Unknown";
+
+                const bool filterHasUnknownOrUnmapped =
+                    !player.foodStateKnown ||
+                    !player.utilityStateKnown ||
+                    filterFoodUnmapped ||
+                    filterUtilityUnmapped;
+
+                const bool filterHasMissing =
+                    (player.foodStateKnown &&
+                        !player.hasFood) ||
+                    (player.utilityStateKnown &&
+                        !player.hasUtility);
+
+                const bool shouldShowPlayer =
+                    squadAttentionFilterMode == 0 ||
+                    (
+                        squadAttentionFilterMode == 1 &&
+                        (
+                            filterHasUnknownOrUnmapped ||
+                            filterHasMissing
+                            )
+                        ) ||
+                    (
+                        squadAttentionFilterMode == 2 &&
+                        filterHasUnknownOrUnmapped
+                        );
+
+                if (!shouldShowPlayer)
+                {
+                    continue;
+                }
+
                 ImGui::TableNextRow();
 
                 ImGui::TableSetColumnIndex(0);

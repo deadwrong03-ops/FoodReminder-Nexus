@@ -51,6 +51,16 @@ struct FoodReminderSettings
     bool lockTrackerPosition = false;
     bool lockReminderPosition = false;
 
+    // Individual reminder types.
+    // Defaults preserve the existing behavior for older settings files.
+    bool enableFoodExpirationReminder = true;
+    bool enableUtilityExpirationReminder = true;
+    bool enableMissingConsumableWarning = true;
+    bool enablePrimerExpirationReminder = true;
+
+    // How long reminder popups remain visible.
+    int reminderDisplaySeconds = 5;
+
     int foodWarningSeconds = 300;
     int utilityWarningSeconds = 300;
 

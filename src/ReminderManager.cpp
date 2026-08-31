@@ -1,4 +1,5 @@
 #include "ReminderManager.h"
+#include "Settings.h"
 
 #include <chrono>
 #include <string>
@@ -26,8 +27,6 @@ namespace
 
     int64_t g_BuffRemainingMilliseconds = 0;
 
-    constexpr int REMINDER_DISPLAY_SECONDS = 5;
-
     void ShowReminder(
         const char* title,
         const char* message
@@ -39,7 +38,7 @@ namespace
         g_ReminderEnds =
             Clock::now() +
             std::chrono::seconds(
-                REMINDER_DISPLAY_SECONDS
+                g_Settings.reminderDisplaySeconds
             );
     }
 }

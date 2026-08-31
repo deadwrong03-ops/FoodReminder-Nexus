@@ -124,6 +124,36 @@ bool Settings::Load(void* moduleHandle)
                     ParseBool(value);
             }
             else if (
+                key == "enableFoodExpirationReminder")
+            {
+                g_Settings.enableFoodExpirationReminder =
+                    ParseBool(value);
+            }
+            else if (
+                key == "enableUtilityExpirationReminder")
+            {
+                g_Settings.enableUtilityExpirationReminder =
+                    ParseBool(value);
+            }
+            else if (
+                key == "enableMissingConsumableWarning")
+            {
+                g_Settings.enableMissingConsumableWarning =
+                    ParseBool(value);
+            }
+            else if (
+                key == "enablePrimerExpirationReminder")
+            {
+                g_Settings.enablePrimerExpirationReminder =
+                    ParseBool(value);
+            }
+            else if (
+                key == "reminderDisplaySeconds")
+            {
+                g_Settings.reminderDisplaySeconds =
+                    std::stoi(value);
+            }
+            else if (
                 key == "foodWarningSeconds")
             {
                 g_Settings.foodWarningSeconds =
@@ -570,6 +600,13 @@ bool Settings::Load(void* moduleHandle)
         }
     }
 
+    g_Settings.reminderDisplaySeconds =
+        std::clamp(
+            g_Settings.reminderDisplaySeconds,
+            3,
+            10
+        );
+
     g_Settings.foodWarningSeconds =
         std::clamp(
             g_Settings.foodWarningSeconds,
@@ -646,6 +683,31 @@ bool Settings::Save(void* moduleHandle)
     file
         << "lockReminderPosition="
         << (g_Settings.lockReminderPosition ? 1 : 0)
+        << '\n';
+
+    file
+        << "enableFoodExpirationReminder="
+        << (g_Settings.enableFoodExpirationReminder ? 1 : 0)
+        << '\n';
+
+    file
+        << "enableUtilityExpirationReminder="
+        << (g_Settings.enableUtilityExpirationReminder ? 1 : 0)
+        << '\n';
+
+    file
+        << "enableMissingConsumableWarning="
+        << (g_Settings.enableMissingConsumableWarning ? 1 : 0)
+        << '\n';
+
+    file
+        << "enablePrimerExpirationReminder="
+        << (g_Settings.enablePrimerExpirationReminder ? 1 : 0)
+        << '\n';
+
+    file
+        << "reminderDisplaySeconds="
+        << g_Settings.reminderDisplaySeconds
         << '\n';
 
     file

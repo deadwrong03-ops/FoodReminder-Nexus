@@ -5,6 +5,83 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-08-31 — Reminder Customization, Squad Filters & RTAPI Roster Integration
+
+### Added
+- Independent reminder enable/disable controls for:
+  - Food expiration reminders
+  - Utility expiration reminders
+  - Missing Food/Utility combat warnings
+  - Primer expiration reminders
+- Configurable reminder popup display duration from 3 to 10 seconds.
+- Squad player filter with three modes:
+  - All players
+  - Missing / Unknown / Unmapped
+  - Unknown / Unmapped only
+- Optional RTAPI integration through the public `RTAPI.h` interface.
+- New `RTAPIIntegration.h/.cpp` wrapper for RTAPI DataLink and group-member events.
+- Squad tab roster-source status display:
+  - `Roster: RTAPI | Consumables: ArcDPS`
+  - ArcDPS fallback status while RTAPI is unavailable or still syncing.
+
+### Changed
+- Squad roster handling now uses a hybrid data model when RTAPI is available:
+  - RTAPI supplies current squad membership, subgroup, profession/specialization, self identity, and same-instance state.
+  - ArcDPS remains authoritative for Food/Utility effect IDs, active state, and remaining duration.
+- FoodReminder switches to the RTAPI roster only after the event-backed RTAPI roster matches RTAPI's reported group-member count.
+- If RTAPI is missing, hot-unloaded, or still syncing, the Squad tracker preserves the previous ArcDPS-only roster behavior.
+- RTAPI squad members outside the player's current map instance are omitted from the consumable table because reliable ArcDPS consumable state cannot be paired with them.
+- The Squad attention filter was expanded from a single checkbox into selectable filter modes so missing consumables can be separated from unresolved/unknown data.
+
+### Fixed
+- The original `Show only players needing attention` filter was too broad in large squads because confirmed `None` Utility states caused most players to remain visible.
+- `Unknown / Unmapped only` now provides a focused unresolved-data view without including every confirmed missing Food/Utility state.
+- RTAPI project integration initially failed because `RTAPI.h` was not physically available on the compiler include path; placing the header in the project source directory resolved the build error.
+
+### Tested
+- Reminder-type checkboxes verified in-game:
+  - Enabled reminders display.
+  - Disabled reminders remain suppressed.
+- Configurable reminder display duration tested successfully in-game.
+- Three-mode Squad player filter rendered and switched correctly.
+- Large-squad filter test:
+  - `Missing / Unknown / Unmapped` correctly reduced the displayed roster based on attention state.
+  - `Unknown / Unmapped only` reduced the active RTAPI-backed squad view to a single unresolved player during testing.
+- RTAPI integration build passed.
+- RTAPI loaded successfully through Nexus.
+- Squad tab displayed `Roster: RTAPI | Consumables: ArcDPS`.
+- Existing ArcDPS Food/Utility tracking continued to populate correctly with RTAPI roster authority enabled.
+- RTAPI-backed subgroup/roster display remained stable during live squad gameplay.
+- ArcDPS fallback path remains available when RTAPI is unavailable or not yet synchronized.
+
+### Known Limitations
+- RTAPI does not provide Food/Utility effect IDs or remaining consumable duration; ArcDPS is still required for consumable-state tracking.
+- RTAPI integration is optional at runtime. FoodReminder continues using ArcDPS-only squad tracking when RTAPI is not available.
+- The RTAPI roster becomes authoritative only after its event-backed member list matches RTAPI's current reported group-member count.
+- Squad members outside the current map instance are not shown in the RTAPI-backed consumable table.
+- ArcDPS consumable state can still remain unknown until relevant buff/combat events are observed.
+- Exact Primer countdown recovery remains subject to the existing ArcDPS limitations documented below.
+
+### Status
+✅ Reminder-type customization working  
+✅ Reminder display-duration customization working  
+✅ Expanded three-mode Squad filter working  
+✅ RTAPI integration compiled successfully  
+✅ RTAPI roster active in-game  
+✅ ArcDPS consumable tracking preserved  
+✅ RTAPI/ArcDPS hybrid Squad model working  
+✅ Unknown/Unmapped-only filter validated in a live squad  
+✅ Current batch ready to commit and push  
+
+### Next
+- Continue normal gameplay testing with RTAPI enabled.
+- Verify RTAPI join/leave/subgroup updates across additional squad and map-change scenarios.
+- Confirm ArcDPS fallback behavior during a future RTAPI unload/disable test.
+- Continue resolving genuinely unknown consumable effect IDs.
+- Continue stability testing before the next release checkpoint.
+
+---
+
 ## 2026-08-30 — Persistent Personal History, Tracker Naming & Cleanup
 
 ### Added
