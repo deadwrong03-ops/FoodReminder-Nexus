@@ -295,12 +295,12 @@ AddonDefinition_t* GetAddonDef()
         "Food Reminder";
 
     AddonDef.Version.Major = 0;
-    AddonDef.Version.Minor = 1;
+    AddonDef.Version.Minor = 2;
     AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
 
     AddonDef.Author =
-        "Scott";
+        "spectre9510";
 
     AddonDef.Description =
         "Food and utility expiration reminders for Guild Wars 2.";
@@ -8785,25 +8785,14 @@ void RenderHistoryTab()
             "Each point represents one completed session in the selected range."
         );
 
-        const ImVec2 chartSize(
-            ImGui::GetContentRegionAvail().x,
-            72.0f
-        );
-
-        const ImVec4 chartBackgroundColor(
-            0.06f,
-            0.07f,
-            0.10f,
-            0.75f
-        );
-
-        const auto DrawSessionBarChart =
+        const auto DrawSessionCoverageDots =
             [](
                 const char* label,
+                const char* id,
                 const std::vector<float>& values,
-                float scaleMax,
-                const ImVec4& barColor,
-                const ImVec4& backgroundColor
+                double averageCoverage,
+                const ImVec4& goodColor,
+                const ImVec4& attentionColor
                 )
             {
                 if (values.empty())
@@ -8811,199 +8800,276 @@ void RenderHistoryTab()
                     return;
                 }
 
-                ImGui::TextUnformatted(
+                ImGui::TextColored(
+                    goodColor,
+                    "%s",
                     label
                 );
 
-                const float chartHeight =
-                    72.0f;
+                ImGui::SameLine();
 
-                const float chartWidth =
+                ImGui::TextDisabled(
+                    "Avg %.1f%%  |  %d sessions",
+                    averageCoverage,
+                    static_cast<int>(
+                        values.size()
+                        )
+                );
+
+                const float radius =
+                    4.0f;
+
+                const float diameter =
+                    radius * 2.0f;
+
+                const float spacing =
+                    8.0f;
+
+                const float availableWidth =
                     ImGui::GetContentRegionAvail().x;
 
-                const ImVec2 chartMin =
+                const float rowHeight =
+                    diameter + 4.0f;
+
+                const ImVec2 start =
                     ImGui::GetCursorScreenPos();
 
-                const ImVec2 chartMax(
-                    chartMin.x +
-                    chartWidth,
-                    chartMin.y +
-                    chartHeight
+                ImGui::InvisibleButton(
+                    id,
+                    ImVec2(
+                        availableWidth,
+                        rowHeight
+                    )
                 );
 
                 ImDrawList* drawList =
                     ImGui::GetWindowDrawList();
 
-                drawList->AddRectFilled(
-                    chartMin,
-                    chartMax,
-                    ImGui::ColorConvertFloat4ToU32(
-                        backgroundColor
-                    ),
-                    3.0f
-                );
+                float x =
+                    start.x + radius;
 
-                drawList->AddRect(
-                    chartMin,
-                    chartMax,
-                    ImGui::GetColorU32(
-                        ImGuiCol_Border
-                    ),
-                    3.0f
-                );
-
-                const float innerPadding =
-                    5.0f;
-
-                const float innerWidth =
-                    chartWidth -
-                    innerPadding * 2.0f;
-
-                const float innerHeight =
-                    chartHeight -
-                    innerPadding * 2.0f;
-
-                const size_t count =
-                    values.size();
-
-                const float slotWidth =
-                    count > 0
-                    ? innerWidth /
-                    static_cast<float>(
-                        count
-                        )
-                    : innerWidth;
-
-                const float barGap =
-                    count > 1
-                    ? 2.0f
-                    : 0.0f;
-
-                const float barWidth =
-                    slotWidth >
-                    barGap
-                    ? slotWidth -
-                    barGap
-                    : slotWidth;
-
-                const ImU32 barColorU32 =
-                    ImGui::ColorConvertFloat4ToU32(
-                        barColor
-                    );
+                const float y =
+                    start.y + rowHeight * 0.5f;
 
                 for (
                     size_t i = 0;
-                    i < count;
+                    i < values.size();
                     ++i
                     )
                 {
-                    float normalized =
-                        scaleMax > 0.0f
-                        ? values[i] /
-                        scaleMax
-                        : 0.0f;
-
-                    if (normalized < 0.0f)
-                    {
-                        normalized = 0.0f;
-                    }
-
-                    if (normalized > 1.0f)
-                    {
-                        normalized = 1.0f;
-                    }
-
-                    const float x0 =
-                        chartMin.x +
-                        innerPadding +
-                        slotWidth *
-                        static_cast<float>(
-                            i
-                            ) +
-                        barGap * 0.5f;
-
-                    const float x1 =
-                        x0 +
-                        barWidth;
-
-                    const float y1 =
-                        chartMax.y -
-                        innerPadding;
-
-                    float y0 =
-                        y1 -
-                        innerHeight *
-                        normalized;
-
-                    //
-                    // Keep zero-value sessions visible as a small baseline marker.
-                    //
                     if (
-                        values[i] <= 0.0f
+                        x + radius >
+                        start.x + availableWidth
                         )
                     {
-                        y0 =
-                            y1 -
-                            2.0f;
+                        break;
                     }
 
-                    drawList->AddRectFilled(
+                    ImVec4 pointColor =
+                        goodColor;
+
+                    if (values[i] < 90.0f)
+                    {
+                        pointColor =
+                            ImVec4(
+                                1.00f,
+                                0.40f,
+                                0.40f,
+                                1.00f
+                            );
+                    }
+                    else if (values[i] < 99.95f)
+                    {
+                        pointColor =
+                            attentionColor;
+                    }
+
+                    drawList->AddCircleFilled(
                         ImVec2(
-                            x0,
-                            y0
+                            x,
+                            y
                         ),
-                        ImVec2(
-                            x1,
-                            y1
-                        ),
-                        barColorU32,
-                        1.5f
+                        radius,
+                        ImGui::ColorConvertFloat4ToU32(
+                            pointColor
+                        )
                     );
+
+                    x +=
+                        diameter +
+                        spacing;
+                }
+            };
+
+        const auto DrawSessionSpendSparkline =
+            [](
+                const char* label,
+                const char* id,
+                const std::vector<float>& values,
+                const ImVec4& lineColor
+                )
+            {
+                if (values.empty())
+                {
+                    return;
                 }
 
-                ImGui::Dummy(
+                ImGui::TextColored(
+                    lineColor,
+                    "%s",
+                    label
+                );
+
+                const float chartHeight =
+                    24.0f;
+
+                const float chartWidth =
+                    ImGui::GetContentRegionAvail().x;
+
+                const ImVec2 start =
+                    ImGui::GetCursorScreenPos();
+
+                ImGui::InvisibleButton(
+                    id,
                     ImVec2(
                         chartWidth,
                         chartHeight
                     )
                 );
+
+                ImDrawList* drawList =
+                    ImGui::GetWindowDrawList();
+
+                float minValue =
+                    values.front();
+
+                float maxValue =
+                    values.front();
+
+                for (
+                    const float value :
+                values
+                    )
+                {
+                    if (value < minValue)
+                    {
+                        minValue = value;
+                    }
+
+                    if (value > maxValue)
+                    {
+                        maxValue = value;
+                    }
+                }
+
+                const float denominator =
+                    maxValue > minValue
+                    ? maxValue - minValue
+                    : 1.0f;
+
+                std::vector<ImVec2>
+                    points;
+
+                points.reserve(
+                    values.size()
+                );
+
+                for (
+                    size_t i = 0;
+                    i < values.size();
+                    ++i
+                    )
+                {
+                    const float normalized =
+                        maxValue > minValue
+                        ? (
+                            values[i] -
+                            minValue
+                            ) /
+                        denominator
+                        : 0.5f;
+
+                    const float x =
+                        values.size() > 1
+                        ? start.x +
+                        (
+                            static_cast<float>(
+                                i
+                                ) /
+                            static_cast<float>(
+                                values.size() - 1
+                                )
+                            ) *
+                        chartWidth
+                        : start.x +
+                        chartWidth * 0.5f;
+
+                    const float y =
+                        start.y +
+                        chartHeight -
+                        2.0f -
+                        (
+                            normalized *
+                            (
+                                chartHeight -
+                                4.0f
+                                )
+                            );
+
+                    points.emplace_back(
+                        x,
+                        y
+                    );
+                }
+
+                const ImU32 lineColorU32 =
+                    ImGui::ColorConvertFloat4ToU32(
+                        lineColor
+                    );
+
+                if (points.size() >= 2)
+                {
+                    drawList->AddPolyline(
+                        points.data(),
+                        static_cast<int>(
+                            points.size()
+                            ),
+                        lineColorU32,
+                        false,
+                        2.0f
+                    );
+                }
+                else
+                {
+                    drawList->AddCircleFilled(
+                        points.front(),
+                        2.5f,
+                        lineColorU32
+                    );
+                }
             };
 
         if (!foodCoverageHistory.empty())
         {
-            DrawSessionBarChart(
+            DrawSessionCoverageDots(
                 "Food Coverage",
+                "##FoodCoverageHistoryDots",
                 foodCoverageHistory,
-                100.0f,
-                foodColor,
-                chartBackgroundColor
-            );
-
-            ImGui::TextDisabled(
-                "Average: %.1f%% | Sessions: %d",
                 foodSessionCoverage,
-                static_cast<int>(
-                    foodCoverageHistory.size()
-                    )
+                foodColor,
+                attentionColor
             );
         }
 
         if (!utilityCoverageHistory.empty())
         {
-            DrawSessionBarChart(
+            DrawSessionCoverageDots(
                 "Utility Coverage",
+                "##UtilityCoverageHistoryDots",
                 utilityCoverageHistory,
-                100.0f,
-                utilityColor,
-                chartBackgroundColor
-            );
-
-            ImGui::TextDisabled(
-                "Average: %.1f%% | Sessions: %d",
                 utilitySessionCoverage,
-                static_cast<int>(
-                    utilityCoverageHistory.size()
-                    )
+                utilityColor,
+                attentionColor
             );
         }
 
@@ -9027,26 +9093,21 @@ void RenderHistoryTab()
                 ? maxSpendGold
                 : 1.0f;
 
-            DrawSessionBarChart(
-                "Estimated Spend (g)",
+            DrawSessionSpendSparkline(
+                "Estimated Spend",
+                "##EstimatedSpendHistoryLine",
                 estimatedSpendHistoryGold,
-                spendScaleMax,
-                attentionColor,
-                chartBackgroundColor
+                attentionColor
             );
 
             ImGui::TextDisabled(
-                "Range total: %s | Sessions: %d",
+                "Total: %s  |  Sessions: %d  |  Current Trading Post sell prices",
                 FormatCoinValue(
                     estimatedTotalCostCopper
                 ).c_str(),
                 static_cast<int>(
                     estimatedSpendHistoryGold.size()
                     )
-            );
-
-            ImGui::TextDisabled(
-                "Spend uses current Trading Post sell prices, not historical purchase prices."
             );
         }
 
@@ -9430,6 +9491,6 @@ void AddonOptions()
     ImGui::Spacing();
 
     ImGui::TextDisabled(
-        "Food Reminder v0.1.0 - Development Build"
+        "Food Reminder v0.2.0 - Development Build"
     );
 }

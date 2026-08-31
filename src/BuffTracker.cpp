@@ -1063,10 +1063,19 @@ void BuffTracker::ProcessEvent(
             g_FoodSkillName =
                 skillName;
 
-            SessionTracker::RecordFoodApplication(
-                ev.SkillID,
-                previousRemainingMilliseconds
-            );
+            const bool shouldRecordFoodUse =
+                !wasAlreadyActive ||
+                !sameConsumable ||
+                static_cast<int64_t>(ev.Value) >
+                previousRemainingMilliseconds + 5000;
+
+            if (shouldRecordFoodUse)
+            {
+                SessionTracker::RecordFoodApplication(
+                    ev.SkillID,
+                    previousRemainingMilliseconds
+                );
+            }
 
             if (!g_SelfCharacterName.empty())
             {
@@ -1142,10 +1151,19 @@ void BuffTracker::ProcessEvent(
             g_UtilitySkillName =
                 skillName;
 
-            SessionTracker::RecordUtilityApplication(
-                ev.SkillID,
-                previousRemainingMilliseconds
-            );
+            const bool shouldRecordUtilityUse =
+                !wasAlreadyActive ||
+                !sameConsumable ||
+                static_cast<int64_t>(ev.Value) >
+                previousRemainingMilliseconds + 5000;
+
+            if (shouldRecordUtilityUse)
+            {
+                SessionTracker::RecordUtilityApplication(
+                    ev.SkillID,
+                    previousRemainingMilliseconds
+                );
+            }
             if (!g_SelfCharacterName.empty())
             {
                 CharacterConsumableState& state =

@@ -5,6 +5,60 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-08-31 — v0.2.0 Release Prep, Session Accuracy & History UI
+
+### Changed
+- Addon version advanced to `0.2.0.0` for the v0.2.0 release checkpoint.
+- Addon author changed from `Scott` to `spectre9510`.
+- Personal History trend presentation was redesigned:
+  - Food coverage now uses one colored session marker per completed session.
+  - Utility coverage now uses one colored session marker per completed session.
+  - Estimated Spend remains a compact sparkline because spend naturally varies over time.
+  - Coverage markers were spaced farther apart for easier visual scanning.
+- The visible addon footer now reports `Food Reminder v0.2.0 - Development Build`.
+
+### Fixed
+- Session usage totals could be inflated when ArcDPS resent or resynchronized an already-active Food or Utility effect.
+- Food/Utility usage is now recorded only when:
+  - no matching consumable was already active,
+  - a different consumable replaces the active one, or
+  - the same consumable's remaining duration jumps upward enough to indicate a real reapplication.
+- A 5-second tolerance prevents minor timing differences from being mistaken for a new consumable use.
+- Existing active Food/Utility can now resynchronize without being charged as another use.
+
+### Tested
+- Reset Session with existing Food and Utility active:
+  - Session coverage resumed normally.
+  - No new Food or Utility use was recorded from resynchronization alone.
+- Consuming one fresh Food after reset recorded exactly `1 use`.
+- Personal History coverage markers rendered correctly in-game.
+- Estimated Spend sparkline remained readable and compact.
+- Increased marker spacing rendered correctly and was accepted.
+- Author `spectre9510` and visible `v0.2.0` footer confirmed in the current build.
+
+### Known Limitations
+- Historical sessions recorded before the usage-count fix may retain inflated legacy use totals in `FoodReminder_SessionHistory.tsv`.
+- Reset Session starts a new session but does not erase previously archived Personal History.
+- Historical cost still uses current Trading Post sell prices rather than historical purchase prices.
+
+### Status
+✅ Session resync duplicate-use bug fixed  
+✅ Fresh Food use recorded exactly once  
+✅ Existing active buffs no longer count as fresh uses during resync  
+✅ Personal History coverage-dot layout accepted  
+✅ Estimated Spend sparkline retained  
+✅ Author changed to `spectre9510`  
+✅ Version advanced to v0.2.0  
+✅ Ready for release-prep commit/push  
+
+### Next
+- Commit and push the v0.2.0 release-prep changes.
+- Produce a fresh Release build of `FoodReminder.dll`.
+- Package `FoodReminder.dll` with `FoodReminder_Consumables.tsv`.
+- Publish the GitHub v0.2.0 pre-release after the final smoke test.
+
+---
+
 ## 2026-08-31 — Reminder Customization, Squad Filters & RTAPI Roster Integration
 
 ### Added

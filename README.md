@@ -1,6 +1,6 @@
 ﻿# FoodReminder-Nexus
 
-> ⚠️ **Early Development Build — v0.1.0**
+> ⚠️ **Early Development Build — v0.2.0**
 >
 > FoodReminder-Nexus is under active development and is not yet feature complete.
 
@@ -82,6 +82,7 @@ Tracks consumable usage during the current gameplay session, including:
 - Consumables expiring during combat
 - Per-consumable usage history
 - Consumable cost tracking when Trading Post pricing is available
+- Duplicate/resync buff events are filtered so observed uses are not inflated by simple state synchronization
 - Total consumable cost
 - Uses tradable representative item IDs for cost estimates when multiple item variants share the same detected effect
 - Confirmed Primer-active time
@@ -111,9 +112,9 @@ The History tab currently includes:
 - Food and Utility coverage
 - Estimated current-price consumable cost
 - Separate reporting for unpriced consumable uses
-- Food coverage trend chart
-- Utility coverage trend chart
-- Estimated spend trend chart
+- Per-session Food coverage markers
+- Per-session Utility coverage markers
+- Estimated spend sparkline
 - Per-item Food and Utility usage history
 - Primer detail history
 - Coverage and waste details
@@ -300,7 +301,8 @@ Recent consumable-state work has also passed:
 - External consumable TSV loading and automatic reload
 - Resolved unknown effects automatically disappearing from the Unknown Consumable Collector
 - Persistent session-history save/load/append behavior
-- Personal History tab with trend charts and per-item usage
+- Personal History tab with per-session Food/Utility coverage markers, Estimated Spend sparkline, and per-item usage
+- Session usage-count filtering so ArcDPS resync events do not count as extra consumable uses
 - Compact tracker actual-name display with long-name truncation
 - Candy Cane/Minty Breath dedicated tracking removal
 - Independent reminder-type enable/disable controls
@@ -349,6 +351,8 @@ The README is intended to describe **what FoodReminder-Nexus is and what it curr
 ---
 
 ## Disclaimer
+
+Addon author: **spectre9510**
 
 FoodReminder-Nexus is an unofficial **Guild Wars 2** addon.
 
