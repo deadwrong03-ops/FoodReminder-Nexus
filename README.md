@@ -254,11 +254,16 @@ FoodReminder-Nexus currently requires:
 - **Nexus**
 - **ArcDPS**
 
-Optional:
-
-- **RTAPI** — improves Squad roster/subgroup accuracy and live membership handling; FoodReminder automatically falls back to ArcDPS-only squad tracking when RTAPI is unavailable.
-
-The addon is written in **C++** and developed using **Visual Studio**.
+> [!IMPORTANT]
+> **RTAPI IS OPTIONAL.**
+>
+> FoodReminder-Nexus does not require RTAPI to function.
+>
+> RTAPI support is used only for read-only squad information such as roster membership, subgroup, profession/specialization, and same-instance status.
+>
+> FoodReminder-Nexus does not use RTAPI to automate gameplay, control your character, perform combat actions, send inputs, manipulate game memory, or provide an unfair gameplay advantage.
+>
+> If RTAPI is not installed, FoodReminder-Nexus automatically falls back to ArcDPS-only Squad tracking.
 
 ---
 
