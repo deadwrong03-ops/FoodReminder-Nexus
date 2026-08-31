@@ -805,7 +805,7 @@ namespace
         "Superior Sharpening Stone",
         "3% Power from Precision\n"
         "6% Power from Ferocity",
-        78305
+        9943
     };
     const ConsumableInfo HardenedSharpeningStone =
     {

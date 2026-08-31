@@ -37,6 +37,8 @@ A chronological record of major development changes, testing results, fixes, and
 - The original `Show only players needing attention` filter was too broad in large squads because confirmed `None` Utility states caused most players to remain visible.
 - `Unknown / Unmapped only` now provides a focused unresolved-data view without including every confirmed missing Food/Utility state.
 - RTAPI project integration initially failed because `RTAPI.h` was not physically available on the compiler include path; placing the header in the project source directory resolved the build error.
+- Superior Sharpening Stone cost tracking used item ID `78305`, a non-tradable duplicate that shares effect ID `9963`, so Trading Post pricing remained unavailable even though the consumable was recognized correctly.
+- Superior Sharpening Stone now uses tradable item ID `9443` as the representative pricing item for effect `9963`.
 
 ### Tested
 - Reminder-type checkboxes verified in-game:
@@ -53,6 +55,8 @@ A chronological record of major development changes, testing results, fixes, and
 - Existing ArcDPS Food/Utility tracking continued to populate correctly with RTAPI roster authority enabled.
 - RTAPI-backed subgroup/roster display remained stable during live squad gameplay.
 - ArcDPS fallback path remains available when RTAPI is unavailable or not yet synchronized.
+- Superior Sharpening Stone pricing retested in-game after switching the representative item ID to `9443`.
+- Personal History changed from `Unpriced` to a live estimated spend for Superior Sharpening Stone, confirming the Session/History pricing pipeline was already working correctly.
 
 ### Known Limitations
 - RTAPI does not provide Food/Utility effect IDs or remaining consumable duration; ArcDPS is still required for consumable-state tracking.
@@ -71,6 +75,7 @@ A chronological record of major development changes, testing results, fixes, and
 ✅ ArcDPS consumable tracking preserved  
 ✅ RTAPI/ArcDPS hybrid Squad model working  
 ✅ Unknown/Unmapped-only filter validated in a live squad  
+✅ Superior Sharpening Stone Trading Post pricing fixed and validated  
 ✅ Current batch ready to commit and push  
 
 ### Next

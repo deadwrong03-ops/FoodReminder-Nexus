@@ -83,6 +83,7 @@ Tracks consumable usage during the current gameplay session, including:
 - Per-consumable usage history
 - Consumable cost tracking when Trading Post pricing is available
 - Total consumable cost
+- Uses tradable representative item IDs for cost estimates when multiple item variants share the same detected effect
 - Confirmed Primer-active time
 - Inferred Primer-active time
 - Unknown Primer-state time
@@ -307,6 +308,7 @@ Recent consumable-state work has also passed:
 - Three-mode Squad player filtering
 - RTAPI roster integration with ArcDPS consumable-state pairing
 - RTAPI live-roster status display and automatic ArcDPS fallback
+- Superior Sharpening Stone Trading Post cost lookup corrected to use its tradable representative item ID
 
 Current development is focused on:
 
