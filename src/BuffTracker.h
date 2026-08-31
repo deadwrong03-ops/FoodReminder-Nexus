@@ -52,6 +52,9 @@ namespace BuffTracker
     bool HasMetabolicPrimer();
     bool HasUtilityPrimer();
 
+    bool HasInferredMetabolicPrimerPresence();
+    bool HasInferredUtilityPrimerPresence();
+
     ConsumableDetectionState GetMetabolicPrimerDetectionState();
     ConsumableDetectionState GetUtilityPrimerDetectionState();
 

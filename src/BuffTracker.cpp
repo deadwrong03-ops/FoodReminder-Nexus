@@ -46,6 +46,10 @@ namespace
     ConsumableDetectionState g_UtilityPrimerDetectionState =
         ConsumableDetectionState::Unknown;
 
+    bool g_InferredMetabolicPrimerPresence = false;
+    bool g_InferredUtilityPrimerPresence = false;
+    std::string g_PrimerInferenceCharacterName;
+
 
     bool g_IsInCombat = false;
 
@@ -68,6 +72,24 @@ namespace
 
     std::chrono::steady_clock::time_point g_MetabolicPrimerReceivedTime;
     std::chrono::steady_clock::time_point g_UtilityPrimerReceivedTime;
+
+    void SyncPrimerInferenceCharacterLocked(
+        const std::string& characterName
+    )
+    {
+        if (characterName.empty())
+        {
+            return;
+        }
+
+        if (g_PrimerInferenceCharacterName != characterName)
+        {
+            g_PrimerInferenceCharacterName = characterName;
+            g_InferredMetabolicPrimerPresence = false;
+            g_InferredUtilityPrimerPresence = false;
+        }
+    }
+
 
     int64_t GetRemainingSecondsLocked(
         bool hasBuff,
@@ -313,6 +335,10 @@ namespace
         const std::string& characterName
     )
     {
+        SyncPrimerInferenceCharacterLocked(
+            characterName
+        );
+
         g_HasFood = false;
         g_HasUtility = false;
         g_HasMetabolicPrimer = false;
@@ -463,6 +489,7 @@ namespace
             g_HasMetabolicPrimer = true;
             g_MetabolicPrimerDetectionState =
                 ConsumableDetectionState::Active;
+            g_InferredMetabolicPrimerPresence = false;
 
             g_MetabolicPrimerDurationMilliseconds =
                 state.metabolicPrimerRemainingSeconds *
@@ -496,6 +523,7 @@ namespace
             g_HasUtilityPrimer = true;
             g_UtilityPrimerDetectionState =
                 ConsumableDetectionState::Active;
+            g_InferredUtilityPrimerPresence = false;
 
             g_UtilityPrimerDurationMilliseconds =
                 state.utilityPrimerRemainingSeconds *
@@ -968,6 +996,7 @@ void BuffTracker::ProcessEvent(
             g_MetabolicPrimerDetectionState =
                 ConsumableDetectionState::Missing;
             g_MetabolicPrimerDurationMilliseconds = 0;
+            g_InferredMetabolicPrimerPresence = false;
 
             g_Settings.metabolicPrimerExpiresAt = 0;
 
@@ -994,6 +1023,7 @@ void BuffTracker::ProcessEvent(
             g_UtilityPrimerDetectionState =
                 ConsumableDetectionState::Missing;
             g_UtilityPrimerDurationMilliseconds = 0;
+            g_InferredUtilityPrimerPresence = false;
 
             g_Settings.utilityPrimerExpiresAt = 0;
 
@@ -1068,6 +1098,16 @@ void BuffTracker::ProcessEvent(
                 !sameConsumable ||
                 static_cast<int64_t>(ev.Value) >
                 previousRemainingMilliseconds + 5000;
+
+            if (static_cast<int64_t>(ev.Value) >
+                2LL * 60LL * 60LL * 1000LL)
+            {
+                g_InferredMetabolicPrimerPresence = true;
+            }
+            else if (shouldRecordFoodUse && !g_HasMetabolicPrimer)
+            {
+                g_InferredMetabolicPrimerPresence = false;
+            }
 
             if (shouldRecordFoodUse)
             {
@@ -1156,6 +1196,16 @@ void BuffTracker::ProcessEvent(
                 !sameConsumable ||
                 static_cast<int64_t>(ev.Value) >
                 previousRemainingMilliseconds + 5000;
+
+            if (static_cast<int64_t>(ev.Value) >
+                2LL * 60LL * 60LL * 1000LL)
+            {
+                g_InferredUtilityPrimerPresence = true;
+            }
+            else if (shouldRecordUtilityUse && !g_HasUtilityPrimer)
+            {
+                g_InferredUtilityPrimerPresence = false;
+            }
 
             if (shouldRecordUtilityUse)
             {
@@ -1580,6 +1630,57 @@ bool BuffTracker::HasUtilityPrimer()
     return false;
 }
 
+bool BuffTracker::HasInferredMetabolicPrimerPresence()
+{
+    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    SyncPrimerInferenceCharacterLocked(g_SelfCharacterName);
+
+    if (g_MetabolicPrimerDetectionState == ConsumableDetectionState::Missing)
+    {
+        g_InferredMetabolicPrimerPresence = false;
+        return false;
+    }
+
+    if (!g_InferredMetabolicPrimerPresence && g_HasFood)
+    {
+        const int64_t foodRemaining = GetRemainingMillisecondsLocked(
+            g_HasFood, g_FoodDurationMilliseconds, g_FoodReceivedTime);
+
+        if (foodRemaining > 2LL * 60LL * 60LL * 1000LL)
+        {
+            g_InferredMetabolicPrimerPresence = true;
+        }
+    }
+
+    return g_InferredMetabolicPrimerPresence;
+}
+
+bool BuffTracker::HasInferredUtilityPrimerPresence()
+{
+    std::lock_guard<std::mutex> lock(g_BuffMutex);
+    SyncPrimerInferenceCharacterLocked(g_SelfCharacterName);
+
+    if (g_UtilityPrimerDetectionState == ConsumableDetectionState::Missing)
+    {
+        g_InferredUtilityPrimerPresence = false;
+        return false;
+    }
+
+    if (!g_InferredUtilityPrimerPresence && g_HasUtility)
+    {
+        const int64_t utilityRemaining = GetRemainingMillisecondsLocked(
+            g_HasUtility, g_UtilityDurationMilliseconds, g_UtilityReceivedTime);
+
+        if (utilityRemaining > 2LL * 60LL * 60LL * 1000LL)
+        {
+            g_InferredUtilityPrimerPresence = true;
+        }
+    }
+
+    return g_InferredUtilityPrimerPresence;
+}
+
+
 ConsumableDetectionState
 BuffTracker::GetMetabolicPrimerDetectionState()
 {
@@ -1746,6 +1847,10 @@ void BuffTracker::RestorePrimerState()
 
     g_MetabolicPrimerDurationMilliseconds = 0;
     g_UtilityPrimerDurationMilliseconds = 0;
+
+    g_InferredMetabolicPrimerPresence = false;
+    g_InferredUtilityPrimerPresence = false;
+    g_PrimerInferenceCharacterName.clear();
 
     // Clear obsolete global timestamps so they cannot leak Primer
     // state onto a different character.

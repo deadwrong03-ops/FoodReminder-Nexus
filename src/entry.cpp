@@ -962,9 +962,8 @@ void RenderCompactTracker(
                 )
             {
                 const bool inferredMetabolicPrimer =
-                    displayHasFood &&
-                    displayFoodRemaining >
-                    2LL * 60LL * 60LL * 1000LL;
+                    BuffTracker::
+                    HasInferredMetabolicPrimerPresence();
 
                 if (inferredMetabolicPrimer)
                 {
@@ -1080,9 +1079,8 @@ void RenderCompactTracker(
                 )
             {
                 const bool inferredUtilityPrimer =
-                    displayHasUtility &&
-                    displayUtilityRemaining >
-                    2LL * 60LL * 60LL * 1000LL;
+                    BuffTracker::
+                    HasInferredUtilityPrimerPresence();
 
                 if (inferredUtilityPrimer)
                 {
