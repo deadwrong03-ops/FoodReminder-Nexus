@@ -69,17 +69,19 @@ namespace TradingPostWatchManager
     int64_t GetSecondsUntilNextCheck();
 
     //
-    // Returns the current session alert, if one is waiting
-    // for the user to dismiss it.
+    // Returns the currently visible target alert, if one is waiting
+    // for the user to dismiss it. Additional simultaneous hits are
+    // queued and shown one at a time.
     //
     bool TryGetActiveTargetAlert(
         TradingPostTargetAlert& outAlert
     );
 
     //
-    // Dismisses the currently visible alert. This does NOT
-    // re-arm the target. The target automatically re-arms only
-    // after a later observed sell price rises above the target.
+    // Dismisses the currently visible alert and immediately promotes
+    // the next queued target hit, if one exists. This does NOT re-arm
+    // a target. Re-arming still requires a later observed sell price
+    // above that target.
     //
     void DismissActiveTargetAlert();
 }

@@ -106,6 +106,12 @@ FoodReminder-Nexus keeps a local history of completed consumable-tracking sessio
 The History tab currently includes:
 
 - Selectable 1 Day / 7 Days / 30 Days / All Time ranges
+- Per-character History filtering with:
+  - Current Character
+  - All Characters
+  - Searchable saved character names
+  - Legacy / Unknown handling for older untagged sessions
+- Defaults to the currently played character when switching characters
 - Completed-session count
 - Tracked time and combat time
 - Food and Utility use counts
@@ -140,8 +146,11 @@ The built-in Trading Post Watcher currently supports:
 - Target status
 - Fresh-API-only target alerts
 - Anti-spam target alert latching
-- Dismissible target-reached notifications
+- Queued target alerts when multiple watched items reach their Sell Targets together
+- Dismissible target-reached notifications that advance through queued hits one at a time
 - Standalone gameplay-visible target-hit overlay
+- Compact target-hit card inside the Trading Post tab
+- Context-aware alert presentation so the large gameplay overlay is hidden while the Trading Post tab is open
 - Dragon Bash-style target celebration effects
 - Manual per-item price refresh
 - Refresh All control
@@ -287,6 +296,9 @@ The Trading Post Watcher has successfully passed:
 - Tiered history retention
 - Target alert testing
 - Anti-spam target alert testing
+- Multi-target alert queue testing
+- Sequential dismiss/advance testing
+- Gameplay-overlay vs in-tab alert presentation testing
 - Deal-quality analysis
 - Opportunity-signal testing
 - Standalone gameplay-visible target-hit overlay testing
@@ -307,6 +319,8 @@ Recent consumable-state work has also passed:
 - Resolved unknown effects automatically disappearing from the Unknown Consumable Collector
 - Persistent session-history save/load/append behavior
 - Personal History tab with per-session Food/Utility coverage markers, Estimated Spend sparkline, and per-item usage
+- Per-character History tagging/filtering with Current Character as the default view
+- Legacy/Unknown preservation for pre-character-tagging history
 - Session usage-count filtering so ArcDPS resync events do not count as extra consumable uses
 - Compact tracker actual-name display with long-name truncation
 - Candy Cane/Minty Breath dedicated tracking removal

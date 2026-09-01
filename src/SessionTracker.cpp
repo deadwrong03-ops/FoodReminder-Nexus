@@ -26,6 +26,10 @@ namespace
 
     uint64_t g_SessionStartedUnixSeconds = 0;
 
+    // Character attached to the active session. Character changes split
+    // history into separate records so per-character filtering is accurate.
+    std::string g_CurrentCharacterName;
+
     std::filesystem::path
         g_HistoryPath;
 
@@ -557,10 +561,10 @@ namespace
         }
 
         file
-            << "# FoodReminder-Nexus Session History v1\n";
+            << "# FoodReminder-Nexus Session History v2\n";
 
         file
-            << "# started_unix\tended_unix"
+            << "# started_unix\tended_unix\tcharacter"
             << "\tsession_ms\tcombat_ms"
             << "\tfood_active_ms\tutility_active_ms"
             << "\tfood_combat_ms\tutility_combat_ms"
@@ -591,6 +595,8 @@ namespace
                 << record.startedUnixSeconds
                 << '\t'
                 << record.endedUnixSeconds
+                << '\t'
+                << record.characterName
                 << '\t'
                 << stats.sessionMilliseconds
                 << '\t'
@@ -705,7 +711,13 @@ namespace
             );
         }
 
-        if (fields.size() != 38)
+        const bool hasCharacterField =
+            fields.size() == 39;
+
+        if (
+            fields.size() != 38 &&
+            !hasCharacterField
+            )
         {
             return false;
         }
@@ -725,6 +737,12 @@ namespace
                 std::stoull(
                     fields[i++]
                 );
+
+            if (hasCharacterField)
+            {
+                outRecord.characterName =
+                    fields[i++];
+            }
 
             SessionStats& stats =
                 outRecord.stats;
@@ -959,6 +977,9 @@ namespace
         record.endedUnixSeconds =
             GetUnixSecondsNow();
 
+        record.characterName =
+            g_CurrentCharacterName;
+
         record.stats =
             g_Stats;
 
@@ -1022,6 +1043,7 @@ void SessionTracker::Shutdown()
 }
 
 void SessionTracker::Update(
+    const std::string& characterName,
     bool hasFood,
     uint32_t foodSkillID,
     bool hasUtility,
@@ -1034,6 +1056,28 @@ void SessionTracker::Update(
     std::lock_guard<std::mutex> lock(
         g_SessionMutex
     );
+
+    if (!characterName.empty())
+    {
+        if (g_CurrentCharacterName.empty())
+        {
+            g_CurrentCharacterName =
+                characterName;
+        }
+        else if (
+            g_CurrentCharacterName !=
+            characterName
+            )
+        {
+            // End the previous character's session before tracking the new
+            // character. This prevents one history dot from mixing characters.
+            ArchiveCurrentSessionLocked();
+            BeginFreshSessionLocked();
+
+            g_CurrentCharacterName =
+                characterName;
+        }
+    }
 
     const auto now =
         std::chrono::steady_clock::now();

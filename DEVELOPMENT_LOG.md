@@ -5,6 +5,71 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-09-01 — Per-Character History & Trading Post Alert Queue
+
+### Added
+- Personal History now stores the character name with newly archived sessions.
+- History character filtering now supports:
+  - All Characters
+  - Current Character
+  - Searchable saved character names
+  - Legacy / Unknown for sessions recorded before character tagging was added.
+- Trading Post target alerts now queue when multiple watched items enter their Sell Target range at the same time.
+
+### Changed
+- Personal History now defaults to **Current Character** so players who regularly switch characters do not need to manually reselect the active character.
+- Switching characters archives the previous character's session and starts a new character-specific session so one history record does not mix multiple characters.
+- History aggregation, coverage markers, estimated spend, per-item usage, and Primer details all respect the selected character filter.
+- Only one Trading Post target alert is presented at a time; dismissing the current alert immediately advances to the next queued target hit.
+- Trading Post target presentation is now context-aware:
+  - The large Dragon Bash-style celebration overlay is shown during normal gameplay.
+  - While the FoodReminder Trading Post tab is open, the large overlay is suppressed and the compact in-tab target card remains visible.
+
+### Fixed
+- Account-wide History could make coverage markers appear unrelated to the character currently being played.
+- Multiple watched items reaching their targets together could latch correctly but only the first item surfaced as an alert.
+- The large gameplay target celebration and compact Trading Post-tab card could both display the same active alert simultaneously.
+
+### Tested
+- Newly archived sessions were tagged to the correct character and filtered correctly in Personal History.
+- The History character selector displayed saved characters and preserved legacy history separately.
+- Switching characters confirmed History defaults to the current character automatically.
+- Multi-target Trading Post test with three simultaneous target hits verified sequential alert delivery:
+  - Aurene's Bite
+  - Bolt of Silk
+  - Piece of Zhaitaffy
+- Dismissing each target alert immediately promoted the next queued alert without waiting for another API refresh.
+- Trading Post presentation test verified:
+  - Trading Post tab closed -> large standalone celebration overlay shown.
+  - Trading Post tab open -> large overlay hidden and compact in-tab card shown.
+- Squad filter modes were revalidated in a live RTAPI-backed squad:
+  - All players
+  - Missing / Unknown / Unmapped
+  - Unknown / Unmapped only
+- Squad table remained stable while filters changed and live Food/Utility timers continued updating.
+
+### Known Limitations
+- History sessions recorded before character tagging remain under `Legacy / Unknown` because their original character cannot be reconstructed reliably.
+- Exact Primer countdown recovery remains limited by the ArcDPS behavior documented in earlier checkpoints.
+
+### Status
+✅ Per-character Personal History working  
+✅ Current-character History default working  
+✅ Legacy History preserved  
+✅ Multi-target Trading Post alert queue working  
+✅ Sequential dismiss/advance behavior verified  
+✅ Trading Post overlay/card presentation separation verified  
+✅ Squad filter set revalidated in live gameplay  
+✅ Current batch ready to commit and push  
+
+### Next
+- Commit and push the current v0.2.0 checkpoint.
+- Produce a fresh Release build of `FoodReminder.dll`.
+- Perform the final v0.2.0 smoke test.
+- Package `FoodReminder.dll` with `FoodReminder_Consumables.tsv` for the GitHub pre-release.
+
+---
+
 ## 2026-08-31 — v0.2.0 Release Prep, Session Accuracy & History UI
 
 ### Changed

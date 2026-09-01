@@ -56,6 +56,10 @@ namespace
 
     bool g_HasActiveTargetAlert = false;
 
+    std::vector<
+        TradingPostTargetAlert
+    > g_PendingTargetAlerts;
+
     bool g_AutoWatchEnabled = true;
 
     bool g_HasLastCheck = false;
@@ -165,6 +169,109 @@ namespace
         g_TargetAlertStates[
             AURENES_BITE_ITEM_ID
         ];
+    }
+
+    void PromoteNextTargetAlertLocked()
+    {
+        if (g_HasActiveTargetAlert)
+        {
+            return;
+        }
+
+        if (g_PendingTargetAlerts.empty())
+        {
+            g_ActiveTargetAlert =
+                TradingPostTargetAlert{};
+
+            return;
+        }
+
+        g_ActiveTargetAlert =
+            g_PendingTargetAlerts.front();
+
+        g_PendingTargetAlerts.erase(
+            g_PendingTargetAlerts.begin()
+        );
+
+        g_HasActiveTargetAlert =
+            true;
+    }
+
+    void QueueTargetAlertLocked(
+        const TradingPostTargetAlert& alert
+    )
+    {
+        if (alert.itemID == 0)
+        {
+            return;
+        }
+
+        if (
+            g_HasActiveTargetAlert &&
+            g_ActiveTargetAlert.itemID ==
+            alert.itemID
+            )
+        {
+            return;
+        }
+
+        const auto queuedIt =
+            std::find_if(
+                g_PendingTargetAlerts.begin(),
+                g_PendingTargetAlerts.end(),
+                [&alert](
+                    const TradingPostTargetAlert& queuedAlert
+                    )
+                {
+                    return
+                        queuedAlert.itemID ==
+                        alert.itemID;
+                }
+            );
+
+        if (
+            queuedIt !=
+            g_PendingTargetAlerts.end()
+            )
+        {
+            return;
+        }
+
+        if (!g_HasActiveTargetAlert)
+        {
+            g_ActiveTargetAlert =
+                alert;
+
+            g_HasActiveTargetAlert =
+                true;
+
+            return;
+        }
+
+        g_PendingTargetAlerts.push_back(
+            alert
+        );
+    }
+
+    void RemoveQueuedTargetAlertLocked(
+        uint32_t itemID
+    )
+    {
+        g_PendingTargetAlerts.erase(
+            std::remove_if(
+                g_PendingTargetAlerts.begin(),
+                g_PendingTargetAlerts.end(),
+                [itemID](
+                    const TradingPostTargetAlert& alert
+                    )
+                {
+                    return
+                        alert.itemID ==
+                        itemID;
+                }
+            ),
+            g_PendingTargetAlerts.end()
+        );
     }
 
     void SaveLocked()
@@ -523,30 +630,29 @@ namespace
                     settingsChanged = true;
 
                     //
-                    // Keep only one visible alert at a time.
-                    // If the user dismisses it, another newly-triggered
-                    // item can become visible on a future price update.
+                    // Queue every newly-triggered target hit. Only one alert
+                    // is visible at a time; dismissing it promotes the next.
                     //
-                    if (!g_HasActiveTargetAlert)
-                    {
-                        g_ActiveTargetAlert.itemID =
-                            item.itemID;
+                    TradingPostTargetAlert targetAlert;
 
-                        g_ActiveTargetAlert.name =
-                            item.name;
+                    targetAlert.itemID =
+                        item.itemID;
 
-                        g_ActiveTargetAlert.sellUnitPrice =
-                            price.sellUnitPrice;
+                    targetAlert.name =
+                        item.name;
 
-                        g_ActiveTargetAlert.targetSellCopper =
-                            item.targetSellCopper;
+                    targetAlert.sellUnitPrice =
+                        price.sellUnitPrice;
 
-                        g_ActiveTargetAlert.triggeredUnixSeconds =
-                            GetCurrentUnixSeconds();
+                    targetAlert.targetSellCopper =
+                        item.targetSellCopper;
 
-                        g_HasActiveTargetAlert =
-                            true;
-                    }
+                    targetAlert.triggeredUnixSeconds =
+                        GetCurrentUnixSeconds();
+
+                    QueueTargetAlertLocked(
+                        targetAlert
+                    );
                 }
             }
             else
@@ -591,6 +697,8 @@ void TradingPostWatchManager::Start(
     g_ActiveTargetAlert =
         TradingPostTargetAlert{};
 
+    g_PendingTargetAlerts.clear();
+
     LoadLocked();
 
     for (
@@ -629,6 +737,8 @@ void TradingPostWatchManager::Shutdown()
 
     g_ActiveTargetAlert =
         TradingPostTargetAlert{};
+
+    g_PendingTargetAlerts.clear();
 
     g_TargetAlertStates.clear();
 
@@ -823,6 +933,10 @@ void TradingPostWatchManager::RemoveItem(
         itemID
     );
 
+    RemoveQueuedTargetAlertLocked(
+        itemID
+    );
+
     if (
         g_HasActiveTargetAlert &&
         g_ActiveTargetAlert.itemID ==
@@ -834,6 +948,8 @@ void TradingPostWatchManager::RemoveItem(
 
         g_ActiveTargetAlert =
             TradingPostTargetAlert{};
+
+        PromoteNextTargetAlertLocked();
     }
 
     TradingPostHistoryManager::
@@ -907,6 +1023,10 @@ SetTargetSellPrice(
                         0;
                 }
 
+                RemoveQueuedTargetAlertLocked(
+                    itemID
+                );
+
                 if (
                     g_HasActiveTargetAlert &&
                     g_ActiveTargetAlert.itemID ==
@@ -918,6 +1038,8 @@ SetTargetSellPrice(
 
                     g_ActiveTargetAlert =
                         TradingPostTargetAlert{};
+
+                    PromoteNextTargetAlertLocked();
                 }
 
                 SaveLocked();
@@ -1065,4 +1187,6 @@ DismissActiveTargetAlert()
 
     g_ActiveTargetAlert =
         TradingPostTargetAlert{};
+
+    PromoteNextTargetAlertLocked();
 }

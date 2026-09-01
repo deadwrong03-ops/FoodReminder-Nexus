@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 struct SessionConsumableUsage
@@ -131,6 +132,10 @@ struct SessionHistoryRecord
     uint64_t startedUnixSeconds = 0;
     uint64_t endedUnixSeconds = 0;
 
+    // Empty means this record came from the older v1 history format,
+    // which did not store character names.
+    std::string characterName;
+
     SessionStats stats;
 };
 
@@ -152,6 +157,7 @@ namespace SessionTracker
     void Shutdown();
 
     void Update(
+        const std::string& characterName,
         bool hasFood,
         uint32_t foodSkillID,
         bool hasUtility,
