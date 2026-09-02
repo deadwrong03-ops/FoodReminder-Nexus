@@ -5,6 +5,44 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-09-02 — UI Refactor Checkpoint: HistoryUI & TradingPostUI
+
+### Changed
+- Began a controlled zero-behavior-change refactor of the large `entry.cpp`.
+- Moved the Personal History interface into new `HistoryUI.h/.cpp` files.
+- Moved the Trading Post interface into new `TradingPostUI.h/.cpp` files.
+- Moved the large gameplay `TARGET REACHED!` celebration rendering into `TradingPostUI`.
+- Moved Trading Post tab visibility tracking/suppression logic into `TradingPostUI` so the large gameplay celebration remains hidden while the compact in-tab target card is visible.
+- `entry.cpp` is now focused more heavily on addon wiring and shared runtime flow instead of containing all History and Trading Post rendering code.
+
+### Tested
+- `HistoryUI` extraction passed a full build.
+- Personal History opened and rendered normally after extraction.
+- Current Character filtering, saved-character selection, time-range selection, Trends, Per-Item Usage, and Primer Details remained functional.
+- `TradingPostUI` extraction passed a full build.
+- Trading Post watch list, current Sell/Buy prices, Sell Target editing, status display, trend selector, history charts, Min/Avg/Max statistics, spread, deal-quality signal, item-search count, and automatic refresh countdown rendered normally after extraction.
+- Large gameplay `TARGET REACHED!` celebration rendered correctly with the Trading Post tab closed after the refactor.
+- Existing compact in-tab target presentation behavior remained intact.
+- No observed functional regression was found in either extracted UI section.
+
+### Status
+✅ HistoryUI extraction complete  
+✅ HistoryUI build passed  
+✅ HistoryUI in-game verification passed  
+✅ TradingPostUI extraction complete  
+✅ TradingPostUI build passed  
+✅ TradingPostUI in-game verification passed  
+✅ Target-hit gameplay celebration verified after refactor  
+✅ Zero-behavior-change refactor checkpoint accepted  
+
+### Next
+- Commit and push the verified HistoryUI/TradingPostUI refactor checkpoint.
+- Continue the controlled UI extraction one section at a time.
+- Next planned extraction: `SquadUI`.
+- Build and test after each future extraction before moving to the next section.
+
+---
+
 ## 2026-09-01 — Per-Character History & Trading Post Alert Queue
 
 ### Added

@@ -101,6 +101,7 @@
     <ClInclude Include="ConsumableMetadataManager.h" />
     <ClInclude Include="Definitions.h" />
     <ClInclude Include="ExtrasIntegration.h" />
+    <ClInclude Include="HistoryUI.h" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_internal.h" />
@@ -118,6 +119,7 @@
     <ClInclude Include="TradingPostHistoryManager.h" />
     <ClInclude Include="TradingPostItemIndexManager.h" />
     <ClInclude Include="TradingPostPriceManager.h" />
+    <ClInclude Include="TradingPostUI.h" />
     <ClInclude Include="TradingPostWatchManager.h" />
   </ItemGroup>
   <ItemGroup>
@@ -126,6 +128,7 @@
     <ClCompile Include="ConsumableMetadataManager.cpp" />
     <ClCompile Include="entry.cpp" />
     <ClCompile Include="ExtrasIntegration.cpp" />
+    <ClCompile Include="HistoryUI.cpp" />
     <ClCompile Include="RTAPIIntegration.cpp" />
     <ClCompile Include="SessionTracker.cpp" />
     <ClCompile Include="Settings.cpp" />
@@ -139,6 +142,7 @@
     <ClCompile Include="TradingPostHistoryManager.cpp" />
     <ClCompile Include="TradingPostItemIndexManager.cpp" />
     <ClCompile Include="TradingPostPriceManager.cpp" />
+    <ClCompile Include="TradingPostUI.cpp" />
     <ClCompile Include="TradingPostWatchManager.cpp" />
   </ItemGroup>
   <ItemGroup>

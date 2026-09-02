@@ -1,6 +1,6 @@
 ﻿# FoodReminder-Nexus
 
-> ⚠️ **Early Development Build — v0.2.0**
+> ⚠️ **Early Development Build — v0.2.1**
 >
 > FoodReminder-Nexus is under active development and is not yet feature complete.
 
@@ -278,7 +278,7 @@ FoodReminder-Nexus currently requires:
 
 ## Current Development Status
 
-FoodReminder-Nexus is currently an experimental development build.
+FoodReminder-Nexus is currently an experimental v0.2.1 development build.
 
 Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent personal consumable history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
 
@@ -339,6 +339,7 @@ Current development is focused on:
 - Refining Squad, Session, and History interfaces where useful
 - Continued RTAPI/ArcDPS hybrid roster testing across joins, leaves, subgroup changes, and map changes
 - Continued gameplay and stability testing
+- Incremental zero-behavior-change UI modularization, with History and Trading Post rendering already extracted from `entry.cpp`
 - Improving initial-state synchronization only where reliable data is available
 
 ---
