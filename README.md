@@ -442,6 +442,7 @@ Recent consumable-state and History work has passed:
 - Three-mode Squad player filtering
 - RTAPI roster integration with ArcDPS consumable-state pairing
 - RTAPI live-roster status display and automatic ArcDPS fallback
+- HistoryUI, TradingPostUI, and SquadUI modular extraction build/in-game verification
 - Superior Sharpening Stone Trading Post cost lookup corrected to use its tradable representative item ID
 
 ### v0.2.1 Focus
@@ -481,7 +482,7 @@ Current development remains focused on:
 - Continued RTAPI/ArcDPS hybrid roster testing
 - Continued Trading Post history accumulation
 - Continued gameplay and stability testing
-- Incremental zero-behavior-change UI modularization, with History and Trading Post rendering already extracted from `entry.cpp`
+- Incremental zero-behavior-change UI modularization, with History, Trading Post, and Squad rendering already extracted from `entry.cpp`
 - Improving initial-state synchronization only where reliable data is available
 
 ---
@@ -509,6 +510,7 @@ Future development may include:
 - Exact Primer countdowns therefore cannot always be reconstructed
 - Direct Primer application is not reliably exposed through the ArcDPS combat-event stream currently used by FoodReminder-Nexus
 - Inferred Primer presence does not provide an exact remaining Primer timer
+- Rare live ArcDPS state delivery can sometimes provide a real Primer countdown after startup, but the exact trigger is not yet understood and the countdown may be lost again after addon reload
 - Some consumable effects share the same effect ID and cannot always be uniquely identified
 - Unknown consumable effects may still appear until they are added to the database
 - Historical consumable cost uses current Trading Post sell prices rather than the original purchase price

@@ -116,6 +116,7 @@
     <ClInclude Include="Settings.h" />
     <ClInclude Include="ReminderManager.h" />
     <ClInclude Include="SquadTracker.h" />
+    <ClInclude Include="SquadUI.h" />
     <ClInclude Include="TradingPostHistoryManager.h" />
     <ClInclude Include="TradingPostItemIndexManager.h" />
     <ClInclude Include="TradingPostPriceManager.h" />
@@ -139,6 +140,7 @@
     <ClCompile Include="imgui\imgui_tables.cpp" />
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="Squadtracker.cpp" />
+    <ClCompile Include="SquadUI.cpp" />
     <ClCompile Include="TradingPostHistoryManager.cpp" />
     <ClCompile Include="TradingPostItemIndexManager.cpp" />
     <ClCompile Include="TradingPostPriceManager.cpp" />

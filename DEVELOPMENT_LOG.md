@@ -5,6 +5,55 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-09-02 — SquadUI Refactor & Primer State Observation
+
+### Changed
+- Continued the controlled zero-behavior-change `entry.cpp` refactor.
+- Moved the Squad interface into new `SquadUI.h/.cpp` files.
+- Preserved existing RTAPI/ArcDPS roster handling, Squad filters, Unknown Consumable collector, and Developer Tools behavior.
+- `SquadTracker.*` and `RTAPIIntegration.*` behavior were intentionally left unchanged during the extraction.
+
+### Tested
+- `SquadUI` extraction passed a full build.
+- Squad tab rendered normally in-game after extraction.
+- RTAPI/ArcDPS roster-source status displayed normally.
+- All three Squad player filters remained functional:
+  - All players
+  - Missing / Unknown / Unmapped
+  - Unknown / Unmapped only
+- Player rows, subgroup, character, Food, and Utility state rendered normally.
+- Unknown Consumable IDs section remained functional.
+- Developer Tools / Extras status continued to render normally.
+- No observed Squad functionality regression was found after extraction.
+- During later Primer observation testing, an active Metabolic Primer unexpectedly upgraded from inferred `Active*` to a real countdown.
+- Entering combat did not resynchronize the Primer countdown.
+- A normal map change did not reproduce or refresh the real Primer countdown.
+- Same-character relog did not reliably reproduce the real Primer countdown.
+- Unloading and reloading FoodReminder caused the Metabolic Primer to fall back from the real countdown to inferred `Active*`.
+- This indicates the confirmed Primer countdown was likely supplied by a live runtime ArcDPS event/state delivery and was not reconstructible from the addon's persisted state alone.
+
+### Known Limitations
+- The exact ArcDPS event or state transition that supplied the temporary real Metabolic Primer countdown has not yet been identified.
+- Reliable Primer countdown recovery remains intermittent.
+- A dedicated Primer-specific event trace is planned for a future debugging pass so the exact transition from inferred/unknown state to confirmed countdown can be captured.
+
+### Status
+✅ HistoryUI refactor verified  
+✅ TradingPostUI refactor verified  
+✅ SquadUI extraction complete  
+✅ SquadUI build passed  
+✅ SquadUI in-game verification passed  
+✅ No Squad regression observed  
+⚠️ Rare live Metabolic Primer countdown recovery observed but trigger not yet identified  
+
+### Next
+- Commit and push the verified SquadUI refactor checkpoint.
+- Add dedicated Primer event/state tracing in a later debugging session.
+- Continue the controlled UI extraction one section at a time.
+- Next planned extraction: `SessionUI`.
+
+---
+
 ## 2026-09-02 — UI Refactor Checkpoint: HistoryUI & TradingPostUI
 
 ### Changed
