@@ -1,10 +1,10 @@
-﻿# FoodReminder-Nexus
+# FoodReminder-Nexus
 
 > ⚠️ **Early Development Build — v0.2.1**
 >
 > FoodReminder-Nexus is under active development and is not yet feature complete.
 
-A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and primer buffs, with reminders, squad consumable tracking, session usage analysis, and Trading Post monitoring.
+A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and primer buffs, with reminders, squad consumable tracking, session usage analysis, persistent per-character history, and Trading Post monitoring.
 
 > **Know when your important consumables are missing or about to expire without constantly watching the buff bar.**
 
@@ -24,6 +24,7 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Clears stale consumable state when switching characters
 - Persists per-character Food and Utility state across addon/game reloads
 - Distinguishes between `Unknown`, active, and confirmed-missing state
+- Avoids treating unknown state as confirmed missing when ArcDPS has not yet supplied enough information
 
 ### Primer Support
 
@@ -33,11 +34,21 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Can infer Primer **presence only** from clearly Primer-extended Food or Utility duration
 - Does not infer a false Primer countdown from extended consumable duration
 - Displays `Active*` when Primer presence is inferred rather than directly confirmed
+- Keeps inferred Primer presence latched for the current character session after it has been established
+- Prevents inferred `Active*` state from reverting to `Unknown` simply because Food or Utility duration later falls below the original inference threshold
 - Displays `Unknown` when ArcDPS does not provide enough information to determine Primer state
 - Provides tooltip explanations for Primer data limitations
 - Session reporting separates confirmed, inferred, and unknown Primer time
 
 > **Primer limitation:** ArcDPS does not reliably resend already-active Primer state after login or character switching, and current testing did not expose reliable Primer application events through the combat-event stream used by FoodReminder-Nexus. The addon therefore prefers an honest `Unknown` or inferred-presence state instead of displaying a fabricated countdown.
+
+Inferred Primer presence remains conservative:
+
+- No exact Primer countdown is fabricated
+- Inference is character-specific
+- Inference does not carry across character switches
+- A game/addon restart begins fresh
+- Reliable contradictory Primer information can clear the inferred state
 
 ### Compact Tracker
 
@@ -54,6 +65,8 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Draggable position
 - Optional position locking
 
+Generic database labels such as `Food`, `Power`, or other short categories are no longer displayed in place of the actual recognized consumable name.
+
 ### Squad Consumable Tracker
 
 - Uses RTAPI as the current squad roster/subgroup source when RTAPI is installed and synchronized
@@ -68,6 +81,8 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
   - Missing / Unknown / Unmapped
   - Unknown / Unmapped only
 - Automatically collects unidentified consumable effect IDs for future database expansion
+
+The Squad filters have been validated during live RTAPI-backed squad gameplay. Live Food/Utility timers continue updating while filters change.
 
 ### Session Report
 
@@ -96,22 +111,31 @@ Primer protection is handled conservatively:
 - **Confirmed** — direct trustworthy Primer state
 - **Inferred*** — Primer presence inferred from clearly extended Food/Utility duration
 - **Unknown** — ArcDPS has not supplied enough information
+- **Inactive** — reliable state indicates no active Primer
 - Unknown Primer time is excluded from Primer savings estimates
 - Extended Food/Utility duration is never copied into the Primer countdown
+
+Session usage tracking also filters ArcDPS buff resynchronization so an already-active consumable being resent does not count as another real use.
+
+A new use is recorded when:
+
+- No matching consumable was already active
+- A different consumable replaces the current one
+- The same consumable's remaining duration increases enough to indicate a real reapplication
 
 ### Personal History
 
 FoodReminder-Nexus keeps a local history of completed consumable-tracking sessions.
 
-The History tab currently includes:
+The History tab includes:
 
 - Selectable 1 Day / 7 Days / 30 Days / All Time ranges
-- Per-character History filtering with:
-  - Current Character
-  - All Characters
-  - Searchable saved character names
-  - Legacy / Unknown handling for older untagged sessions
-- Defaults to the currently played character when switching characters
+- Per-character History filtering
+- `Current Character`
+- `All Characters`
+- Searchable saved-character list
+- `Legacy / Unknown` handling for older sessions recorded before character tagging was added
+- Automatic Current Character default when switching characters
 - Completed-session count
 - Tracked time and combat time
 - Food and Utility use counts
@@ -120,12 +144,34 @@ The History tab currently includes:
 - Separate reporting for unpriced consumable uses
 - Per-session Food coverage markers
 - Per-session Utility coverage markers
-- Estimated spend sparkline
+- Estimated Spend sparkline
 - Per-item Food and Utility usage history
 - Primer detail history
 - Coverage and waste details
 
-History is stored locally in `FoodReminder_SessionHistory.tsv` and survives game/addon restarts.
+History is stored locally in:
+
+`FoodReminder_SessionHistory.tsv`
+
+and survives game/addon restarts.
+
+Newly archived sessions retain the character name associated with that session.
+
+Switching characters archives the previous character's current session and starts a new character-specific session so a single History record does not mix multiple characters.
+
+The selected character filter applies to:
+
+- Session counts
+- Tracked time
+- Combat time
+- Food and Utility uses
+- Coverage
+- Coverage markers
+- Estimated Spend
+- Per-item usage
+- Primer details
+
+Sessions recorded before per-character History tagging was added are preserved under `Legacy / Unknown`.
 
 > **History cost limitation:** Historical cost uses current Trading Post sell prices when available. It does not reconstruct the price actually paid when a consumable was used.
 
@@ -135,7 +181,7 @@ FoodReminder-Nexus can retrieve Guild Wars 2 Trading Post pricing for recognized
 
 This allows the Session Report to estimate the cost of Food and Utility consumed during a gameplay session.
 
-The built-in Trading Post Watcher currently supports:
+The built-in Trading Post Watcher supports:
 
 - Multiple watched items
 - Name-first Trading Post item search with live autocomplete suggestions
@@ -146,11 +192,13 @@ The built-in Trading Post Watcher currently supports:
 - Target status
 - Fresh-API-only target alerts
 - Anti-spam target alert latching
-- Queued target alerts when multiple watched items reach their Sell Targets together
-- Dismissible target-reached notifications that advance through queued hits one at a time
+- Queued alerts when multiple watched items reach their Sell Targets together
+- Sequential alert presentation
+- Immediate promotion of the next queued alert when the current alert is dismissed
+- Dismissible target-reached notifications
 - Standalone gameplay-visible target-hit overlay
 - Compact target-hit card inside the Trading Post tab
-- Context-aware alert presentation so the large gameplay overlay is hidden while the Trading Post tab is open
+- Context-aware alert presentation
 - Dragon Bash-style target celebration effects
 - Manual per-item price refresh
 - Refresh All control
@@ -190,6 +238,24 @@ A target is considered reached when the current lowest sell listing is equal to 
 
 Target notifications are based on a fresh Trading Post API observation rather than immediately firing from stale cached pricing after a target edit.
 
+When multiple watched items reach their targets during the same update:
+
+1. The first target becomes the active alert
+2. Additional target hits are queued
+3. Only one alert is shown at a time
+4. Dismissing the current alert immediately advances to the next queued alert
+5. No additional API refresh is required to advance the queue
+
+The existing target latch behavior remains intact. A target only re-arms after a later observed sell price rises above its configured target.
+
+Alert presentation also depends on which FoodReminder interface is open:
+
+- During normal gameplay, the large `TARGET REACHED!` celebration overlay is shown
+- While the FoodReminder Trading Post tab is open, the large overlay is suppressed
+- The compact `TARGET PRICE HIT!` card remains visible inside the Trading Post tab
+
+This prevents the same target from appearing simultaneously in both alert formats.
+
 Deal-quality and opportunity signals are based on locally collected Trading Post observations and are intended as informational market context rather than guaranteed buying advice.
 
 Items without available Trading Post pricing remain tracked normally and are reported without a cost rather than using an estimated or guessed value.
@@ -214,7 +280,11 @@ The collector automatically removes stored entries once their effect IDs become 
 
 ### External Consumable Database
 
-FoodReminder-Nexus supports an external `FoodReminder_Consumables.tsv` database stored beside the addon DLL.
+FoodReminder-Nexus supports an external:
+
+`FoodReminder_Consumables.tsv`
+
+database stored beside the addon DLL.
 
 - Consumable mappings can be added or corrected without rebuilding the DLL
 - The database automatically reloads after the TSV is saved
@@ -230,15 +300,21 @@ This allows normal gameplay and the Unknown Consumable Collector to drive databa
 
 FoodReminder-Nexus receives Food/Utility combat and buff information through **ArcDPS combat events**.
 
-When **RTAPI** is installed and synchronized, FoodReminder-Nexus uses RTAPI for the live squad roster, subgroup membership, profession/specialization, self identity, and same-instance status. ArcDPS remains the source for actual Food/Utility effect IDs and remaining duration.
+When **RTAPI** is installed and synchronized, FoodReminder-Nexus uses RTAPI for the live squad roster, subgroup membership, profession/specialization, self identity, and same-instance status.
+
+ArcDPS remains the source for actual Food/Utility effect IDs and remaining duration.
 
 If RTAPI is unavailable, unloaded, or still synchronizing, the Squad tracker automatically falls back to the existing ArcDPS-only roster behavior.
 
-ArcDPS does not always resend every already-active buff immediately after login, map changes, character changes, or addon reloads. Because of this, some consumable state may remain unknown until ArcDPS reports a relevant event.
+ArcDPS does not always resend every already-active buff immediately after login, map changes, character changes, or addon reloads.
+
+Because of this, some consumable state may remain unknown until ArcDPS reports a relevant event.
 
 Food and Utility state can often resynchronize when fresh combat events arrive.
 
-Primer state is more limited. Current testing showed that already-active Primer state is not reliably resent after login or character switching, and Primer application did not appear in the Recent Buff Events stream used during testing. FoodReminder-Nexus therefore does not fabricate Primer timers.
+Primer state is more limited. Current testing showed that already-active Primer state is not reliably resent after login or character switching, and Primer application did not appear reliably in the Recent Buff Events stream used during testing.
+
+FoodReminder-Nexus therefore does not fabricate Primer timers.
 
 The addon intentionally prefers displaying an effect as **unknown** rather than guessing its identity or remaining duration.
 
@@ -251,7 +327,9 @@ Squad consumable states may appear as:
 
 Trading Post history is collected locally while FoodReminder-Nexus observes watched items.
 
-The ArenaNet Trading Post API provides current market information but does not provide historical price data. Historical charts, trends, averages, deal ratings, and opportunity signals are therefore generated from the addon’s own locally collected observations.
+The ArenaNet Trading Post API provides current market information but does not provide historical price data.
+
+Historical charts, trends, averages, deal ratings, and opportunity signals are therefore generated from the addon’s own locally collected observations.
 
 ---
 
@@ -268,11 +346,33 @@ FoodReminder-Nexus currently requires:
 >
 > FoodReminder-Nexus does not require RTAPI to function.
 >
-> RTAPI support is used only for read-only squad information such as roster membership, subgroup, profession/specialization, and same-instance status.
+> **RTAPI itself is not bundled with FoodReminder-Nexus.**
+>
+> RTAPI integration/support code is already compiled into `FoodReminder.dll`.
+>
+> If RTAPI is separately installed, FoodReminder-Nexus can automatically use its read-only squad roster information.
+>
+> If RTAPI is not installed, unavailable, or still synchronizing, FoodReminder-Nexus automatically falls back to ArcDPS-only Squad tracking.
+>
+> RTAPI project/source:
+> https://github.com/gwdevcommunity/GW2-RealTime-API-Releases
 >
 > FoodReminder-Nexus does not use RTAPI to automate gameplay, control your character, perform combat actions, send inputs, manipulate game memory, or provide an unfair gameplay advantage.
->
-> If RTAPI is not installed, FoodReminder-Nexus automatically falls back to ArcDPS-only Squad tracking.
+
+---
+
+## Installation
+
+The release contains:
+
+- `FoodReminder.dll`
+- `FoodReminder_Consumables.tsv`
+
+Place both files in the same Nexus addon folder.
+
+Do not separate the TSV from the DLL if you want the external consumable database to load automatically.
+
+RTAPI is **not included** with FoodReminder-Nexus.
 
 ---
 
@@ -280,7 +380,13 @@ FoodReminder-Nexus currently requires:
 
 FoodReminder-Nexus is currently an experimental v0.2.1 development build.
 
-Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent personal consumable history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, standalone Trading Post target alerts, and conservative Primer-state handling are operational and undergoing live in-game testing.
+Current version:
+
+**v0.2.1**
+
+Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent per-character personal history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, queued target alerts, and conservative Primer-state handling are operational and undergoing continued live in-game testing.
+
+### Trading Post Watcher Validation
 
 The Trading Post Watcher has successfully passed:
 
@@ -303,7 +409,11 @@ The Trading Post Watcher has successfully passed:
 - Opportunity-signal testing
 - Standalone gameplay-visible target-hit overlay testing
 
-Recent consumable-state work has also passed:
+A live multi-target test successfully queued and presented three simultaneous target hits one at a time.
+
+### Consumable & History Validation
+
+Recent consumable-state and History work has passed:
 
 - Per-character Food/Utility state restoration
 - `Unknown` vs confirmed-missing state handling
@@ -311,6 +421,7 @@ Recent consumable-state work has also passed:
 - Character-specific Primer state isolation
 - Removal of inaccurate Food/Utility-to-Primer countdown inference
 - Primer presence-only inference
+- Inferred Primer-presence session latch
 - Primer limitation tooltips
 - Primer-safe Session Report tracking
 - Compact tracker width cleanup
@@ -318,26 +429,57 @@ Recent consumable-state work has also passed:
 - External consumable TSV loading and automatic reload
 - Resolved unknown effects automatically disappearing from the Unknown Consumable Collector
 - Persistent session-history save/load/append behavior
-- Personal History tab with per-session Food/Utility coverage markers, Estimated Spend sparkline, and per-item usage
-- Per-character History tagging/filtering with Current Character as the default view
-- Legacy/Unknown preservation for pre-character-tagging history
+- Per-character History tagging and filtering
+- Automatic Current Character History selection
+- Legacy / Unknown preservation for older History
+- Personal History coverage markers
+- Estimated Spend sparkline
+- Per-item History usage
 - Session usage-count filtering so ArcDPS resync events do not count as extra consumable uses
 - Compact tracker actual-name display with long-name truncation
-- Candy Cane/Minty Breath dedicated tracking removal
 - Independent reminder-type enable/disable controls
-- Configurable 3-10 second reminder display duration
+- Configurable 3–10 second reminder display duration
 - Three-mode Squad player filtering
 - RTAPI roster integration with ArcDPS consumable-state pairing
 - RTAPI live-roster status display and automatic ArcDPS fallback
 - Superior Sharpening Stone Trading Post cost lookup corrected to use its tradable representative item ID
 
-Current development is focused on:
+### v0.2.1 Focus
+
+The v0.2.1 update primarily adds:
+
+- Per-character Personal History
+- Searchable character History filtering
+- Automatic Current Character History default
+- Preservation of older untagged History under `Legacy / Unknown`
+- Multi-target Trading Post alert queue
+- Immediate next-alert presentation after dismissal
+- Context-aware gameplay vs Trading Post-tab target notifications
+- Improved inferred Primer-presence persistence
+- Additional Squad-filter and live-roster validation
+
+The v0.2.1 Release build has completed an in-game smoke test covering:
+
+- Addon startup
+- Compact tracker
+- Food and Utility tracking
+- Current-character History selection
+- Per-character History filtering
+- Squad tracking
+- Squad filters
+- Trading Post Watcher
+- Multi-target alert queue
+- Gameplay target celebration
+- Compact Trading Post-tab target card
+- Alert dismissal and queue advancement
+
+Current development remains focused on:
 
 - Expanding the external consumable database through normal gameplay and reliable public-data reconciliation
-- Resolving only genuinely unknown effect IDs that remain after database lookup
+- Resolving genuinely unknown effect IDs
 - Refining consumable cost and savings analysis
-- Refining Squad, Session, and History interfaces where useful
-- Continued RTAPI/ArcDPS hybrid roster testing across joins, leaves, subgroup changes, and map changes
+- Continued RTAPI/ArcDPS hybrid roster testing
+- Continued Trading Post history accumulation
 - Continued gameplay and stability testing
 - Incremental zero-behavior-change UI modularization, with History and Trading Post rendering already extracted from `entry.cpp`
 - Improving initial-state synchronization only where reliable data is available
@@ -357,6 +499,26 @@ Future development may include:
 - Improved initial-state synchronization where reliable data is available
 - Additional consumable database coverage
 - Jade Tech tracking if a reliable data source becomes available
+
+---
+
+## Known Limitations
+
+- Food and Utility state may briefly show an older saved value after login or character switching until fresh ArcDPS events resynchronize the state
+- ArcDPS does not reliably resend already-active Primer state after login or character switching
+- Exact Primer countdowns therefore cannot always be reconstructed
+- Direct Primer application is not reliably exposed through the ArcDPS combat-event stream currently used by FoodReminder-Nexus
+- Inferred Primer presence does not provide an exact remaining Primer timer
+- Some consumable effects share the same effect ID and cannot always be uniquely identified
+- Unknown consumable effects may still appear until they are added to the database
+- Historical consumable cost uses current Trading Post sell prices rather than the original purchase price
+- Historical sessions recorded before the Session usage-count fix may retain inflated legacy use totals
+- Historical sessions recorded before per-character History tagging remain under `Legacy / Unknown`
+- Trading Post history begins only after FoodReminder-Nexus observes an item
+- ArenaNet's current Trading Post API does not provide historical price data
+- Trading Post trends, averages, deal ratings, and opportunity signals depend on locally collected observations
+- RTAPI does not provide Food/Utility buff IDs or remaining duration and does not replace ArcDPS consumable detection
+- Squad members outside the player's current map instance may not have usable ArcDPS consumable state available for RTAPI roster pairing
 
 ---
 
