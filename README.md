@@ -384,7 +384,7 @@ Current version:
 
 **v0.2.1**
 
-Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent per-character personal history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, queued target alerts, and conservative Primer-state handling are operational and undergoing continued live in-game testing.
+Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent per-character personal history, unknown-consumable collection, Trading Post cost integration, Trading Post Watcher, queued target alerts, conservative Primer-state handling, and the completed modular UI split are operational and undergoing continued live in-game testing.
 
 ### Trading Post Watcher Validation
 
@@ -442,7 +442,9 @@ Recent consumable-state and History work has passed:
 - Three-mode Squad player filtering
 - RTAPI roster integration with ArcDPS consumable-state pairing
 - RTAPI live-roster status display and automatic ArcDPS fallback
-- HistoryUI, TradingPostUI, and SquadUI modular extraction build/in-game verification
+- HistoryUI, TradingPostUI, SquadUI, SessionUI, TrackerUI, and ReminderUI modular extraction build/in-game verification
+- Compact Tracker inferred-Primer hover tooltip regression fixed and verified in-game
+- Temporary Primer investigation tracing removed after non-reproducible testing; conservative Primer behavior retained
 - Superior Sharpening Stone Trading Post cost lookup corrected to use its tradable representative item ID
 
 ### v0.2.1 Focus
@@ -482,7 +484,7 @@ Current development remains focused on:
 - Continued RTAPI/ArcDPS hybrid roster testing
 - Continued Trading Post history accumulation
 - Continued gameplay and stability testing
-- Incremental zero-behavior-change UI modularization, with History, Trading Post, and Squad rendering already extracted from `entry.cpp`
+- Completed zero-behavior-change UI modularization: History, Trading Post, Squad, Session, compact Tracker, and Reminder rendering are now extracted from `entry.cpp`
 - Improving initial-state synchronization only where reliable data is available
 
 ---

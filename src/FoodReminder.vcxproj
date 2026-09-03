@@ -110,13 +110,16 @@
     <ClInclude Include="imgui\imstb_truetype.h" />
     <ClInclude Include="KeyBindStructs.h" />
     <ClInclude Include="nexus\Nexus.h" />
+    <ClInclude Include="ReminderUI.h" />
     <ClInclude Include="RTAPI.h" />
     <ClInclude Include="RTAPIIntegration.h" />
     <ClInclude Include="SessionTracker.h" />
+    <ClInclude Include="SessionUI.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="ReminderManager.h" />
     <ClInclude Include="SquadTracker.h" />
     <ClInclude Include="SquadUI.h" />
+    <ClInclude Include="TrackerUI.h" />
     <ClInclude Include="TradingPostHistoryManager.h" />
     <ClInclude Include="TradingPostItemIndexManager.h" />
     <ClInclude Include="TradingPostPriceManager.h" />
@@ -130,8 +133,10 @@
     <ClCompile Include="entry.cpp" />
     <ClCompile Include="ExtrasIntegration.cpp" />
     <ClCompile Include="HistoryUI.cpp" />
+    <ClCompile Include="ReminderUI.cpp" />
     <ClCompile Include="RTAPIIntegration.cpp" />
     <ClCompile Include="SessionTracker.cpp" />
+    <ClCompile Include="SessionUI.cpp" />
     <ClCompile Include="Settings.cpp" />
     <ClCompile Include="ReminderManager.cpp" />
     <ClCompile Include="imgui\imgui.cpp" />
@@ -141,6 +146,7 @@
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="Squadtracker.cpp" />
     <ClCompile Include="SquadUI.cpp" />
+    <ClCompile Include="TrackerUI.cpp" />
     <ClCompile Include="TradingPostHistoryManager.cpp" />
     <ClCompile Include="TradingPostItemIndexManager.cpp" />
     <ClCompile Include="TradingPostPriceManager.cpp" />

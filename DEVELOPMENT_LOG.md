@@ -5,6 +5,62 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-09-03 — UI Refactor Complete: SessionUI, TrackerUI & ReminderUI
+
+### Changed
+- Completed the controlled zero-behavior-change UI extraction from `entry.cpp`.
+- Moved the Session Report interface into new `SessionUI.h/.cpp` files.
+- Moved the compact Food Reminder tracker into new `TrackerUI.h/.cpp` files.
+- Moved the reminder popup rendering into new `ReminderUI.h/.cpp` files.
+- Preserved existing SessionTracker accounting, persistence, Primer-state handling, reminder logic, Trading Post alerts, and addon runtime behavior.
+- Tracker developer color-test controls now route through `TrackerUI` instead of a global `entry.cpp` test variable.
+- ReminderManager update/state logic remains in `entry.cpp`; only the reminder popup presentation moved into `ReminderUI`.
+- `entry.cpp` is now reduced to roughly 1,260 lines and is substantially closer to addon lifecycle, event routing, shared runtime state, settings, and tab wiring.
+
+### Fixed
+- The first SessionUI extraction build exposed a missing `ConsumableMetadataManager.h` include; the include was added and the build passed.
+- After TrackerUI extraction, inferred-Primer hover tooltips could render as an extremely tall/narrow dark tooltip window.
+- The Metabolic and Utility `Active*` tooltips now use an explicit wrap width, restoring the intended compact tooltip shape.
+
+### Tested
+- SessionUI extraction passed a full build.
+- Session tab rendered normally in-game.
+- Live Session Time, active Food/Utility time, and inferred Primer time continued advancing together as expected.
+- TrackerUI extraction passed a full build.
+- Compact tracker rendered normally with live Food/Utility timers, consumable names, Primer `Active*` state, and gold border.
+- Primer hover tooltip regression was reproduced, fixed, rebuilt, and verified gone in-game.
+- ReminderUI extraction passed a full build.
+- The Food reminder popup rendered correctly in-game with the expected title, countdown, border, size, and position.
+- No observed regressions were found in the previously extracted HistoryUI, TradingPostUI, SquadUI, or SessionUI paths during this checkpoint.
+
+### Primer Investigation
+- A temporary dedicated Primer investigation trace was added after a rare real Metabolic Primer countdown appeared during normal gameplay.
+- Combat, map change, same-character relog, addon reload, world-boss activity, and Drakkar did not reliably reproduce the direct Primer countdown.
+- Addon reload caused the real countdown to fall back to conservative inferred `Active*`, reinforcing that the direct timer depended on transient runtime ArcDPS state.
+- The temporary investigation buffer/UI was removed after testing so diagnostic-only code would not remain in the normal build.
+- Primer behavior remains conservative: direct countdowns are used when trustworthy live data is available; otherwise inferred presence or Unknown is shown without fabricating a timer.
+- Further Primer investigation is shelved until a reproducible trigger or better data source becomes available.
+
+### Status
+✅ HistoryUI verified  
+✅ TradingPostUI verified  
+✅ SquadUI verified  
+✅ SessionUI extraction/build/in-game verification passed  
+✅ TrackerUI extraction/build/in-game verification passed  
+✅ Tracker Primer tooltip regression fixed  
+✅ ReminderUI extraction/build/in-game verification passed  
+✅ Planned UI modularization complete  
+✅ Temporary Primer diagnostics removed  
+⚠️ Rare direct Metabolic Primer countdown trigger remains unknown  
+
+### Next
+- Perform a final low-risk cleanup/verification pass for dead includes/helpers left in `entry.cpp`.
+- Keep behavior unchanged during cleanup.
+- Commit and push this completed UI-refactor checkpoint.
+- Return to feature/bug work after the refactor checkpoint is safely committed.
+
+---
+
 ## 2026-09-02 — SquadUI Refactor & Primer State Observation
 
 ### Changed
