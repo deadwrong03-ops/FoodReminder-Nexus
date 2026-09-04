@@ -220,17 +220,32 @@ The built-in Trading Post Watcher supports:
   - 7 days
   - 30 days
   - 90 days
-- Time-based buy and sell trend analysis
-- Actual coin and percentage movement over the selected trend window
+- Separate **Sell Listings** and **Buy Orders** market analysis
+- Time-based direction analysis for both sides of the market
+- Direction percentage movement over the selected trend window
+- Sell Listings direction:
+  - `Getting More Expensive`
+  - `Getting Cheaper`
+  - `Stable`
+- Buy Orders direction:
+  - `Buyers Offering More`
+  - `Buyers Offering Less`
+  - `Stable`
+- Recent-average comparison and current-price position
+- Buyer-facing Sell Listings guidance:
+  - `Favorable`
+  - `Worth Watching`
+  - `Typical`
+  - `Caution`
+- Seller-facing Buy Orders guidance:
+  - `Favorable`
+  - `Worth Watching`
+  - `Typical`
+  - `Weak`
+- Market-analysis Confidence, Coverage, and Samples reporting
+- Developing-history analysis for newly watched items
 - Trading Post buy/sell spread analysis
-- Deal-quality analysis based on the item’s own recent sell-price history:
-  - `FAVORABLE`
-  - `TYPICAL`
-  - `EXPENSIVE`
-- Combined buying-opportunity signals:
-  - `GOOD BUY`
-  - `WATCH`
-  - `OVERPRICED`
+- Variant-aware Trading Post search for duplicate-name items with different stat versions
 
 The Sell Target represents the **maximum price the user is willing to pay**.
 
@@ -256,7 +271,11 @@ Alert presentation also depends on which FoodReminder interface is open:
 
 This prevents the same target from appearing simultaneously in both alert formats.
 
-Deal-quality and opportunity signals are based on locally collected Trading Post observations and are intended as informational market context rather than guaranteed buying advice.
+Market direction, price position, buyer/seller guidance, confidence, and coverage are based on locally collected Trading Post observations and are intended as informational market context rather than guaranteed buying or selling advice.
+
+Price position takes priority over direction when interpreting the market. For example, a rising Sell trend does not by itself make an item overpriced if the current listing is still favorable relative to its recent locally observed range.
+
+FoodReminder builds its own Trading Post history from the time an item begins being tracked. No earlier market history is available on initial tracking.
 
 Items without available Trading Post pricing remain tracked normally and are reported without a cost rather than using an estimated or guessed value.
 
@@ -405,8 +424,13 @@ The Trading Post Watcher has successfully passed:
 - Multi-target alert queue testing
 - Sequential dismiss/advance testing
 - Gameplay-overlay vs in-tab alert presentation testing
-- Deal-quality analysis
-- Opportunity-signal testing
+- Separate Sell Listings / Buy Orders analysis
+- Direction-percentage display
+- Recent-average and price-position analysis
+- Buyer / seller guidance
+- Confidence / Coverage / Samples reporting
+- Developing-history behavior
+- Variant-aware item search/index behavior
 - Standalone gameplay-visible target-hit overlay testing
 
 A live multi-target test successfully queued and presented three simultaneous target hits one at a time.
@@ -446,6 +470,8 @@ Recent consumable-state and History work has passed:
 - Compact Tracker inferred-Primer hover tooltip regression fixed and verified in-game
 - Temporary Primer investigation tracing removed after non-reproducible testing; conservative Primer behavior retained
 - Superior Sharpening Stone Trading Post cost lookup corrected to use its tradable representative item ID
+- Trading Post UI and local item index synchronized with the current Copper&Claw market-analysis implementation
+- Full rebuild and in-game Trading Post smoke test passed after the synchronization
 
 ### v0.2.1 Focus
 

@@ -721,6 +721,234 @@ namespace
             outValue != 0;
     }
 
+    std::vector<std::string> ExtractJsonStringValues(
+        const std::string& json,
+        const std::string& key
+    )
+    {
+        std::vector<std::string> values;
+
+        const std::string searchKey =
+            "\"" + key + "\"";
+
+        size_t searchPosition = 0;
+
+        while (searchPosition < json.size())
+        {
+            const size_t keyPosition =
+                json.find(
+                    searchKey,
+                    searchPosition
+                );
+
+            if (keyPosition == std::string::npos)
+            {
+                break;
+            }
+
+            const size_t colonPosition =
+                json.find(
+                    ':',
+                    keyPosition +
+                    searchKey.size()
+                );
+
+            if (colonPosition == std::string::npos)
+            {
+                break;
+            }
+
+            const size_t quotePosition =
+                json.find(
+                    '"',
+                    colonPosition + 1
+                );
+
+            if (quotePosition == std::string::npos)
+            {
+                break;
+            }
+
+            std::string value;
+            bool escaped = false;
+
+            size_t i =
+                quotePosition + 1;
+
+            for (; i < json.size(); ++i)
+            {
+                const char character =
+                    json[i];
+
+                if (escaped)
+                {
+                    value += character;
+                    escaped = false;
+                    continue;
+                }
+
+                if (character == '\\')
+                {
+                    escaped = true;
+                    continue;
+                }
+
+                if (character == '"')
+                {
+                    break;
+                }
+
+                value += character;
+            }
+
+            if (!value.empty())
+            {
+                values.push_back(
+                    std::move(
+                        value
+                    )
+                );
+            }
+
+            searchPosition =
+                i < json.size()
+                ? i + 1
+                : json.size();
+        }
+
+        std::sort(
+            values.begin(),
+            values.end()
+        );
+
+        values.erase(
+            std::unique(
+                values.begin(),
+                values.end()
+            ),
+            values.end()
+        );
+
+        return values;
+    }
+
+    std::string ToFriendlyAttributeName(
+        const std::string& attribute
+    )
+    {
+        if (attribute == "Power")
+        {
+            return "Power";
+        }
+
+        if (attribute == "Precision")
+        {
+            return "Precision";
+        }
+
+        if (attribute == "Toughness")
+        {
+            return "Toughness";
+        }
+
+        if (attribute == "Vitality")
+        {
+            return "Vitality";
+        }
+
+        if (attribute == "Ferocity")
+        {
+            return "Ferocity";
+        }
+
+        if (attribute == "ConditionDamage")
+        {
+            return "Condition Damage";
+        }
+
+        if (attribute == "Healing")
+        {
+            return "Healing Power";
+        }
+
+        if (attribute == "BoonDuration")
+        {
+            return "Concentration";
+        }
+
+        if (attribute == "ConditionDuration")
+        {
+            return "Expertise";
+        }
+
+        if (attribute == "AgonyResistance")
+        {
+            return {};
+        }
+
+        return attribute;
+    }
+
+    std::string BuildVariantLabel(
+        const std::string& itemObject
+    )
+    {
+        const std::vector<std::string> attributes =
+            ExtractJsonStringValues(
+                itemObject,
+                "attribute"
+            );
+
+        if (attributes.empty())
+        {
+            return {};
+        }
+
+        std::vector<std::string> friendlyAttributes;
+
+        for (
+            const std::string& attribute :
+            attributes
+            )
+        {
+            const std::string friendly =
+                ToFriendlyAttributeName(
+                    attribute
+                );
+
+            if (friendly.empty())
+            {
+                continue;
+            }
+
+            friendlyAttributes.push_back(
+                friendly
+            );
+        }
+
+        if (friendlyAttributes.empty())
+        {
+            return {};
+        }
+
+        std::string label;
+
+        for (size_t i = 0;
+            i < friendlyAttributes.size();
+            ++i)
+        {
+            if (i > 0)
+            {
+                label += " / ";
+            }
+
+            label +=
+                friendlyAttributes[i];
+        }
+
+        return label;
+    }
+
     bool HttpGet(
         const std::wstring& path,
         std::string& response
@@ -1132,6 +1360,11 @@ namespace
                         item.name =
                             name;
 
+                        item.variantLabel =
+                            BuildVariantLabel(
+                                object
+                            );
+
                         items.push_back(
                             std::move(
                                 item
@@ -1177,9 +1410,19 @@ namespace
             record.item =
                 item;
 
+            std::string searchableText =
+                item.name;
+
+            if (!item.variantLabel.empty())
+            {
+                searchableText +=
+                    " " +
+                    item.variantLabel;
+            }
+
             record.searchName =
                 NormalizeSearchText(
-                    item.name
+                    searchableText
                 );
 
             records.push_back(
@@ -1296,10 +1539,38 @@ namespace
                 ' '
             );
 
+            std::string safeVariant =
+                record.item.variantLabel;
+
+            safeVariant.erase(
+                std::remove(
+                    safeVariant.begin(),
+                    safeVariant.end(),
+                    '\r'
+                ),
+                safeVariant.end()
+            );
+
+            std::replace(
+                safeVariant.begin(),
+                safeVariant.end(),
+                '\n',
+                ' '
+            );
+
+            std::replace(
+                safeVariant.begin(),
+                safeVariant.end(),
+                '\t',
+                ' '
+            );
+
             file
                 << record.item.itemID
                 << '\t'
                 << safeName
+                << '\t'
+                << safeVariant
                 << '\n';
         }
 
@@ -1404,6 +1675,9 @@ namespace
             TradingPostIndexedItem
         > items;
 
+        bool legacyCacheFormat =
+            false;
+
         while (
             std::getline(
                 file,
@@ -1438,10 +1712,39 @@ namespace
                         )
                         );
 
-                item.name =
-                    line.substr(
+                const size_t secondSeparator =
+                    line.find(
+                        '\t',
                         separator + 1
                     );
+
+                if (
+                    secondSeparator ==
+                    std::string::npos
+                    )
+                {
+                    legacyCacheFormat =
+                        true;
+
+                    item.name =
+                        line.substr(
+                            separator + 1
+                        );
+                }
+                else
+                {
+                    item.name =
+                        line.substr(
+                            separator + 1,
+                            secondSeparator -
+                            separator - 1
+                        );
+
+                    item.variantLabel =
+                        line.substr(
+                            secondSeparator + 1
+                        );
+                }
 
                 if (
                     item.itemID != 0 &&
@@ -1485,7 +1788,9 @@ namespace
                 true;
 
             g_CacheUpdatedUnixSeconds =
-                updatedUnixSeconds;
+                legacyCacheFormat
+                ? 0
+                : updatedUnixSeconds;
         }
 
         return true;
@@ -2044,7 +2349,8 @@ std::vector<
                 rank;
 
             candidate.nameLength =
-                record.item.name.size();
+                record.item.name.size() +
+                record.item.variantLabel.size();
 
             candidate.normalizedName =
                 record.searchName;

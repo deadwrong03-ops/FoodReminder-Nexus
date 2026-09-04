@@ -9,6 +9,13 @@ struct TradingPostIndexedItem
 {
     uint32_t itemID = 0;
     std::string name;
+
+    //
+    // Optional distinguishing label taken from the item's stat metadata.
+    // This is used for duplicate-name Trading Post items such as infusions
+    // that have separate item IDs / listings for different attributes.
+    //
+    std::string variantLabel;
 };
 
 namespace TradingPostItemIndexManager
@@ -40,6 +47,9 @@ namespace TradingPostItemIndexManager
     //
     // Matching is case-insensitive and favors:
     // exact match -> starts-with -> word-prefix -> contains.
+    //
+    // Variant labels are searchable too, so searches such as
+    // "festive confetti concentration" can identify a specific stat version.
     //
     std::vector<TradingPostIndexedItem> Search(
         const std::string& query,

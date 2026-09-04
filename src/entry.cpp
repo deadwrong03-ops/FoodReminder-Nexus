@@ -761,45 +761,30 @@ void RenderGeneralTab()
             primerRemainingSeconds
         );
     }
+    else if (
+        BuffTracker::
+        HasInferredMetabolicPrimerPresence()
+        )
+    {
+        ImGui::Text(
+            "Metabolic Primer: Active*"
+        );
+    }
+    else if (
+        BuffTracker::
+        GetMetabolicPrimerDetectionState() ==
+        ConsumableDetectionState::Unknown
+        )
+    {
+        ImGui::Text(
+            "Metabolic Primer: Unknown"
+        );
+    }
     else
     {
-        const int64_t foodMs =
-            BuffTracker::
-            GetFoodRemainingMilliseconds();
-
-        const int64_t twoHoursMs =
-            2LL * 60LL * 60LL *
-            1000LL;
-
-        if (foodMs > twoHoursMs)
-        {
-            const int64_t foodSeconds =
-                foodMs / 1000;
-
-            const int64_t foodHours =
-                foodSeconds / 3600;
-
-            const int64_t foodMinutes =
-                (foodSeconds % 3600) /
-                60;
-
-            const int64_t
-                foodRemainingSeconds =
-                foodSeconds % 60;
-
-            ImGui::Text(
-                "Metabolic Primer: ~%02lld:%02lld:%02lld (inferred)",
-                foodHours,
-                foodMinutes,
-                foodRemainingSeconds
-            );
-        }
-        else
-        {
-            ImGui::Text(
-                "Metabolic Primer: Not detected"
-            );
-        }
+        ImGui::Text(
+            "Metabolic Primer: Not detected"
+        );
     }
 
     if (
@@ -832,45 +817,30 @@ void RenderGeneralTab()
             primerRemainingSeconds
         );
     }
+    else if (
+        BuffTracker::
+        HasInferredUtilityPrimerPresence()
+        )
+    {
+        ImGui::Text(
+            "Utility Primer:   Active*"
+        );
+    }
+    else if (
+        BuffTracker::
+        GetUtilityPrimerDetectionState() ==
+        ConsumableDetectionState::Unknown
+        )
+    {
+        ImGui::Text(
+            "Utility Primer:   Unknown"
+        );
+    }
     else
     {
-        const int64_t utilityMs =
-            BuffTracker::
-            GetUtilityRemainingMilliseconds();
-
-        const int64_t twoHoursMs =
-            2LL * 60LL * 60LL *
-            1000LL;
-
-        if (utilityMs > twoHoursMs)
-        {
-            const int64_t utilitySeconds =
-                utilityMs / 1000;
-
-            const int64_t utilityHours =
-                utilitySeconds / 3600;
-
-            const int64_t utilityMinutes =
-                (utilitySeconds % 3600) /
-                60;
-
-            const int64_t
-                utilityRemainingSeconds =
-                utilitySeconds % 60;
-
-            ImGui::Text(
-                "Utility Primer:   ~%02lld:%02lld:%02lld (inferred)",
-                utilityHours,
-                utilityMinutes,
-                utilityRemainingSeconds
-            );
-        }
-        else
-        {
-            ImGui::Text(
-                "Utility Primer:   Not detected"
-            );
-        }
+        ImGui::Text(
+            "Utility Primer:   Not detected"
+        );
     }
 
     ImGui::Spacing();

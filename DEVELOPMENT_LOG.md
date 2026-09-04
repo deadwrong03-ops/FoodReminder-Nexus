@@ -5,6 +5,63 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-09-04 — Trading Post UI & Item Index Synced with Copper&Claw
+
+### Changed
+- Brought FoodReminder-Nexus's Trading Post interface up to the current Copper&Claw market-analysis implementation.
+- Replaced the older combined Deal / Signal presentation with separate Sell Listings and Buy Orders analysis so buyer-facing and seller-facing information is no longer conflated.
+- Sell-side direction now describes whether listings are getting more expensive, getting cheaper, or remaining stable.
+- Buy-side direction now describes whether buyers are offering more, offering less, or remaining stable.
+- Direction displays now include percentage movement for the active trend window.
+- Added current-price position relative to the locally observed recent average.
+- Added separate buyer and seller guidance:
+  - Sell Listings: `Favorable`, `Worth Watching`, `Typical`, or `Caution`.
+  - Buy Orders: `Favorable`, `Worth Watching`, `Typical`, or `Weak`.
+- Price position now takes priority over short-term direction so a rising Sell trend alone cannot incorrectly label a still-below-average listing as overpriced.
+- Added market-analysis Confidence, Coverage, and Samples reporting.
+- Added developing-history handling so newly watched items can show locally observed direction before a full selected trend window is available.
+- Added clear local-history messaging explaining that Trading Post analysis begins when FoodReminder starts observing an item and does not include earlier market history.
+- Updated the Trading Post target celebration to the newer larger price-card layout used by Copper&Claw.
+- Updated the local Trading Post item index to support optional stat-based variant labels for duplicate-name items.
+- Variant labels are now searchable and shown in item-search results when available.
+- The local item-index cache now stores item ID, name, and variant label.
+- Legacy two-column item-index caches remain loadable and automatically trigger a refresh into the new format.
+- FoodReminder-specific persistence names and HTTP user agent remain unchanged.
+
+### Fixed
+- Older Trading Post Deal / Signal logic could produce contradictory analysis by treating a sufficiently rising Sell trend as `OVERPRICED` even when the current Sell price was still favorable relative to its recent local history.
+- Duplicate-name Trading Post items could be difficult to distinguish in autocomplete when separate item IDs represented different stat variants.
+- Market analysis for newly tracked items could remain unnecessarily uninformative while the selected trend window was still developing.
+
+### Tested
+- Full FoodReminder rebuild passed after the Trading Post UI and item-index update.
+- FoodReminder loaded normally in-game after the sync.
+- Trading Post tab opened and rendered normally.
+- Existing watched items and Sell Targets remained intact.
+- Updated Sell Listings / Buy Orders analysis rendered normally.
+- Updated target-alert presentation rendered normally.
+- No crash or regression was observed during the post-update in-game smoke test.
+
+### Status
+✅ Trading Post UI synced with current Copper&Claw implementation  
+✅ Separate Sell Listings / Buy Orders analysis working  
+✅ Direction percentages working  
+✅ Price-position logic working  
+✅ Buyer / seller signals working  
+✅ Confidence / Coverage / Samples working  
+✅ Local-history disclaimer added  
+✅ Variant-aware item search/index support added  
+✅ Legacy item-index cache compatibility retained  
+✅ Full rebuild passed  
+✅ In-game smoke test passed  
+
+### Next
+- Commit and push the verified FoodReminder Trading Post synchronization checkpoint.
+- Continue normal Trading Post history accumulation.
+- Preserve FoodReminder's existing Trading Post history while preparing the planned history merge into the standalone Copper&Claw addon.
+
+---
+
 ## 2026-09-03 — UI Refactor Complete: SessionUI, TrackerUI & ReminderUI
 
 ### Changed
