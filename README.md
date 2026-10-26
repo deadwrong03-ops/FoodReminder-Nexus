@@ -52,6 +52,10 @@ Inferred Primer presence remains conservative:
 
 ### Compact Tracker
 
+
+<img width="291" height="103" alt="tracker1" src="https://github.com/user-attachments/assets/2233a5d7-c23a-4fc3-923c-74a0d758950a" />
+
+
 - Compact always-available Food/Utility tracker
 - Remaining Food and Utility duration
 - Recognized consumable names, with long names shortened in the compact view
@@ -125,6 +129,7 @@ A new use is recorded when:
 
 ### Personal History
 
+
 FoodReminder-Nexus keeps a local history of completed consumable-tracking sessions.
 
 The History tab includes:
@@ -175,127 +180,6 @@ Sessions recorded before per-character History tagging was added are preserved u
 
 > **History cost limitation:** Historical cost uses current Trading Post sell prices when available. It does not reconstruct the price actually paid when a consumable was used.
 
-### Trading Post Integration
-
-FoodReminder-Nexus can retrieve Guild Wars 2 Trading Post pricing for recognized consumables and independently watched Trading Post items.
-
-This allows the Session Report to estimate the cost of Food and Utility consumed during a gameplay session.
-
-The built-in Trading Post Watcher supports:
-
-- Multiple watched items
-- Name-first Trading Post item search with live autocomplete suggestions
-- Local searchable Trading Post item index
-- Current lowest sell price
-- Current highest buy price
-- Per-item Sell Targets
-- Target status
-- Fresh-API-only target alerts
-- Anti-spam target alert latching
-- Queued alerts when multiple watched items reach their Sell Targets together
-- Sequential alert presentation
-- Immediate promotion of the next queued alert when the current alert is dismissed
-- Dismissible target-reached notifications
-- Standalone gameplay-visible target-hit overlay
-- Compact target-hit card inside the Trading Post tab
-- Context-aware alert presentation
-- Dragon Bash-style target celebration effects
-- Manual per-item price refresh
-- Refresh All control
-- Automatic periodic price checks
-- Persistent watch lists
-- Persistent Sell Targets
-- Persistent local Trading Post price history
-- History persistence across addon/game restarts
-- Tiered history retention and sampling
-- Compact buy/sell history sparklines
-- Historical minimum, average, and maximum prices
-- Selectable trend windows:
-  - 15 minutes
-  - 30 minutes
-  - 1 hour
-  - 6 hours
-  - 24 hours
-  - 3 days
-  - 7 days
-  - 30 days
-  - 90 days
-- Separate **Sell Listings** and **Buy Orders** market analysis
-- Time-based direction analysis for both sides of the market
-- Direction percentage movement over the selected trend window
-- Sell Listings direction:
-  - `Getting More Expensive`
-  - `Getting Cheaper`
-  - `Stable`
-- Buy Orders direction:
-  - `Buyers Offering More`
-  - `Buyers Offering Less`
-  - `Stable`
-- Recent-average comparison and current-price position
-- Buyer-facing Sell Listings guidance:
-  - `Favorable`
-  - `Worth Watching`
-  - `Typical`
-  - `Caution`
-- Seller-facing Buy Orders guidance:
-  - `Favorable`
-  - `Worth Watching`
-  - `Typical`
-  - `Weak`
-- Market-analysis Confidence, Coverage, and Samples reporting
-- Developing-history analysis for newly watched items
-- Trading Post buy/sell spread analysis
-- Variant-aware Trading Post search for duplicate-name items with different stat versions
-
-The Sell Target represents the **maximum price the user is willing to pay**.
-
-A target is considered reached when the current lowest sell listing is equal to or below the configured Sell Target.
-
-Target notifications are based on a fresh Trading Post API observation rather than immediately firing from stale cached pricing after a target edit.
-
-When multiple watched items reach their targets during the same update:
-
-1. The first target becomes the active alert
-2. Additional target hits are queued
-3. Only one alert is shown at a time
-4. Dismissing the current alert immediately advances to the next queued alert
-5. No additional API refresh is required to advance the queue
-
-The existing target latch behavior remains intact. A target only re-arms after a later observed sell price rises above its configured target.
-
-Alert presentation also depends on which FoodReminder interface is open:
-
-- During normal gameplay, the large `TARGET REACHED!` celebration overlay is shown
-- While the FoodReminder Trading Post tab is open, the large overlay is suppressed
-- The compact `TARGET PRICE HIT!` card remains visible inside the Trading Post tab
-
-This prevents the same target from appearing simultaneously in both alert formats.
-
-Market direction, price position, buyer/seller guidance, confidence, and coverage are based on locally collected Trading Post observations and are intended as informational market context rather than guaranteed buying or selling advice.
-
-Price position takes priority over direction when interpreting the market. For example, a rising Sell trend does not by itself make an item overpriced if the current listing is still favorable relative to its recent locally observed range.
-
-FoodReminder builds its own Trading Post history from the time an item begins being tracked. No earlier market history is available on initial tracking.
-
-Items without available Trading Post pricing remain tracked normally and are reported without a cost rather than using an estimated or guessed value.
-
-Trading Post item search is name-first. Users can begin typing an item name and select from matching Guild Wars 2 Trading Post items without needing to know an item ID beforehand.
-
-Item IDs remain available for reference and internal validation but are not required user input.
-
-### Unknown Consumable Collector
-
-Unrecognized Food and Utility effects can be collected automatically during normal gameplay.
-
-The collector records:
-
-- Effect ID
-- Food or Utility classification
-- Number of observations
-
-Collected effects persist between sessions and can be exported for later identification and database expansion.
-
-The collector automatically removes stored entries once their effect IDs become recognized by the current consumable database, keeping the list focused on genuinely unresolved effects.
 
 ### External Consumable Database
 
