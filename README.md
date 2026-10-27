@@ -21,8 +21,11 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Independent enable/disable controls for Food expiration, Utility expiration, missing-consumable, and Primer expiration reminders
 - Configurable reminder popup display duration from 3 to 10 seconds
 - Detects consumable applications, refreshes, replacements, and expirations
+- Handles modern ArcDPS typed buff state changes for initial state, applications, duration changes, and removals
 - Clears stale consumable state when switching characters
+- Preserves active consumable timers across same-character ArcDPS agent/map transitions
 - Persists per-character Food and Utility state across addon/game reloads
+- Rejects implausible multi-day consumable durations instead of displaying corrupted timer values
 - Distinguishes between `Unknown`, active, and confirmed-missing state
 - Avoids treating unknown state as confirmed missing when ArcDPS has not yet supplied enough information
 
@@ -37,17 +40,20 @@ A lightweight **Guild Wars 2 Nexus addon** for tracking food, utility, and prime
 - Keeps inferred Primer presence latched for the current character session after it has been established
 - Prevents inferred `Active*` state from reverting to `Unknown` simply because Food or Utility duration later falls below the original inference threshold
 - Displays `Unknown` when ArcDPS does not provide enough information to determine Primer state
+- Persists a confirmed direct Primer countdown per character once trustworthy state has been captured
+- Confirmed Primer timers pause while the game is closed, matching observed Food/Utility offline behavior
 - Provides tooltip explanations for Primer data limitations
 - Session reporting separates confirmed, inferred, and unknown Primer time
 
-> **Primer limitation:** ArcDPS does not reliably resend already-active Primer state after login or character switching, and current testing did not expose reliable Primer application events through the combat-event stream used by FoodReminder-Nexus. The addon therefore prefers an honest `Unknown` or inferred-presence state instead of displaying a fabricated countdown.
+> **Primer limitation:** ArcDPS does not consistently provide enough already-active Primer state after login or character switching to establish a trustworthy countdown. Once a confirmed direct Primer countdown has been captured, FoodReminder-Nexus can preserve that per-character remaining time across a full restart. When direct state is unavailable, the addon prefers an honest `Unknown` or inferred `Active*` state instead of displaying a fabricated countdown.
 
 Inferred Primer presence remains conservative:
 
 - No exact Primer countdown is fabricated
 - Inference is character-specific
 - Inference does not carry across character switches
-- A game/addon restart begins fresh
+- Inferred-only presence does not become a fabricated persisted countdown after restart
+- A confirmed direct countdown may be restored when trustworthy Primer state was previously captured
 - Reliable contradictory Primer information can clear the inferred state
 
 ### Compact Tracker
@@ -209,15 +215,19 @@ ArcDPS remains the source for actual Food/Utility effect IDs and remaining durat
 
 If RTAPI is unavailable, unloaded, or still synchronizing, the Squad tracker automatically falls back to the existing ArcDPS-only roster behavior.
 
+FoodReminder-Nexus handles the modern ArcDPS typed buff state-change model for initial-state snapshots, applications, duration changes, and removals.
+
+ArcDPS can assign a new self-agent context during a same-character map transition. FoodReminder-Nexus preserves live Food, Utility, and Primer timers across that transition instead of treating the new agent ID as a character switch.
+
 ArcDPS does not always resend every already-active buff immediately after login, map changes, character changes, or addon reloads.
 
 Because of this, some consumable state may remain unknown until ArcDPS reports a relevant event.
 
-Food and Utility state can often resynchronize when fresh combat events arrive.
+Food and Utility state can resynchronize when fresh buff events arrive.
 
-Primer state is more limited. Current testing showed that already-active Primer state is not reliably resent after login or character switching, and Primer application did not appear reliably in the Recent Buff Events stream used during testing.
+Primer state remains more limited. Initial direct Primer countdown capture is intermittent, but testing confirmed that once a trustworthy direct Primer timer is captured, its remaining per-character time can persist across a full restart.
 
-FoodReminder-Nexus therefore does not fabricate Primer timers.
+FoodReminder-Nexus therefore does not fabricate Primer timers when direct state is unavailable.
 
 The addon intentionally prefers displaying an effect as **unknown** rather than guessing its identity or remaining duration.
 
@@ -324,12 +334,20 @@ A live multi-target test successfully queued and presented three simultaneous ta
 Recent consumable-state and History work has passed:
 
 - Per-character Food/Utility state restoration
+- Modern ArcDPS typed buff-state handling for states 18 / 69 / 70 / 71 / 72
+- Correct state-70 duration-change handling using the new stack duration
+- Per-stack trackable-ID handling for typed buff removals
+- Same-character map/agent transitions preserving live consumable timers
+- Rejection of implausible 13+ hour corrupted consumable durations
 - `Unknown` vs confirmed-missing state handling
 - False missing-warning suppression while state is unknown
+- False Food/Utility combat-warning regression eliminated in live testing with active consumables
 - Character-specific Primer state isolation
 - Removal of inaccurate Food/Utility-to-Primer countdown inference
 - Primer presence-only inference
 - Inferred Primer-presence session latch
+- Confirmed direct Primer countdown persistence across full restart once captured
+- Confirmed Primer timers observed to pause while the game is closed
 - Primer limitation tooltips
 - Primer-safe Session Report tracking
 - Compact tracker width cleanup
@@ -394,6 +412,7 @@ Current development remains focused on:
 - Continued RTAPI/ArcDPS hybrid roster testing
 - Continued Trading Post history accumulation
 - Continued gameplay and stability testing
+- Continued validation of modern ArcDPS typed buff events across map changes, relogs, combat entry/exit, and booster-heavy gameplay
 - Completed zero-behavior-change UI modularization: History, Trading Post, Squad, Session, compact Tracker, and Reminder rendering are now extracted from `entry.cpp`
 - Improving initial-state synchronization only where reliable data is available
 
@@ -418,11 +437,11 @@ Future development may include:
 ## Known Limitations
 
 - Food and Utility state may briefly show an older saved value after login or character switching until fresh ArcDPS events resynchronize the state
-- ArcDPS does not reliably resend already-active Primer state after login or character switching
-- Exact Primer countdowns therefore cannot always be reconstructed
-- Direct Primer application is not reliably exposed through the ArcDPS combat-event stream currently used by FoodReminder-Nexus
+- Same-character map/agent transitions now preserve live timers, but continued live validation is still in progress
+- ArcDPS does not reliably resend enough already-active Primer state after login or character switching to establish a direct countdown every time
+- Exact Primer countdowns therefore cannot always be established from live ArcDPS state
 - Inferred Primer presence does not provide an exact remaining Primer timer
-- Rare live ArcDPS state delivery can sometimes provide a real Primer countdown after startup, but the exact trigger is not yet understood and the countdown may be lost again after addon reload
+- Once a confirmed direct Primer countdown has been captured, current testing shows its per-character remaining time can persist across a full restart; the unresolved limitation is reliable initial capture
 - Some consumable effects share the same effect ID and cannot always be uniquely identified
 - Unknown consumable effects may still appear until they are added to the database
 - Historical consumable cost uses current Trading Post sell prices rather than the original purchase price

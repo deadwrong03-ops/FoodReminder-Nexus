@@ -5,6 +5,77 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-10-27 — ArcDPS Typed Buff Reliability, Map Transitions & Primer Persistence
+
+### Changed
+- Updated `BuffTracker` for the modern ArcDPS typed buff state-change model:
+  - `18` — Buff Initial
+  - `69` — Buff Apply
+  - `70` — Buff Change
+  - `71` — Buff Remove Single
+  - `72` — Buff Remove All
+- `BUFFCHANGE` duration handling now uses `OverstackValue` as the new stack duration instead of treating `Value` as the complete duration.
+- Added per-stack ArcDPS trackable-ID handling from the event payload so single-stack removal events can be distinguished from full-buff removal.
+- Same-character ArcDPS agent-ID changes are no longer treated as character switches.
+- Temporary self-agent removal during map transitions now preserves live Food, Utility, and Primer timers instead of immediately clearing them.
+- Per-stack trackable IDs are invalidated when the ArcDPS agent context changes so stale stack IDs cannot carry into the new map/agent context.
+- Added a 13-hour sanity ceiling for tracked Food, Utility, and Primer durations. Implausible live or persisted values beyond that ceiling are rejected rather than displayed as trustworthy timers.
+- Expanded Developer Debug buff-event capture to include typed ArcDPS states `18`, `69`, `70`, `71`, and `72`.
+- Developer Debug capture now occurs before Food/Utility/Primer tracking branches can return, so typed removal events cannot disappear from the diagnostic stream.
+- Primer presentation remains conservative:
+  - confirmed direct Primer state shows a countdown;
+  - inferred Primer presence shows `Active*`;
+  - no exact Primer countdown is fabricated from Food/Utility duration.
+
+### Fixed
+- Booster-heavy/event-heavy gameplay exposed corrupted consumable durations in the tens or hundreds of hours. The new duration sanity guard prevents these impossible values from being restored or accepted as valid consumable timers.
+- Modern typed ArcDPS buff events could be interpreted using older event semantics, producing incorrect duration and removal behavior.
+- Same-character map/agent transitions could be mistaken for character switches and clear otherwise-valid consumable state.
+- A false `FOOD + UTILITY MISSING` combat warning could appear while Guild Wars 2 still showed active Food and Utility buffs.
+- Food/Utility tracking can now recover from a fresh valid application without fabricating Primer countdowns.
+
+### Tested
+- Corrupted persisted Food/Utility/Primer durations above the sanity ceiling were rejected on reload instead of returning as multi-day timers.
+- A valid direct Metabolic Primer countdown below the ceiling survived the cleanup.
+- Fresh Food and Utility applications were observed as modern ArcDPS state-69 events:
+  - `Nourishment (17825)` with a 3-hour duration
+  - `Enhancement (9963)` with a 3-hour duration
+- Fresh Utility tracking displayed a normal countdown and persisted through reload.
+- Fresh Food reapplication restored a normal active Food countdown.
+- Entering combat with active Food and Utility no longer produced the false missing-consumable warning in the final live test.
+- Extended Utility duration correctly produced inferred `Utility P: Active*` when no trustworthy direct Utility Primer countdown was available.
+- Direct Metabolic Primer state continued to display a real countdown while inferred Utility Primer presence remained clearly distinguished as `Active*`.
+- Confirmed Primer countdowns were observed to persist across a full game restart once captured.
+- Controlled restart testing showed confirmed Primer timers effectively pause while the game is closed, matching Food/Utility offline behavior.
+
+### Known Limitations
+- Initial direct Primer countdown capture remains intermittent because ArcDPS does not consistently provide enough Primer state to establish a trustworthy timer.
+- `Active*` intentionally means Primer presence is inferred but the exact remaining Primer duration is unknown.
+- The new same-character map/agent handling and typed stack-removal handling should continue receiving normal-play validation before the next release.
+- Developer Debug currently retains the expanded typed buff-event visibility to support continued validation.
+
+### Status
+✅ Modern ArcDPS typed buff states supported  
+✅ `BUFFCHANGE` duration semantics corrected  
+✅ Implausible 13+ hour consumable durations rejected  
+✅ Same-character agent changes no longer treated as character switches  
+✅ Typed stack-removal tracking added  
+✅ Fresh Food/Utility state-69 applications verified  
+✅ False Food/Utility combat warning gone in final live test  
+✅ Confirmed vs inferred Primer presentation behaving correctly  
+✅ Confirmed Primer countdown persistence across restart observed  
+⚠️ Initial direct Primer capture remains intermittent  
+⚠️ Continue map-change / stack-removal stability testing before release  
+
+### Next
+- Continue normal gameplay testing across repeated map changes, combat entry/exit, relogs, and booster-heavy play.
+- Confirm Food/Utility timers remain stable through several same-character map transitions.
+- Keep the expanded typed-event diagnostics available until the new ArcDPS event handling has accumulated enough live validation.
+- Commit and push this reliability checkpoint.
+- If continued testing remains stable, prepare the next release checkpoint as `v0.2.2`.
+
+---
+
 ## 2026-09-04 — Trading Post UI & Item Index Synced with Copper&Claw
 
 ### Changed

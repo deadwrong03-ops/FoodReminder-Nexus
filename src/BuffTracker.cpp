@@ -21,6 +21,17 @@ namespace
 
     constexpr uint8_t STATECHANGE_ENTER_COMBAT = 1;
     constexpr uint8_t STATECHANGE_EXIT_COMBAT = 2;
+    constexpr uint8_t STATECHANGE_BUFF_INITIAL = 18;
+    constexpr uint8_t STATECHANGE_BUFF_APPLY = 69;
+    constexpr uint8_t STATECHANGE_BUFF_CHANGE = 70;
+    constexpr uint8_t STATECHANGE_BUFF_REMOVE_SINGLE = 71;
+    constexpr uint8_t STATECHANGE_BUFF_REMOVE_ALL = 72;
+
+    constexpr int64_t MAX_TRACKED_CONSUMABLE_DURATION_MILLISECONDS =
+        13LL * 60LL * 60LL * 1000LL;
+
+    constexpr int64_t MAX_TRACKED_CONSUMABLE_DURATION_SECONDS =
+        13LL * 60LL * 60LL;
 
     bool g_HasFood = false;
     bool g_HasUtility = false;
@@ -67,11 +78,27 @@ namespace
     int64_t g_MetabolicPrimerDurationMilliseconds = 0;
     int64_t g_UtilityPrimerDurationMilliseconds = 0;
 
+    uint32_t g_FoodTrackableID = 0;
+    uint32_t g_UtilityTrackableID = 0;
+    uint32_t g_MetabolicPrimerTrackableID = 0;
+    uint32_t g_UtilityPrimerTrackableID = 0;
+
     std::chrono::steady_clock::time_point g_FoodReceivedTime;
     std::chrono::steady_clock::time_point g_UtilityReceivedTime;
 
     std::chrono::steady_clock::time_point g_MetabolicPrimerReceivedTime;
     std::chrono::steady_clock::time_point g_UtilityPrimerReceivedTime;
+
+    uint32_t GetBuffTrackableID(
+        const ArcDPS::CombatEvent& ev
+    )
+    {
+        return
+            static_cast<uint32_t>(ev.Pad61) |
+            (static_cast<uint32_t>(ev.Pad62) << 8) |
+            (static_cast<uint32_t>(ev.Pad63) << 16) |
+            (static_cast<uint32_t>(ev.Pad64) << 24);
+    }
 
     void SyncPrimerInferenceCharacterLocked(
         const std::string& characterName
@@ -361,6 +388,11 @@ namespace
         g_MetabolicPrimerDurationMilliseconds = 0;
         g_UtilityPrimerDurationMilliseconds = 0;
 
+        g_FoodTrackableID = 0;
+        g_UtilityTrackableID = 0;
+        g_MetabolicPrimerTrackableID = 0;
+        g_UtilityPrimerTrackableID = 0;
+
         g_FoodSkillID = 0;
         g_UtilitySkillID = 0;
 
@@ -386,6 +418,45 @@ namespace
         CharacterConsumableState& state =
             it->second;
 
+        //
+        // Reject impossible persisted durations. Standard Primer mechanics
+        // cap Food/Utility extension at 12 hours; anything beyond this
+        // guard is corrupt state, not a trustworthy consumable timer.
+        //
+        if (state.foodRemainingSeconds >
+            MAX_TRACKED_CONSUMABLE_DURATION_SECONDS)
+        {
+            state.foodRemainingSeconds = 0;
+            state.foodSkillID = 0;
+            state.foodStateKnown = false;
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityRemainingSeconds >
+            MAX_TRACKED_CONSUMABLE_DURATION_SECONDS)
+        {
+            state.utilityRemainingSeconds = 0;
+            state.utilitySkillID = 0;
+            state.utilityStateKnown = false;
+            g_SettingsChanged = true;
+        }
+
+        if (state.metabolicPrimerRemainingSeconds >
+            MAX_TRACKED_CONSUMABLE_DURATION_SECONDS)
+        {
+            state.metabolicPrimerRemainingSeconds = 0;
+            state.metabolicPrimerStateKnown = false;
+            g_SettingsChanged = true;
+        }
+
+        if (state.utilityPrimerRemainingSeconds >
+            MAX_TRACKED_CONSUMABLE_DURATION_SECONDS)
+        {
+            state.utilityPrimerRemainingSeconds = 0;
+            state.utilityPrimerStateKnown = false;
+            g_SettingsChanged = true;
+        }
+
         if (state.foodRemainingSeconds > 0 &&
             state.foodSkillID != 0)
         {
@@ -405,6 +476,8 @@ namespace
 
             g_FoodReceivedTime =
                 std::chrono::steady_clock::now();
+
+            g_FoodTrackableID = 0;
 
             g_FoodSkillID =
                 state.foodSkillID;
@@ -454,6 +527,8 @@ namespace
 
             g_UtilityReceivedTime =
                 std::chrono::steady_clock::now();
+
+            g_UtilityTrackableID = 0;
 
             g_UtilitySkillID =
                 state.utilitySkillID;
@@ -628,14 +703,17 @@ void BuffTracker::ProcessEvent(
                 newSelfAgentID !=
                 g_SelfAgentID;
 
+            //
+            // ArcDPS can assign a new self-agent ID during a map load.
+            // That is NOT a character change and must not destroy active
+            // Food / Utility / Primer timers.
+            //
             const bool identityChanged =
-                characterChanged ||
-                agentChanged;
+                characterChanged;
 
             //
-            // Freeze the old character's current
-            // remaining Food/Utility time and IDs
-            // before changing identity.
+            // A real character-name change is the only time we save the
+            // old character and clear its live consumable state.
             //
             if (identityChanged)
             {
@@ -663,11 +741,31 @@ void BuffTracker::ProcessEvent(
                 g_MetabolicPrimerDurationMilliseconds = 0;
                 g_UtilityPrimerDurationMilliseconds = 0;
 
+                g_FoodTrackableID = 0;
+                g_UtilityTrackableID = 0;
+                g_MetabolicPrimerTrackableID = 0;
+                g_UtilityPrimerTrackableID = 0;
+
                 g_FoodSkillID = 0;
                 g_UtilitySkillID = 0;
 
                 g_FoodSkillName.clear();
                 g_UtilitySkillName.clear();
+
+                g_IsInCombat = false;
+            }
+            else if (agentChanged)
+            {
+                //
+                // Same character, new map/agent. Keep the timers and
+                // detection state, but discard per-stack IDs because they
+                // belong to the old ArcDPS agent context. Fresh buff
+                // snapshot/application events will repopulate them.
+                //
+                g_FoodTrackableID = 0;
+                g_UtilityTrackableID = 0;
+                g_MetabolicPrimerTrackableID = 0;
+                g_UtilityPrimerTrackableID = 0;
 
                 g_IsInCombat = false;
             }
@@ -713,34 +811,25 @@ void BuffTracker::ProcessEvent(
             g_SelfAgentID)
         {
             //
-            // Freeze remaining Food/Utility time
-            // and IDs before clearing identity.
+            // ArcDPS can temporarily remove the self agent while changing
+            // maps. Freeze the current character state for persistence, but
+            // DO NOT clear live Food / Utility / Primer timers or the
+            // character name. The next agent-add event will tell us whether
+            // this was the same character or a real character switch.
             //
-
             SaveCurrentCharacterConsumablesLocked();
 
-            g_HasFood = false;
-            g_HasUtility = false;
-
-            g_FoodDetectionState =
-                ConsumableDetectionState::Unknown;
-
-            g_UtilityDetectionState =
-                ConsumableDetectionState::Unknown;
-
-            g_FoodDurationMilliseconds = 0;
-            g_UtilityDurationMilliseconds = 0;
-
-            g_FoodSkillID = 0;
-            g_UtilitySkillID = 0;
-
-            g_FoodSkillName.clear();
-            g_UtilitySkillName.clear();
+            //
+            // Per-stack IDs are tied to the old ArcDPS agent context.
+            // Keep the timers, but let fresh buff events establish new IDs.
+            //
+            g_FoodTrackableID = 0;
+            g_UtilityTrackableID = 0;
+            g_MetabolicPrimerTrackableID = 0;
+            g_UtilityPrimerTrackableID = 0;
 
             g_IsInCombat = false;
-
             g_SelfAgentID = 0;
-            g_SelfCharacterName.clear();
         }
 
         return;
@@ -762,6 +851,88 @@ void BuffTracker::ProcessEvent(
     const bool destinationIsSelf =
         combatData->dst != nullptr &&
         combatData->dst->IsSelf != 0;
+
+    //
+    // Developer debug event tracking.
+    //
+    // Capture typed buff events BEFORE any tracking branch can return.
+    // This keeps the diagnostic stream complete without changing
+    // Food / Utility / Primer behavior.
+    //
+    const bool isBuffLike =
+        (ev.Buff != 0 &&
+            ev.BuffDamage >= 0) ||
+        ev.IsBuffRemove != 0 ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_INITIAL ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_APPLY ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_CHANGE ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_REMOVE_SINGLE ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_REMOVE_ALL;
+
+    if (isBuffLike)
+    {
+        ++g_BuffLikeEventCount;
+
+        BuffEventDebug record;
+
+        record.eventID =
+            combatData->id;
+
+        record.skillID =
+            ev.SkillID;
+
+        if (combatData->skillname != nullptr)
+        {
+            record.skillName =
+                combatData->skillname;
+        }
+        else
+        {
+            record.skillName =
+                "Unknown";
+        }
+
+        record.value =
+            ev.Value;
+
+        record.buffDamage =
+            ev.BuffDamage;
+
+        record.overstackValue =
+            ev.OverstackValue;
+
+        record.buff =
+            ev.Buff;
+
+        record.buffRemove =
+            ev.IsBuffRemove;
+
+        record.stateChange =
+            ev.IsStatechange;
+
+        record.sourceIsSelf =
+            sourceIsSelf;
+
+        record.destinationIsSelf =
+            destinationIsSelf;
+
+        g_RecentBuffEvents.push_back(
+            record
+        );
+
+        if (g_RecentBuffEvents.size() >
+            MAX_DEBUG_EVENTS)
+        {
+            g_RecentBuffEvents.erase(
+                g_RecentBuffEvents.begin()
+            );
+        }
+    }
 
     uintptr_t currentSelfAgentID = 0;
     std::string currentSelfCharacterName;
@@ -808,20 +979,26 @@ void BuffTracker::ProcessEvent(
         currentSelfAgentID !=
         g_SelfAgentID;
 
+    //
+    // A map change can produce a new ArcDPS self-agent ID while the
+    // character remains the same. Only the character name defines a
+    // consumable identity change.
+    //
     const bool identityChanged =
-        characterNameChanged ||
-        agentChanged;
+        characterNameChanged;
 
     if (identityChanged)
     {
         //
         // Freeze old character state before
-        // switching to the new identity.
+        // switching to the new character.
         //
         SaveCurrentCharacterConsumablesLocked();
 
         g_HasFood = false;
         g_HasUtility = false;
+        g_HasMetabolicPrimer = false;
+        g_HasUtilityPrimer = false;
 
         g_FoodDetectionState =
             ConsumableDetectionState::Unknown;
@@ -829,14 +1006,40 @@ void BuffTracker::ProcessEvent(
         g_UtilityDetectionState =
             ConsumableDetectionState::Unknown;
 
+        g_MetabolicPrimerDetectionState =
+            ConsumableDetectionState::Unknown;
+
+        g_UtilityPrimerDetectionState =
+            ConsumableDetectionState::Unknown;
+
         g_FoodDurationMilliseconds = 0;
         g_UtilityDurationMilliseconds = 0;
+        g_MetabolicPrimerDurationMilliseconds = 0;
+        g_UtilityPrimerDurationMilliseconds = 0;
+
+        g_FoodTrackableID = 0;
+        g_UtilityTrackableID = 0;
+        g_MetabolicPrimerTrackableID = 0;
+        g_UtilityPrimerTrackableID = 0;
 
         g_FoodSkillID = 0;
         g_UtilitySkillID = 0;
 
         g_FoodSkillName.clear();
         g_UtilitySkillName.clear();
+
+        g_IsInCombat = false;
+    }
+    else if (agentChanged)
+    {
+        //
+        // Same character, new agent context. Preserve the live timers and
+        // only invalidate stack IDs from the previous agent.
+        //
+        g_FoodTrackableID = 0;
+        g_UtilityTrackableID = 0;
+        g_MetabolicPrimerTrackableID = 0;
+        g_UtilityPrimerTrackableID = 0;
 
         g_IsInCombat = false;
     }
@@ -883,7 +1086,41 @@ void BuffTracker::ProcessEvent(
     //
     // Food / Utility / Primer tracking.
     //
-    if (destinationIsSelf)
+    // Modern ArcDPS uses typed buff state-change events.
+    // For typed removals, src_agent is the agent losing the buff.
+    //
+    const bool isTypedBuffRemoveSingle =
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_REMOVE_SINGLE;
+
+    const bool isTypedBuffRemoveAll =
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_REMOVE_ALL;
+
+    const bool isTypedBuffRemoval =
+        isTypedBuffRemoveSingle ||
+        isTypedBuffRemoveAll;
+
+    const uint32_t eventTrackableID =
+        GetBuffTrackableID(ev);
+
+    const bool buffAffectsSelf =
+        isTypedBuffRemoval
+        ? sourceIsSelf
+        : destinationIsSelf;
+
+    const bool isSupportedBuffEvent =
+        ev.IsStatechange == 0 ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_INITIAL ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_APPLY ||
+        ev.IsStatechange ==
+        STATECHANGE_BUFF_CHANGE ||
+        isTypedBuffRemoval;
+
+    if (buffAffectsSelf &&
+        isSupportedBuffEvent)
     {
         const std::string skillName =
             combatData->skillname != nullptr
@@ -927,19 +1164,87 @@ void BuffTracker::ProcessEvent(
         const bool isUtilityPrimerEvent =
             skillName == "Utility Primer";
 
+        const bool isDurationChange =
+            ev.IsStatechange ==
+            STATECHANGE_BUFF_CHANGE;
+
+        //
+        // CBTS_BUFFCHANGE:
+        //   Value = duration difference
+        //   OverstackValue = new duration
+        //
+        // Applications / initial-state events use Value as duration.
+        //
+        const int64_t eventDurationMilliseconds =
+            isDurationChange
+            ? static_cast<int64_t>(
+                ev.OverstackValue
+                )
+            : static_cast<int64_t>(
+                ev.Value
+                );
+
         const bool hasDuration =
-            ev.Value > 0;
+            eventDurationMilliseconds > 0 &&
+            eventDurationMilliseconds <=
+            MAX_TRACKED_CONSUMABLE_DURATION_MILLISECONDS;
 
         const bool isRemoved =
-            ev.IsBuffRemove != 0;
+            ev.IsBuffRemove != 0 ||
+            isTypedBuffRemoval;
+
+        const auto removalMatchesTrackedStack =
+            [
+                isTypedBuffRemoval,
+                isTypedBuffRemoveSingle,
+                isTypedBuffRemoveAll,
+                eventTrackableID
+            ](
+                uint32_t trackedID
+                )
+            {
+                if (!isTypedBuffRemoval)
+                {
+                    return true;
+                }
+
+                if (isTypedBuffRemoveAll)
+                {
+                    return true;
+                }
+
+                if (isTypedBuffRemoveSingle)
+                {
+                    return
+                        trackedID != 0 &&
+                        eventTrackableID != 0 &&
+                        trackedID ==
+                        eventTrackableID;
+                }
+
+                return false;
+            };
+
+        //
+        // Duration-change and initial-state events are synchronization,
+        // not a newly consumed Food/Utility item.
+        //
+        const bool isRealApplicationEvent =
+            ev.IsStatechange == 0 ||
+            ev.IsStatechange ==
+            STATECHANGE_BUFF_APPLY;
 
         if (isFoodEvent &&
-            isRemoved)
+            isRemoved &&
+            removalMatchesTrackedStack(
+                g_FoodTrackableID
+            ))
         {
             g_HasFood = false;
             g_FoodDetectionState =
                 ConsumableDetectionState::Missing;
             g_FoodDurationMilliseconds = 0;
+            g_FoodTrackableID = 0;
 
             g_FoodSkillID = 0;
             g_FoodSkillName.clear();
@@ -962,12 +1267,16 @@ void BuffTracker::ProcessEvent(
         }
 
         if (isUtilityEvent &&
-            isRemoved)
+            isRemoved &&
+            removalMatchesTrackedStack(
+                g_UtilityTrackableID
+            ))
         {
             g_HasUtility = false;
             g_UtilityDetectionState =
                 ConsumableDetectionState::Missing;
             g_UtilityDurationMilliseconds = 0;
+            g_UtilityTrackableID = 0;
 
             g_UtilitySkillID = 0;
             g_UtilitySkillName.clear();
@@ -990,12 +1299,16 @@ void BuffTracker::ProcessEvent(
         }
 
         if (isMetabolicPrimerEvent &&
-            isRemoved)
+            isRemoved &&
+            removalMatchesTrackedStack(
+                g_MetabolicPrimerTrackableID
+            ))
         {
             g_HasMetabolicPrimer = false;
             g_MetabolicPrimerDetectionState =
                 ConsumableDetectionState::Missing;
             g_MetabolicPrimerDurationMilliseconds = 0;
+            g_MetabolicPrimerTrackableID = 0;
             g_InferredMetabolicPrimerPresence = false;
 
             g_Settings.metabolicPrimerExpiresAt = 0;
@@ -1017,12 +1330,16 @@ void BuffTracker::ProcessEvent(
         }
 
         if (isUtilityPrimerEvent &&
-            isRemoved)
+            isRemoved &&
+            removalMatchesTrackedStack(
+                g_UtilityPrimerTrackableID
+            ))
         {
             g_HasUtilityPrimer = false;
             g_UtilityPrimerDetectionState =
                 ConsumableDetectionState::Missing;
             g_UtilityPrimerDurationMilliseconds = 0;
+            g_UtilityPrimerTrackableID = 0;
             g_InferredUtilityPrimerPresence = false;
 
             g_Settings.utilityPrimerExpiresAt = 0;
@@ -1040,6 +1357,22 @@ void BuffTracker::ProcessEvent(
 
             g_SettingsChanged = true;
 
+            return;
+        }
+
+        //
+        // A typed single-stack removal may refer to an older replaced stack.
+        // If it did not match the stack we currently track, ignore it rather
+        // than treating the removed duration as a fresh application.
+        //
+        if (isRemoved &&
+            (
+                isFoodEvent ||
+                isUtilityEvent ||
+                isMetabolicPrimerEvent ||
+                isUtilityPrimerEvent
+                ))
+        {
             return;
         }
 
@@ -1080,12 +1413,13 @@ void BuffTracker::ProcessEvent(
                 ConsumableDetectionState::Active;
 
             g_FoodDurationMilliseconds =
-                static_cast<int64_t>(
-                    ev.Value
-                    );
+                eventDurationMilliseconds;
 
             g_FoodReceivedTime =
                 std::chrono::steady_clock::now();
+
+            g_FoodTrackableID =
+                eventTrackableID;
 
             g_FoodSkillID =
                 ev.SkillID;
@@ -1094,12 +1428,15 @@ void BuffTracker::ProcessEvent(
                 skillName;
 
             const bool shouldRecordFoodUse =
-                !wasAlreadyActive ||
-                !sameConsumable ||
-                static_cast<int64_t>(ev.Value) >
-                previousRemainingMilliseconds + 5000;
+                isRealApplicationEvent &&
+                (
+                    !wasAlreadyActive ||
+                    !sameConsumable ||
+                    eventDurationMilliseconds >
+                    previousRemainingMilliseconds + 5000
+                    );
 
-            if (static_cast<int64_t>(ev.Value) >
+            if (eventDurationMilliseconds >
                 2LL * 60LL * 60LL * 1000LL)
             {
                 g_InferredMetabolicPrimerPresence = true;
@@ -1178,12 +1515,13 @@ void BuffTracker::ProcessEvent(
                 ConsumableDetectionState::Active;
 
             g_UtilityDurationMilliseconds =
-                static_cast<int64_t>(
-                    ev.Value
-                    );
+                eventDurationMilliseconds;
 
             g_UtilityReceivedTime =
                 std::chrono::steady_clock::now();
+
+            g_UtilityTrackableID =
+                eventTrackableID;
 
             g_UtilitySkillID =
                 ev.SkillID;
@@ -1192,12 +1530,15 @@ void BuffTracker::ProcessEvent(
                 skillName;
 
             const bool shouldRecordUtilityUse =
-                !wasAlreadyActive ||
-                !sameConsumable ||
-                static_cast<int64_t>(ev.Value) >
-                previousRemainingMilliseconds + 5000;
+                isRealApplicationEvent &&
+                (
+                    !wasAlreadyActive ||
+                    !sameConsumable ||
+                    eventDurationMilliseconds >
+                    previousRemainingMilliseconds + 5000
+                    );
 
-            if (static_cast<int64_t>(ev.Value) >
+            if (eventDurationMilliseconds >
                 2LL * 60LL * 60LL * 1000LL)
             {
                 g_InferredUtilityPrimerPresence = true;
@@ -1245,12 +1586,13 @@ void BuffTracker::ProcessEvent(
                 ConsumableDetectionState::Active;
 
             g_MetabolicPrimerDurationMilliseconds =
-                static_cast<int64_t>(
-                    ev.Value
-                    );
+                eventDurationMilliseconds;
 
             g_MetabolicPrimerReceivedTime =
                 std::chrono::steady_clock::now();
+
+            g_MetabolicPrimerTrackableID =
+                eventTrackableID;
 
             const int64_t durationSeconds =
                 (
@@ -1284,12 +1626,13 @@ void BuffTracker::ProcessEvent(
                 ConsumableDetectionState::Active;
 
             g_UtilityPrimerDurationMilliseconds =
-                static_cast<int64_t>(
-                    ev.Value
-                    );
+                eventDurationMilliseconds;
 
             g_UtilityPrimerReceivedTime =
                 std::chrono::steady_clock::now();
+
+            g_UtilityPrimerTrackableID =
+                eventTrackableID;
 
             const int64_t durationSeconds =
                 (
@@ -1316,76 +1659,6 @@ void BuffTracker::ProcessEvent(
         }
     }
 
-    //
-    // Developer debug event tracking.
-    //
-    const bool isBuffLike =
-        (ev.Buff != 0 &&
-            ev.BuffDamage >= 0) ||
-        ev.IsBuffRemove != 0 ||
-        ev.IsStatechange == 18;
-
-    if (!isBuffLike)
-    {
-        return;
-    }
-
-    ++g_BuffLikeEventCount;
-
-    BuffEventDebug record;
-
-    record.eventID =
-        combatData->id;
-
-    record.skillID =
-        ev.SkillID;
-
-    if (combatData->skillname != nullptr)
-    {
-        record.skillName =
-            combatData->skillname;
-    }
-    else
-    {
-        record.skillName =
-            "Unknown";
-    }
-
-    record.value =
-        ev.Value;
-
-    record.buffDamage =
-        ev.BuffDamage;
-
-    record.overstackValue =
-        ev.OverstackValue;
-
-    record.buff =
-        ev.Buff;
-
-    record.buffRemove =
-        ev.IsBuffRemove;
-
-    record.stateChange =
-        ev.IsStatechange;
-
-    record.sourceIsSelf =
-        sourceIsSelf;
-
-    record.destinationIsSelf =
-        destinationIsSelf;
-
-    g_RecentBuffEvents.push_back(
-        record
-    );
-
-    if (g_RecentBuffEvents.size() >
-        MAX_DEBUG_EVENTS)
-    {
-        g_RecentBuffEvents.erase(
-            g_RecentBuffEvents.begin()
-        );
-    }
 }
 
 uint64_t BuffTracker::GetTotalEventCount()
@@ -1468,6 +1741,7 @@ bool BuffTracker::HasFood()
         g_FoodDetectionState =
             ConsumableDetectionState::Missing;
         g_FoodDurationMilliseconds = 0;
+        g_FoodTrackableID = 0;
 
         g_FoodSkillID = 0;
         g_FoodSkillName.clear();
@@ -1522,6 +1796,7 @@ bool BuffTracker::HasUtility()
         g_UtilityDetectionState =
             ConsumableDetectionState::Missing;
         g_UtilityDurationMilliseconds = 0;
+        g_UtilityTrackableID = 0;
 
         g_UtilitySkillID = 0;
         g_UtilitySkillName.clear();
@@ -1568,6 +1843,7 @@ bool BuffTracker::HasMetabolicPrimer()
         g_MetabolicPrimerDetectionState =
             ConsumableDetectionState::Missing;
         g_MetabolicPrimerDurationMilliseconds = 0;
+        g_MetabolicPrimerTrackableID = 0;
 
         g_Settings.metabolicPrimerExpiresAt = 0;
 
@@ -1610,6 +1886,7 @@ bool BuffTracker::HasUtilityPrimer()
         g_UtilityPrimerDetectionState =
             ConsumableDetectionState::Missing;
         g_UtilityPrimerDurationMilliseconds = 0;
+        g_UtilityPrimerTrackableID = 0;
 
         g_Settings.utilityPrimerExpiresAt = 0;
 
@@ -1847,6 +2124,9 @@ void BuffTracker::RestorePrimerState()
 
     g_MetabolicPrimerDurationMilliseconds = 0;
     g_UtilityPrimerDurationMilliseconds = 0;
+
+    g_MetabolicPrimerTrackableID = 0;
+    g_UtilityPrimerTrackableID = 0;
 
     g_InferredMetabolicPrimerPresence = false;
     g_InferredUtilityPrimerPresence = false;
