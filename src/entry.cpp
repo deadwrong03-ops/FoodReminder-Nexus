@@ -90,8 +90,8 @@ AddonDefinition_t* GetAddonDef()
         "Food Reminder";
 
     AddonDef.Version.Major = 0;
-    AddonDef.Version.Minor = 2;
-    AddonDef.Version.Build = 1;
+    AddonDef.Version.Minor = 3;
+    AddonDef.Version.Build = 0;
     AddonDef.Version.Revision = 0;
 
     AddonDef.Author =
@@ -1180,6 +1180,6 @@ void AddonOptions()
     ImGui::Spacing();
 
     ImGui::TextDisabled(
-        "Food Reminder v0.2.1 - Development Build"
+        "Food Reminder v0.3.0"
     );
 }

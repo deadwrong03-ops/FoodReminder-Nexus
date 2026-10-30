@@ -1,6 +1,6 @@
 # FoodReminder-Nexus
 
-> ⚠️ **Early Development Build — v0.2.1**
+> ⚠️ **Early Development Build — v0.3.0**
 >
 > FoodReminder-Nexus is under active development and is not yet feature complete.
 
@@ -289,11 +289,11 @@ RTAPI is **not included** with FoodReminder-Nexus.
 
 ## Current Development Status
 
-FoodReminder-Nexus is currently an experimental v0.2.1 development build.
+FoodReminder-Nexus is currently an experimental v0.3.0 build.
 
 Current version:
 
-**v0.2.1**
+**v0.3.0**
 
 Core consumable tracking, customizable reminders, RTAPI/ArcDPS hybrid squad tracking, session reporting, persistent per-character personal history, unknown-consumable collection, conservative Primer-state handling, and current-price consumable cost integration are operational and undergoing continued live in-game testing.
 
