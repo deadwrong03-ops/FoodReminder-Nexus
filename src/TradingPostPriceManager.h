@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 
 struct TradingPostPrice
 {
@@ -21,24 +20,6 @@ struct TradingPostPrice
     bool available = false;
 };
 
-struct TradingPostItemLookup
-{
-    uint32_t itemID = 0;
-
-    // Official item name returned by ArenaNet.
-    std::string name;
-
-    // True once the asynchronous lookup has finished.
-    bool complete = false;
-
-    // True when /v2/items/<id> confirmed the item exists.
-    bool validItem = false;
-
-    // True when the commerce API confirmed that the item
-    // can be looked up on the Trading Post.
-    bool availableOnTradingPost = false;
-};
-
 namespace TradingPostPriceManager
 {
     void Start();
@@ -46,7 +27,7 @@ namespace TradingPostPriceManager
     void Shutdown();
 
     //
-    // Queues an asynchronous price request.
+    // Queues an asynchronous consumable price request.
     //
     // When forceRefresh is false, an existing cached price is reused.
     // When true, a fresh API request is queued even if a cache entry exists.
@@ -57,23 +38,7 @@ namespace TradingPostPriceManager
     );
 
     //
-    // Queues an asynchronous item identity/Trading Post validation request.
-    //
-    void RequestItemLookup(
-        uint32_t itemID,
-        bool forceRefresh = false
-    );
-
-    //
-    // Attempts to retrieve the result of an item lookup.
-    //
-    bool TryGetItemLookup(
-        uint32_t itemID,
-        TradingPostItemLookup& outLookup
-    );
-
-    //
-    // Clears all cached Trading Post prices and item lookups.
+    // Clears all cached Trading Post prices.
     //
     void Reset();
 
@@ -97,10 +62,6 @@ namespace TradingPostPriceManager
     );
 
     bool FetchPrice(
-        uint32_t itemID
-    );
-
-    bool FetchItemLookup(
         uint32_t itemID
     );
 }

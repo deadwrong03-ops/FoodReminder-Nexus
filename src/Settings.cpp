@@ -178,12 +178,6 @@ bool Settings::Load(void* moduleHandle)
                     std::stoi(value);
             }
             else if (
-                key == "tradingPostTrendWindowIndex")
-            {
-                g_Settings.tradingPostTrendWindowIndex =
-                    std::stoi(value);
-            }
-            else if (
                 key == "metabolicPrimerExpiresAt")
             {
                 g_Settings.metabolicPrimerExpiresAt =
@@ -635,12 +629,6 @@ bool Settings::Load(void* moduleHandle)
             3600
         );
 
-    g_Settings.tradingPostTrendWindowIndex =
-        std::clamp(
-            g_Settings.tradingPostTrendWindowIndex,
-            0,
-            8
-        );
 
     return true;
 }
@@ -728,11 +716,6 @@ bool Settings::Save(void* moduleHandle)
     file
         << "utilityPrimerWarningSeconds="
         << g_Settings.utilityPrimerWarningSeconds
-        << '\n';
-
-    file
-        << "tradingPostTrendWindowIndex="
-        << g_Settings.tradingPostTrendWindowIndex
         << '\n';
 
     file

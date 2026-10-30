@@ -6,9 +6,6 @@
 #include "nexus/Nexus.h"
 #include "imgui/imgui.h"
 #include "TradingPostPriceManager.h"
-#include "TradingPostHistoryManager.h"
-#include "TradingPostItemIndexManager.h"
-#include "TradingPostWatchManager.h"
 
 #include "Settings.h"
 #include "ReminderManager.h"
@@ -19,7 +16,6 @@
 #include "SessionTracker.h"
 #include "RTAPIIntegration.h"
 #include "HistoryUI.h"
-#include "TradingPostUI.h"
 #include "SquadUI.h"
 #include "SessionUI.h"
 #include "TrackerUI.h"
@@ -135,9 +131,6 @@ void AddonLoad(AddonAPI_t* aApi)
     BuffTracker::RestorePrimerState();
     SquadTracker::RestoreUnknownConsumables();
     TradingPostPriceManager::Start();
-    TradingPostHistoryManager::Start(hSelf);
-    TradingPostItemIndexManager::Start(hSelf);
-    TradingPostWatchManager::Start(hSelf);
     ConsumableMetadataManager::Start();
     RTAPIIntegration::Start(APIDefs);
     SquadTracker::SaveUnknownConsumables();
@@ -201,12 +194,8 @@ void AddonUnload()
     Settings::Save(hSelf);
     SessionTracker::Shutdown();
 
-    TradingPostWatchManager::Shutdown();
-    TradingPostItemIndexManager::Shutdown();
-    TradingPostItemIndexManager::Reset();
     TradingPostPriceManager::Shutdown();
     TradingPostPriceManager::Reset();
-    TradingPostHistoryManager::Shutdown();
     ConsumableMetadataManager::Shutdown();
     ConsumableMetadataManager::Reset();
     RTAPIIntegration::Shutdown();
@@ -244,8 +233,6 @@ void AddonUnload()
 
 void AddonRender()
 {
-    TradingPostWatchManager::Update();
-
     const bool hasFood =
         BuffTracker::HasFood();
 
@@ -378,17 +365,6 @@ void AddonRender()
     const bool isGameplay =
         NexusLink != nullptr &&
         NexusLink->IsGameplay;
-
-    const bool tradingPostTabVisible =
-        TradingPostUI::WasTabVisibleRecently();
-
-    if (
-        isGameplay &&
-        !tradingPostTabVisible
-        )
-    {
-        TradingPostUI::RenderTargetOverlay();
-    }
 
     if (isGameplay)
     {
@@ -1193,16 +1169,6 @@ void AddonOptions()
         {
             HistoryUI::Render(
                 GetCurrentHistoryCharacterName()
-            );
-
-            ImGui::EndTabItem();
-        }
-
-        if (ImGui::BeginTabItem(
-            "Trading Post"))
-        {
-            TradingPostUI::RenderTab(
-                hSelf
             );
 
             ImGui::EndTabItem();

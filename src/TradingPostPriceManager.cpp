@@ -1,7 +1,5 @@
 #include "TradingPostPriceManager.h"
 
-#include "TradingPostHistoryManager.h"
-
 #include <Windows.h>
 #include <winhttp.h>
 
@@ -26,24 +24,14 @@ namespace
         TradingPostPrice
     > g_TradingPostPrices;
 
-    std::mutex g_ItemLookupMutex;
-
-    std::unordered_map<
-        uint32_t,
-        TradingPostItemLookup
-    > g_ItemLookups;
 
     std::mutex g_RequestMutex;
     std::condition_variable g_RequestCondition;
 
     std::queue<uint32_t> g_PriceRequests;
-    std::queue<uint32_t> g_ItemLookupRequests;
-
     std::unordered_set<uint32_t>
         g_QueuedItemIDs;
 
-    std::unordered_set<uint32_t>
-        g_QueuedLookupItemIDs;
 
     std::thread g_WorkerThread;
 
@@ -211,145 +199,11 @@ namespace
         return true;
     }
 
-    bool ExtractJsonString(
-        const std::string& json,
-        const std::string& key,
-        std::string& outValue
-    )
-    {
-        outValue.clear();
-
-        const std::string searchKey =
-            "\"" + key + "\"";
-
-        const size_t keyPosition =
-            json.find(
-                searchKey
-            );
-
-        if (
-            keyPosition ==
-            std::string::npos
-            )
-        {
-            return false;
-        }
-
-        const size_t colonPosition =
-            json.find(
-                ':',
-                keyPosition +
-                searchKey.size()
-            );
-
-        if (
-            colonPosition ==
-            std::string::npos
-            )
-        {
-            return false;
-        }
-
-        const size_t quotePosition =
-            json.find(
-                '"',
-                colonPosition + 1
-            );
-
-        if (
-            quotePosition ==
-            std::string::npos
-            )
-        {
-            return false;
-        }
-
-        bool escaped = false;
-
-        for (
-            size_t i =
-            quotePosition + 1;
-            i < json.size();
-            ++i
-            )
-        {
-            const char character =
-                json[i];
-
-            if (escaped)
-            {
-                switch (character)
-                {
-                case '"':
-                    outValue += '"';
-                    break;
-
-                case '\\':
-                    outValue += '\\';
-                    break;
-
-                case '/':
-                    outValue += '/';
-                    break;
-
-                case 'n':
-                    outValue += '\n';
-                    break;
-
-                case 'r':
-                    outValue += '\r';
-                    break;
-
-                case 't':
-                    outValue += '\t';
-                    break;
-
-                default:
-                    outValue += character;
-                    break;
-                }
-
-                escaped = false;
-                continue;
-            }
-
-            if (character == '\\')
-            {
-                escaped = true;
-                continue;
-            }
-
-            if (character == '"')
-            {
-                return true;
-            }
-
-            outValue += character;
-        }
-
-        return false;
-    }
-
-    void StoreItemLookup(
-        const TradingPostItemLookup& lookup
-    )
-    {
-        std::lock_guard<std::mutex> lock(
-            g_ItemLookupMutex
-        );
-
-        g_ItemLookups[
-            lookup.itemID
-        ] =
-            lookup;
-    }
-
     void PriceWorker()
     {
         while (true)
         {
             uint32_t itemID = 0;
-            bool isLookupRequest = false;
 
             {
                 std::unique_lock<std::mutex> lock(
@@ -362,92 +216,47 @@ namespace
                     {
                         return
                             g_StopWorker ||
-                            !g_ItemLookupRequests.empty() ||
                             !g_PriceRequests.empty();
                     }
                 );
 
                 if (
                     g_StopWorker &&
-                    g_ItemLookupRequests.empty() &&
                     g_PriceRequests.empty()
                     )
                 {
                     break;
                 }
 
-                if (
-                    !g_ItemLookupRequests.empty()
-                    )
-                {
-                    itemID =
-                        g_ItemLookupRequests.front();
+                itemID =
+                    g_PriceRequests.front();
 
-                    g_ItemLookupRequests.pop();
-
-                    isLookupRequest =
-                        true;
-                }
-                else
-                {
-                    itemID =
-                        g_PriceRequests.front();
-
-                    g_PriceRequests.pop();
-                }
+                g_PriceRequests.pop();
             }
 
-            if (isLookupRequest)
-            {
-                TradingPostPriceManager::
-                    FetchItemLookup(
-                        itemID
-                    );
-
-                std::lock_guard<std::mutex> lock(
-                    g_RequestMutex
-                );
-
-                g_QueuedLookupItemIDs.erase(
+            TradingPostPriceManager::
+                FetchPrice(
                     itemID
                 );
-            }
-            else
-            {
-                TradingPostPriceManager::
-                    FetchPrice(
-                        itemID
-                    );
 
-                std::lock_guard<std::mutex> lock(
-                    g_RequestMutex
-                );
+            std::lock_guard<std::mutex> lock(
+                g_RequestMutex
+            );
 
-                g_QueuedItemIDs.erase(
-                    itemID
-                );
-            }
+            g_QueuedItemIDs.erase(
+                itemID
+            );
         }
     }
 }
 
 void TradingPostPriceManager::Reset()
 {
-    {
-        std::lock_guard<std::mutex> lock(
-            g_TradingPostPriceMutex
-        );
+    std::lock_guard<std::mutex> lock(
+        g_TradingPostPriceMutex
+    );
 
-        g_TradingPostPrices.clear();
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(
-            g_ItemLookupMutex
-        );
-
-        g_ItemLookups.clear();
-    }
+    g_TradingPostPrices.clear();
 }
 
 void TradingPostPriceManager::Start()
@@ -504,13 +313,8 @@ void TradingPostPriceManager::Shutdown()
             g_PriceRequests.pop();
         }
 
-        while (!g_ItemLookupRequests.empty())
-        {
-            g_ItemLookupRequests.pop();
-        }
 
         g_QueuedItemIDs.clear();
-        g_QueuedLookupItemIDs.clear();
     }
 }
 
@@ -567,92 +371,6 @@ void TradingPostPriceManager::RequestPrice(
     g_RequestCondition.notify_one();
 }
 
-void TradingPostPriceManager::RequestItemLookup(
-    uint32_t itemID,
-    bool forceRefresh
-)
-{
-    if (itemID == 0)
-    {
-        return;
-    }
-
-    if (!forceRefresh)
-    {
-        TradingPostItemLookup existingLookup;
-
-        if (
-            TryGetItemLookup(
-                itemID,
-                existingLookup
-            ) &&
-            existingLookup.complete
-            )
-        {
-            return;
-        }
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(
-            g_RequestMutex
-        );
-
-        if (
-            g_QueuedLookupItemIDs.find(
-                itemID
-            ) !=
-            g_QueuedLookupItemIDs.end()
-            )
-        {
-            return;
-        }
-
-        g_QueuedLookupItemIDs.insert(
-            itemID
-        );
-
-        g_ItemLookupRequests.push(
-            itemID
-        );
-    }
-
-    g_RequestCondition.notify_one();
-}
-
-bool TradingPostPriceManager::TryGetItemLookup(
-    uint32_t itemID,
-    TradingPostItemLookup& outLookup
-)
-{
-    if (itemID == 0)
-    {
-        return false;
-    }
-
-    std::lock_guard<std::mutex> lock(
-        g_ItemLookupMutex
-    );
-
-    const auto it =
-        g_ItemLookups.find(
-            itemID
-        );
-
-    if (
-        it ==
-        g_ItemLookups.end()
-        )
-    {
-        return false;
-    }
-
-    outLookup =
-        it->second;
-
-    return true;
-}
-
 void TradingPostPriceManager::StorePrice(
     uint32_t itemID,
     uint32_t buyUnitPrice,
@@ -697,13 +415,6 @@ void TradingPostPriceManager::StorePrice(
             price;
     }
 
-    TradingPostHistoryManager::
-        RecordObservation(
-            itemID,
-            buyUnitPrice,
-            sellUnitPrice,
-            price.lastUpdatedUnixSeconds
-        );
 }
 
 bool TradingPostPriceManager::TryGetPrice(
@@ -859,89 +570,4 @@ bool TradingPostPriceManager::FetchPrice(
     }
 
     return true;
-}
-
-bool TradingPostPriceManager::FetchItemLookup(
-    uint32_t itemID
-)
-{
-    TradingPostItemLookup lookup;
-
-    lookup.itemID =
-        itemID;
-
-    lookup.complete =
-        true;
-
-    if (itemID == 0)
-    {
-        StoreItemLookup(
-            lookup
-        );
-
-        return false;
-    }
-
-    std::string response;
-
-    const std::wstring itemPath =
-        L"/v2/items/" +
-        std::to_wstring(
-            itemID
-        );
-
-    if (
-        !HttpGet(
-            itemPath,
-            response
-        )
-        )
-    {
-        StoreItemLookup(
-            lookup
-        );
-
-        return false;
-    }
-
-    std::string officialName;
-
-    if (
-        !ExtractJsonString(
-            response,
-            "name",
-            officialName
-        ) ||
-        officialName.empty()
-        )
-    {
-        StoreItemLookup(
-            lookup
-        );
-
-        return false;
-    }
-
-    lookup.name =
-        officialName;
-
-    lookup.validItem =
-        true;
-
-    //
-    // This second request confirms that the valid GW2 item
-    // actually exists on the Trading Post.
-    //
-    lookup.availableOnTradingPost =
-        FetchPrice(
-            itemID
-        );
-
-    StoreItemLookup(
-        lookup
-    );
-
-    return
-        lookup.validItem &&
-        lookup.availableOnTradingPost;
 }

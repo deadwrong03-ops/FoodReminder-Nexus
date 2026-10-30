@@ -120,11 +120,7 @@
     <ClInclude Include="SquadTracker.h" />
     <ClInclude Include="SquadUI.h" />
     <ClInclude Include="TrackerUI.h" />
-    <ClInclude Include="TradingPostHistoryManager.h" />
-    <ClInclude Include="TradingPostItemIndexManager.h" />
     <ClInclude Include="TradingPostPriceManager.h" />
-    <ClInclude Include="TradingPostUI.h" />
-    <ClInclude Include="TradingPostWatchManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BuffTracker.cpp" />
@@ -147,11 +143,7 @@
     <ClCompile Include="Squadtracker.cpp" />
     <ClCompile Include="SquadUI.cpp" />
     <ClCompile Include="TrackerUI.cpp" />
-    <ClCompile Include="TradingPostHistoryManager.cpp" />
-    <ClCompile Include="TradingPostItemIndexManager.cpp" />
     <ClCompile Include="TradingPostPriceManager.cpp" />
-    <ClCompile Include="TradingPostUI.cpp" />
-    <ClCompile Include="TradingPostWatchManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\DEVELOPMENT_LOG.md" />

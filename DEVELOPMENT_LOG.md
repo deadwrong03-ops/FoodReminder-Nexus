@@ -5,6 +5,63 @@ A chronological record of major development changes, testing results, fixes, and
 ---
 
 
+## 2026-10-30 — Standalone Trading Post Feature Removed
+
+### Changed
+- Simplified FoodReminder-Nexus back around its core consumable-tracking purpose.
+- Retained `TradingPostPriceManager` only for current Trading Post sell-price lookup used by Session and Personal History cost estimates.
+- Removed Trading Post-specific settings, including the selectable trend-window setting.
+- Updated the Visual Studio project and filters so obsolete standalone Trading Post components are no longer compiled.
+
+### Removed
+- Trading Post tab/UI.
+- Trading Post watch lists.
+- Name-first item search and local item index.
+- Sell Targets.
+- Target alerts and target celebration overlays.
+- Local Trading Post price-history collection.
+- Trend windows, history charts, averages, market direction, confidence, coverage, samples, and buyer/seller guidance.
+- Trading Post startup/shutdown plumbing no longer needed by the consumable tracker.
+- Obsolete `TradingPostHistoryManager`, `TradingPostItemIndexManager`, `TradingPostUI`, and `TradingPostWatchManager` project components.
+
+### Preserved
+- Food tracking and expiration reminders.
+- Utility tracking and expiration reminders.
+- Metabolic Primer and Utility Primer tracking.
+- Compact tracker.
+- Session reporting.
+- Persistent per-character Personal History.
+- Squad consumable tracking.
+- Current-price consumable cost estimates in Session and Personal History.
+- External consumable database support.
+- RTAPI/ArcDPS hybrid squad behavior.
+
+### Tested
+- Release x64 build completed successfully with `1 succeeded, 0 failed`.
+- Addon loaded successfully in Guild Wars 2 after the cleanup.
+- Compact tracker displayed live Food, Utility, Metabolic Primer, and Utility Primer countdowns.
+- Session tab opened and continued tracking current-session consumable state.
+- Personal History opened with saved sessions, coverage, estimated spend, trends, and current-price cost data intact.
+- Squad tab opened normally after the cleanup.
+- No standalone Trading Post tab/watch-list interface remained in the tested build.
+
+### Status
+✅ Standalone Trading Post feature removed  
+✅ Current-price consumable cost lookup preserved  
+✅ Release x64 build passed  
+✅ Addon startup passed  
+✅ Food/Utility/Primer tracker passed live test  
+✅ Session UI passed live test  
+✅ Personal History and pricing display passed live test  
+✅ Squad UI passed live test  
+
+### Next
+- Update `README.md` to describe the new current feature set.
+- Keep normal gameplay validation focused on consumable tracking, Session, History, Squad, and Primer reliability.
+- Commit and push the verified Trading Post-removal checkpoint after documentation is updated.
+
+---
+
 ## 2026-10-27 — ArcDPS Typed Buff Reliability, Map Transitions & Primer Persistence
 
 ### Changed

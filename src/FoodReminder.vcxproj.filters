@@ -56,22 +56,10 @@
     <ClCompile Include="ConsumableMetadataManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TradingPostWatchManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TradingPostItemIndexManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TradingPostHistoryManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="RTAPIIntegration.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="HistoryUI.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="TradingPostUI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SquadUI.cpp">
@@ -145,15 +133,6 @@
     <ClInclude Include="ConsumableMetadataManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="TradingPostWatchManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TradingPostItemIndexManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TradingPostHistoryManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RTAPIIntegration.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -161,9 +140,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HistoryUI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="TradingPostUI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SquadUI.h">
